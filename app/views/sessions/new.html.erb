@@ -1,0 +1,25 @@
+<h1>Đăng nhập</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:hero, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">Mừng bạn quay lại. Vào tiếp hành trình thôi!</div>
+</div>
+
+<div class="panel">
+  <%= form_with url: session_path, method: :post, class: "form" do |f| %>
+    <div class="field">
+      <%= f.label :email, "Email" %>
+      <%= f.email_field :email, required: true, autofocus: true %>
+    </div>
+
+    <div class="field">
+      <%= f.label :password, "Mật khẩu" %>
+      <%= f.password_field :password, required: true %>
+    </div>
+
+    <%= f.submit "Đăng nhập", class: "btn--primary" %>
+  <% end %>
+</div>
+
+<p><%= link_to "Chưa có tài khoản? Đăng ký", signup_path %></p>
+<p class="muted small">Sai mật khẩu 5 lần liên tiếp thì tài khoản bị khoá tạm 15 phút.</p>

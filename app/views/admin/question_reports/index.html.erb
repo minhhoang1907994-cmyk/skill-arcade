@@ -1,0 +1,52 @@
+<h1>Báo cáo câu hỏi sai</h1>
+
+<p class="muted">
+  Chấp nhận báo cáo sẽ <strong>ẩn</strong> câu hỏi, không xoá. Các lượt đã chơi trên
+  câu đó vẫn giữ nguyên điểm đã chấm.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Game</th>
+      <th>Câu hỏi</th>
+      <th>Người báo</th>
+      <th>Lý do</th>
+      <th>Trạng thái</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if @reports.empty? %>
+      <tr><td colspan="7" class="muted">Chưa có báo cáo nào.</td></tr>
+    <% end %>
+    <% @reports.each do |report| %>
+      <tr>
+        <td><%= report.id %></td>
+        <td><%= report.question.game.name %></td>
+        <td>
+          #<%= report.question_id %>
+          <% if report.question.hidden? %>
+            <span class="badge">đã ẩn</span>
+          <% end %>
+        </td>
+        <td><%= report.user.display_name %></td>
+        <td><%= truncate(report.reason, length: 120) %></td>
+        <td><%= report.status %></td>
+        <td>
+          <% if report.status == QuestionReport::OPEN %>
+            <div class="actions">
+              <%= button_to "Chấp nhận, ẩn câu", admin_question_report_path(report),
+                    method: :patch, params: { decision: "accept" }, class: "btn--primary" %>
+              <%= button_to "Bỏ qua", admin_question_report_path(report),
+                    method: :patch, params: { decision: "reject" } %>
+            </div>
+          <% else %>
+            <span class="muted small"><%= report.handled_by&.display_name %></span>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

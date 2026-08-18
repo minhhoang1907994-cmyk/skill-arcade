@@ -1,0 +1,33 @@
+flowchart TD
+    classDef actor fill:#E6F1FB,stroke:#185FA5,color:#0C447C
+    classDef internal fill:#EAF3DE,stroke:#3B6D11,color:#27500A
+    classDef external fill:#FAECE7,stroke:#993C1D,color:#712B13
+    classDef error fill:#FCEBEB,stroke:#A32D2D,color:#791F1F
+
+    A([Member]) --> B[Đăng nhập]
+    B --> C[Chọn game]
+    C --> D{Còn lượt trong hạn mức?}
+    D -- Không --> E[429 Rate limited]
+    D -- Có --> F[Tạo game_session, score=0]
+    F --> G[Bốc N câu chưa hidden]
+    G --> H[Hiển thị câu hiện tại]
+    H --> I([Member nộp đáp án])
+    I --> J{Game cần AI chấm?}
+    J -- Có --> K[Gọi Gemini API]
+    K --> L[Ghi ai_gradings]
+    J -- Không --> M[Chấm theo answer_key]
+    L --> N[Cộng điểm vào session]
+    M --> N
+    N --> O{Hết câu hoặc chạm điều kiện kết thúc sớm?}
+    O -- Không --> H
+    O -- Có --> P[state=finished, finished_at=now]
+    P --> Q{Điểm cao hơn personal best?}
+    Q -- Có --> R[Personal best mới]
+    Q -- Không --> S[Giữ best cũ]
+    R --> T[Hiển thị kết quả lượt]
+    S --> T
+
+    class A,I actor
+    class B,C,F,G,H,M,N,P,R,S,T internal
+    class K,L external
+    class E error

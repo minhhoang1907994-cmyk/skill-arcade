@@ -1,0 +1,512 @@
+# Câu hỏi mẫu viết tay để chơi thử được ngay ở Phase 2.
+# Ngân hàng câu hỏi thật sẽ do rake questions:generate sinh ở Phase 3 (source: ai_generated).
+#
+# Chạy: bin/rails runner db/seeds/sample_questions.rb
+# Idempotent: checksum unique nên chạy lại không tạo bản ghi trùng.
+
+def upsert_question(game, content, answer_key, difficulty: "medium")
+  checksum = Question.checksum_for(content)
+  question = Question.find_or_initialize_by(checksum: checksum)
+  question.assign_attributes(
+    game: game, content: content, answer_key: answer_key,
+    difficulty: difficulty, source: "manual"
+  )
+  question.save!
+  question
+end
+
+# --- Bug Hunt: 12 snippet (đủ cho 1 lượt 10 câu + dư để lượt sau còn câu mới) ---
+bug_hunt = Game.find_by!(slug: Game::BUG_HUNT)
+
+BUG_HUNT_SAMPLES = [
+  {
+    language: "php",
+    lines: [
+      "public function findUser($email) {",
+      "    $db = $this->connection;",
+      "    $sql = \"SELECT * FROM users WHERE email = '\" . $email . \"'\";",
+      "    return $db->query($sql)->fetch();",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "sql_injection",
+    explanation: "Email được nối thẳng vào câu SQL. Dùng prepared statement với placeholder."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def total_price(order)",
+      "  order.items.map do |item|",
+      "    item.product.price * item.quantity",
+      "  end.sum",
+      "end"
+    ],
+    buggy_line: 3,
+    bug_type: "n_plus_one",
+    explanation: "Mỗi item gọi thêm một query lấy product. Dùng includes(:product) khi load items."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "function getDisplayName(user) {",
+      "  return user.profile.displayName.trim();",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_null_check",
+    explanation: "profile hoặc displayName có thể null. Dùng optional chaining và giá trị mặc định."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def transfer(from, to, amount)",
+      "  from.update!(balance: from.balance - amount)",
+      "  to.update!(balance: to.balance + amount)",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_transaction",
+    explanation: "Hai lệnh update không nằm trong transaction. Lỗi ở dòng sau làm mất tiền."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function deleteAccount($id) {",
+      "    $user = User::find($id);",
+      "    $user->delete();",
+      "    return response()->json(['ok' => true]);",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_authorization",
+    explanation: "Không kiểm tra người gọi có quyền xoá tài khoản này không (IDOR)."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "async function saveAll(items) {",
+      "  items.forEach(async (item) => {",
+      "    await api.save(item);",
+      "  });",
+      "  console.log('done');",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "async_misuse",
+    explanation: "forEach không đợi async callback. Dùng for...of hoặc Promise.all."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def apply_discount(price, percent)",
+      "  price - (price * percent / 100)",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_validation",
+    explanation: "percent không được kiểm tra khoảng hợp lệ. percent > 100 cho giá âm."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function login(Request $request) {",
+      "    $user = User::where('email', $request->email)->first();",
+      "    Log::info('login attempt', ['password' => $request->password]);",
+      "    return Auth::attempt($request->only('email', 'password'));",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "sensitive_data_logging",
+    explanation: "Mật khẩu bị ghi thẳng vào log. Không bao giờ log credential."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "function renderComment(comment) {",
+      "  const el = document.createElement('div');",
+      "  el.innerHTML = comment.body;",
+      "  return el;",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "xss",
+    explanation: "innerHTML với nội dung người dùng nhập cho phép chèn script. Dùng textContent."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def process_payment(order)",
+      "  gateway.charge(order.total)",
+      "  order.update!(status: 'paid')",
+      "rescue StandardError",
+      "  nil",
+      "end"
+    ],
+    buggy_line: 5,
+    bug_type: "swallowed_exception",
+    explanation: "Nuốt lỗi im lặng: thanh toán hỏng nhưng không ai biết. Ít nhất phải log và raise lại."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function export(Request $request) {",
+      "    $rows = Order::all();",
+      "    return Excel::download(new OrdersExport($rows), 'orders.xlsx');",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "unbounded_query",
+    explanation: "Order::all() nạp toàn bộ bảng vào RAM. Dùng chunk hoặc cursor."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "const cache = {};",
+      "function getConfig(key) {",
+      "  if (!cache[key]) {",
+      "    cache[key] = fetchConfig(key);",
+      "  }",
+      "  return cache[key];",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "falsy_check",
+    explanation: "Giá trị hợp lệ nhưng falsy (0, '', false) làm cache miss mãi. Dùng 'key in cache'."
+  }
+].freeze
+
+BUG_HUNT_TYPES = BUG_HUNT_SAMPLES.map { |s| s[:bug_type] }.uniq.freeze
+
+BUG_HUNT_SAMPLES.each do |sample|
+  upsert_question(
+    bug_hunt,
+    {
+      "language" => sample[:language],
+      "code_lines" => sample[:lines],
+      "bug_types" => BUG_HUNT_TYPES
+    },
+    {
+      "buggy_line" => sample[:buggy_line],
+      "bug_type" => sample[:bug_type],
+      "explanation" => sample[:explanation]
+    }
+  )
+end
+
+# --- Estimate Poker: 12 task ---
+estimate_poker = Game.find_by!(slug: Game::ESTIMATE_POKER)
+
+ESTIMATE_SAMPLES = [
+  [ "Thêm cột `deleted_at` vào bảng users và cập nhật model dùng soft delete", 3,
+    "Migration đơn giản, nhưng phải rà lại mọi query đang lấy user để loại bản ghi đã xoá." ],
+  [ "Viết API đăng nhập email/password kèm khoá tài khoản sau 5 lần sai", 8,
+    "Gồm model, controller, rate limit, và test cho luồng khoá." ],
+  [ "Đổi màu nút primary trong design system", 1, "Sửa biến CSS, kiểm tra lại vài màn hình chính." ],
+  [ "Tích hợp cổng thanh toán mới có webhook và xử lý idempotency", 24,
+    "Phần lớn thời gian nằm ở xử lý webhook trùng và test sandbox." ],
+  [ "Sinh báo cáo Excel từ 200k bản ghi, có filter theo khoảng ngày", 12,
+    "Cần streaming/chunk để không hết RAM, cộng thời gian tối ưu query." ],
+  [ "Thêm trang danh sách có phân trang và sắp xếp cho một bảng đã có sẵn API", 5,
+    "Frontend là chính, backend chỉ cần bổ sung tham số sort." ],
+  [ "Chuyển toàn bộ upload ảnh từ local disk sang S3", 16,
+    "Gồm migrate file cũ, đổi code upload, và xử lý URL trong dữ liệu đã có." ],
+  [ "Sửa lỗi sai múi giờ khi hiển thị ngày tạo đơn hàng", 4,
+    "Tìm nguyên nhân mất thời gian hơn sửa; phải rà cả nơi lưu và nơi hiển thị." ],
+  [ "Viết unit test cho một service đã có 300 dòng, hiện chưa có test nào", 10,
+    "Phải tách phụ thuộc trước khi test được, đó mới là phần tốn thời gian." ],
+  [ "Thêm chức năng quên mật khẩu qua email", 8,
+    "Token có hạn, gửi mail, trang đặt lại, và test cho token hết hạn." ],
+  [ "Nâng phiên bản framework từ major cũ lên major mới", 40,
+    "Không đoán trước được số breaking change; luôn phát sinh thêm khi chạy test." ],
+  [ "Thêm bộ lọc theo trạng thái vào màn hình danh sách đơn hàng", 3,
+    "Một tham số query, một dropdown, cộng test." ]
+].freeze
+
+ESTIMATE_SAMPLES.each do |description, hours, reasoning|
+  upsert_question(
+    estimate_poker,
+    { "task_description" => description, "context" => "Dev có kinh nghiệm trung bình, đã quen codebase" },
+    { "actual_hours" => hours, "reasoning" => reasoning }
+  )
+end
+
+# --- Spec Detective: 6 đoạn requirement (chấm bằng AI ở Phase 3) ---
+spec_detective = Game.find_by!(slug: Game::SPEC_DETECTIVE)
+
+SPEC_SAMPLES = [
+  [ "Hệ thống phải xử lý đơn hàng nhanh chóng. Khi có đơn mới, gửi thông báo cho bộ phận liên quan nếu cần thiết.",
+    [ "nhanh chóng", "bộ phận liên quan", "nếu cần thiết" ] ],
+  [ "Người dùng có thể tải file lên. File quá lớn sẽ bị từ chối với thông báo phù hợp.",
+    [ "quá lớn", "thông báo phù hợp", "loại file được phép" ] ],
+  [ "Báo cáo doanh thu hiển thị dữ liệu của kỳ hiện tại và cho phép xuất ra file.",
+    [ "kỳ hiện tại", "định dạng file xuất", "phạm vi dữ liệu theo quyền" ] ],
+  [ "Khi khách hàng huỷ đơn, hoàn tiền theo chính sách của công ty.",
+    [ "chính sách của công ty", "hoàn toàn phần hay toàn bộ", "thời hạn được huỷ" ] ],
+  [ "Admin có thể chỉnh sửa thông tin người dùng. Một số trường không được phép sửa.",
+    [ "một số trường", "admin cấp nào", "có ghi log thay đổi không" ] ],
+  [ "Hệ thống tự động đồng bộ dữ liệu với hệ thống kế toán định kỳ.",
+    [ "định kỳ", "dữ liệu nào", "xử lý khi đồng bộ thất bại" ] ]
+].freeze
+
+SPEC_SAMPLES.each do |text, points|
+  upsert_question(
+    spec_detective,
+    { "requirement_text" => text },
+    {
+      "ambiguous_points" => points,
+      "sample_questions" => points.map { |p| "\"#{p}\" cụ thể là gì? Đo bằng tiêu chí nào?" },
+      "rubric" => "Tối đa 10 điểm cho việc tìm đủ điểm mơ hồ, 10 điểm cho chất lượng câu hỏi làm rõ."
+    }
+  )
+end
+
+# --- PROD Roulette: 3 kịch bản, mỗi kịch bản 10 bước ---
+prod_roulette = Game.find_by!(slug: Game::PROD_ROULETTE)
+
+def roulette_scenario(title, steps)
+  nodes = steps.each_with_index.map do |step, i|
+    {
+      "key" => "n#{i + 1}",
+      "prompt" => step[:prompt],
+      "options" => step[:options].map { |o| { "key" => o[:key], "label" => o[:label] } }
+    }
+  end
+
+  effects = {}
+  steps.each_with_index do |step, i|
+    step[:options].each do |o|
+      effects[o[:key]] = {
+        "points" => o[:points],
+        "irreversible" => o.fetch(:irreversible, false),
+        "consequence_text" => o[:consequence],
+        "next_node" => (i + 2 <= steps.size ? "n#{i + 2}" : nil)
+      }
+    end
+  end
+
+  [ { "scenario" => title, "nodes" => nodes }, { "option_effects" => effects } ]
+end
+
+ROULETTE_STEPS = [
+  { prompt: "Khách báo tính năng gửi voucher chưa chạy đúng. Project chưa có Staging. Bạn làm gì trước?",
+    options: [
+      { key: "s1a", label: "Xin approval bằng văn bản trước khi đụng vào PROD", points: 10,
+        consequence: "Đúng. Có approval là điều kiện đầu tiên khi buộc phải test trên PROD." },
+      { key: "s1b", label: "Vào PROD thử luôn cho nhanh, sếp đang giục", points: 0, irreversible: false,
+        consequence: "Rủi ro: không ai biết bạn đang thao tác gì trên PROD." },
+      { key: "s1c", label: "Đề xuất dựng Staging trước đã", points: 3,
+        consequence: "Đúng về lâu dài nhưng không giải quyết được việc cần làm hôm nay." }
+    ] },
+  { prompt: "Bạn cần tài khoản để test. Chọn cách nào?",
+    options: [
+      { key: "s2a", label: "Tạo tài khoản test riêng, đánh dấu rõ [TEST-DO-NOT-USE]", points: 10,
+        consequence: "Đúng. Dữ liệu test phải nhận diện được để còn dọn." },
+      { key: "s2b", label: "Dùng tài khoản của một khách hàng thật cho giống thực tế", points: 0,
+        irreversible: true,
+        consequence: "DỪNG LƯỢT. Bạn vừa thao tác trên dữ liệu của khách hàng thật. Mọi thông báo, giao dịch phát sinh đều đã xảy ra thật và không thu hồi được." },
+      { key: "s2c", label: "Dùng tài khoản cá nhân của mình", points: 3,
+        consequence: "Đỡ hơn dùng của khách, nhưng vẫn khó phân biệt khi rà soát sau này." }
+    ] },
+  { prompt: "Trước khi chạy, bạn rà soát side-effect của tính năng. Bước nào quan trọng nhất?",
+    options: [
+      { key: "s3a", label: "Liệt kê mọi kênh gửi ra ngoài: email, SMS, push, webhook bên thứ 3", points: 10,
+        consequence: "Đúng. Đây là bước quyết định giữa 'dọn được' và 'không thu hồi được'." },
+      { key: "s3b", label: "Đọc lướt code xem có gì lạ không", points: 3,
+        consequence: "Chưa đủ. Side-effect thường nằm ở event listener hoặc job chạy nền." },
+      { key: "s3c", label: "Bỏ qua, tính năng này chắc không gửi gì đâu", points: 0,
+        consequence: "\"Chắc không sao đâu\" là câu mở đầu của phần lớn incident." }
+    ] },
+  { prompt: "Bạn phát hiện tính năng có gửi email thật cho người nhận voucher. Làm gì?",
+    options: [
+      { key: "s4a", label: "Bật feature flag chặn gửi thật, hoặc trỏ sang sandbox của provider", points: 10,
+        consequence: "Đúng. Chặn kênh gửi thật TRƯỚC khi chạy, không phải sau." },
+      { key: "s4b", label: "Cứ chạy, email gửi nhầm thì gửi email xin lỗi sau", points: 0,
+        irreversible: true,
+        consequence: "DỪNG LƯỢT. Email đã đến hộp thư người dùng thật. Đây chính là kịch bản dẫn tới thiệt hại hàng chục nghìn USD trong bài học có thật của công ty." },
+      { key: "s4c", label: "Giới hạn allowlist chỉ gửi tới email nội bộ", points: 10,
+        consequence: "Đúng. Allowlist là cách chặn hiệu quả khi provider không có sandbox." }
+    ] },
+  { prompt: "Rollback plan của bạn hiện đang ở đâu?",
+    options: [
+      { key: "s5a", label: "Đã viết ra cụ thể: xoá bản ghi nào, ở bảng nào, bằng query nào", points: 10,
+        consequence: "Đúng. Rollback plan phải có TRƯỚC khi bắt đầu, không phải nghĩ sau." },
+      { key: "s5b", label: "Trong đầu rồi, xong việc tính sau", points: 0,
+        consequence: "Đây là lý do dữ liệu test bị bỏ quên trên PROD." },
+      { key: "s5c", label: "Sẽ nhờ DBA nếu có chuyện", points: 3,
+        consequence: "Phụ thuộc người khác lúc khẩn cấp làm chậm thời gian khôi phục." }
+    ] },
+  { prompt: "Chạy test xong, kết quả đúng như mong đợi. Việc tiếp theo?",
+    options: [
+      { key: "s6a", label: "Dọn dữ liệu test ngay trong cùng phiên làm việc", points: 10,
+        consequence: "Đúng. \"Để mai dọn\" là cách dữ liệu test đến tay khách hàng." },
+      { key: "s6b", label: "Ghi chú vào TODO, mai dọn", points: 0,
+        consequence: "Rủi ro cao: mai bạn bận việc khác, dữ liệu ở lại PROD." },
+      { key: "s6c", label: "Để lại vài bản ghi phòng khi cần test tiếp", points: 0,
+        consequence: "Dữ liệu \"để tạm\" là dữ liệu bị quên." }
+    ] },
+  { prompt: "Bạn dọn xong. Làm sao chắc chắn đã sạch?",
+    options: [
+      { key: "s7a", label: "Chạy lại đúng filter đã dùng để tạo dữ liệu, xác nhận trả về rỗng", points: 10,
+        consequence: "Đúng. Xác minh bằng chính tiêu chí đã tạo ra dữ liệu." },
+      { key: "s7b", label: "Nhìn qua màn hình danh sách thấy không còn là được", points: 3,
+        consequence: "Màn hình có phân trang và bộ lọc mặc định, dễ bỏ sót." },
+      { key: "s7c", label: "Tin là đã xoá hết vì query báo thành công", points: 0,
+        consequence: "Query thành công không có nghĩa là đã xoá đúng phạm vi." }
+    ] },
+  { prompt: "Ai xác nhận việc dọn dẹp đã hoàn tất?",
+    options: [
+      { key: "s8a", label: "Nhờ người thứ hai kiểm tra lại (4-eyes)", points: 10,
+        consequence: "Đúng. Người tạo ra dữ liệu là người dễ bỏ sót nó nhất." },
+      { key: "s8b", label: "Tự mình xác nhận là đủ", points: 3,
+        consequence: "Chấp nhận được với việc nhỏ, rủi ro với thao tác trên PROD." },
+      { key: "s8c", label: "Không cần ai xác nhận", points: 0,
+        consequence: "Không có lớp kiểm tra nào thì sai sót đi thẳng tới khách hàng." }
+    ] },
+  { prompt: "Báo cáo lại kết quả thế nào?",
+    options: [
+      { key: "s9a", label: "Ghi vào ticket: đã test gì, tạo gì, dọn gì, ai xác nhận", points: 10,
+        consequence: "Đúng. Có ghi chép thì lần sau còn truy được." },
+      { key: "s9b", label: "Nhắn miệng cho leader là xong rồi", points: 3,
+        consequence: "Không tra lại được khi có vấn đề phát sinh sau này." },
+      { key: "s9c", label: "Không báo, mọi thứ đều ổn mà", points: 0,
+        consequence: "Không ai biết đã có thao tác trên PROD." }
+    ] },
+  { prompt: "Rút kinh nghiệm cho lần sau, đề xuất nào có giá trị nhất?",
+    options: [
+      { key: "s10a", label: "Đề xuất dựng môi trường Staging/UAT", points: 10,
+        consequence: "Đúng. Checklist con người chỉ là băng dán; thiếu Staging mới là nguyên nhân gốc." },
+      { key: "s10b", label: "Viết thêm checklist cho mọi người tự nhớ", points: 3,
+        consequence: "Có ích, nhưng vẫn phụ thuộc việc người ta nhớ mở checklist ra." },
+      { key: "s10c", label: "Nhắc nhau cẩn thận hơn", points: 0,
+        consequence: "Không phải giải pháp mang tính hệ thống." }
+    ] }
+].freeze
+
+3.times do |i|
+  content, answer_key = roulette_scenario(
+    "Kịch bản #{i + 1}: test tính năng gửi voucher trên môi trường PRODUCTION",
+    ROULETTE_STEPS
+  )
+  # Mỗi kịch bản khác nhau ở tiêu đề nên checksum khác nhau.
+  upsert_question(prod_roulette, content, answer_key)
+end
+
+# --- Incident Escape Room: 3 kịch bản, mỗi kịch bản 8 bước ---
+escape_room = Game.find_by!(slug: Game::INCIDENT_ESCAPE_ROOM)
+
+ESCAPE_STEPS = [
+  { prompt: "03:10 — Cảnh báo: API trả 500 hàng loạt. Việc đầu tiên?",
+    options: [
+      { key: "e1a", label: "Mở dashboard xem phạm vi ảnh hưởng", points: 10, minutes: 2,
+        explanation: "Đúng: xác định phạm vi trước khi đụng vào bất cứ thứ gì." },
+      { key: "e1b", label: "Restart toàn bộ service ngay", points: 0, minutes: 8,
+        explanation: "Restart mù xoá mất dấu vết và có thể không giải quyết nguyên nhân." },
+      { key: "e1c", label: "Nhắn hỏi cả team xem ai vừa deploy", points: 5, minutes: 5,
+        explanation: "Có ích, nhưng chờ người trả lời lúc 3 giờ sáng rất tốn thời gian." }
+    ] },
+  { prompt: "03:12 — 100% request tới /orders lỗi, các endpoint khác bình thường. Tiếp theo?",
+    options: [
+      { key: "e2a", label: "Đọc log của service orders quanh thời điểm bắt đầu lỗi", points: 10, minutes: 3,
+        explanation: "Đúng: khoanh vùng đã hẹp, đọc log là bước rẻ nhất." },
+      { key: "e2b", label: "Scale thêm instance cho orders", points: 0, minutes: 6,
+        explanation: "Chưa biết nguyên nhân mà scale thì chỉ nhân bản lỗi." },
+      { key: "e2c", label: "Kiểm tra dashboard database", points: 5, minutes: 3,
+        explanation: "Hợp lý nhưng log service cho manh mối trực tiếp hơn." }
+    ] },
+  { prompt: "03:15 — Log đầy `ActiveRecord::ConnectionTimeoutError`. Nghĩ gì?",
+    options: [
+      { key: "e3a", label: "Kiểm tra số connection đang mở tới DB", points: 10, minutes: 3,
+        explanation: "Đúng: timeout khi lấy connection thường do pool cạn." },
+      { key: "e3b", label: "Tăng pool size rồi deploy ngay", points: 0, minutes: 10,
+        explanation: "Sửa triệu chứng khi chưa biết vì sao pool cạn, dễ tái phát." },
+      { key: "e3c", label: "Khởi động lại database", points: 0, minutes: 12,
+        explanation: "Rủi ro rất cao, làm đứt cả những phần đang hoạt động bình thường." }
+    ] },
+  { prompt: "03:18 — DB đang có 200 connection, chạm giới hạn max_connections. Ai giữ?",
+    options: [
+      { key: "e4a", label: "Xem danh sách process đang chạy trên DB", points: 10, minutes: 3,
+        explanation: "Đúng: nhìn thẳng vào query đang giữ connection." },
+      { key: "e4b", label: "Kill hết connection cho nhanh", points: 0, minutes: 5,
+        explanation: "Giết cả giao dịch đang chạy dở của người dùng thật." },
+      { key: "e4c", label: "Tăng max_connections", points: 5, minutes: 4,
+        explanation: "Câu giờ được, nhưng chưa chạm nguyên nhân." }
+    ] },
+  { prompt: "03:21 — Một query report chạy 40 phút chưa xong, giữ phần lớn connection. Làm gì?",
+    options: [
+      { key: "e5a", label: "Kill riêng query đó và ghi lại query id", points: 10, minutes: 2,
+        explanation: "Đúng: xử lý đúng thủ phạm, giữ bằng chứng để điều tra sau." },
+      { key: "e5b", label: "Chờ nó tự xong", points: 0, minutes: 15,
+        explanation: "Dịch vụ tiếp tục chết trong lúc chờ." },
+      { key: "e5c", label: "Kill query và không ghi lại gì", points: 5, minutes: 2,
+        explanation: "Khôi phục được nhưng mất manh mối cho post-mortem." }
+    ] },
+  { prompt: "03:23 — API bắt đầu trả 200 trở lại. Bước tiếp theo?",
+    options: [
+      { key: "e6a", label: "Theo dõi 5 phút xác nhận ổn định rồi báo team", points: 10, minutes: 5,
+        explanation: "Đúng: xác nhận đã khôi phục thật trước khi tuyên bố hết sự cố." },
+      { key: "e6b", label: "Tuyên bố xong việc và đi ngủ", points: 0, minutes: 1,
+        explanation: "Chưa xác nhận ổn định, sự cố có thể quay lại ngay." },
+      { key: "e6c", label: "Bắt tay sửa code report luôn", points: 3, minutes: 10,
+        explanation: "Sửa code lúc 3 giờ sáng chưa qua review là rủi ro mới." }
+    ] },
+  { prompt: "03:28 — Hệ thống ổn định. Ngăn tái phát ngay đêm nay bằng cách nào?",
+    options: [
+      { key: "e7a", label: "Tạm tắt job report định kỳ cho tới khi sửa xong", points: 10, minutes: 3,
+        explanation: "Đúng: chặn nguồn gây sự cố bằng biện pháp đảo ngược được." },
+      { key: "e7b", label: "Không làm gì, mai tính", points: 0, minutes: 1,
+        explanation: "Job chạy lại lúc 4 giờ sáng thì sự cố lặp lại." },
+      { key: "e7c", label: "Thêm statement timeout cho DB ngay lập tức", points: 5, minutes: 6,
+        explanation: "Đúng hướng nhưng đổi cấu hình DB lúc đang mệt cần thận trọng." }
+    ] },
+  { prompt: "03:32 — Kết thúc ca xử lý. Việc cuối cùng?",
+    options: [
+      { key: "e8a", label: "Ghi timeline: mốc thời gian, hành động, kết quả", points: 10, minutes: 5,
+        explanation: "Đúng: timeline là nguyên liệu chính cho post-mortem." },
+      { key: "e8b", label: "Nhắn ngắn gọn \"đã fix\" vào nhóm", points: 3, minutes: 1,
+        explanation: "Không đủ để người khác hiểu chuyện gì đã xảy ra." },
+      { key: "e8c", label: "Không ghi gì, mai kể lại", points: 0, minutes: 1,
+        explanation: "Chi tiết sẽ quên mất sau vài giờ ngủ." }
+    ] }
+].freeze
+
+def escape_scenario(title, steps)
+  nodes = steps.each_with_index.map do |step, i|
+    {
+      "key" => "n#{i + 1}",
+      "prompt" => step[:prompt],
+      "options" => step[:options].map { |o| { "key" => o[:key], "label" => o[:label] } }
+    }
+  end
+
+  effects = {}
+  steps.each_with_index do |step, i|
+    step[:options].each do |o|
+      effects[o[:key]] = {
+        "points" => o[:points],
+        "minutes_cost" => o[:minutes],
+        "explanation" => o[:explanation],
+        "next_node" => (i + 2 <= steps.size ? "n#{i + 2}" : "recovered")
+      }
+    end
+  end
+
+  [
+    { "scenario" => title,
+      "initial_logs" => "03:10:02 ERROR ActiveRecord::ConnectionTimeoutError: could not obtain a connection from the pool within 5.000 seconds",
+      "nodes" => nodes },
+    { "option_effects" => effects, "recovery_node" => "recovered" }
+  ]
+end
+
+3.times do |i|
+  content, answer_key = escape_scenario(
+    "Kịch bản #{i + 1}: API trả 500 hàng loạt lúc 3 giờ sáng",
+    ESCAPE_STEPS
+  )
+  upsert_question(escape_room, content, answer_key)
+end
+
+Game.order(:id).each do |game|
+  puts "#{game.slug}: #{game.questions.playable.count} câu khả dụng " \
+       "(cần #{game.questions_per_session} mỗi lượt)"
+end

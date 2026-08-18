@@ -1,0 +1,26 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: skill_arcade_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-skill_arcade}
+      MYSQL_DATABASE: ${DB_NAME:-skill_arcade_development}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      # 3307 ở host vì máy dev thường đã có MySQL native chiếm 3306.
+      # Bên trong container vẫn là 3306.
+      - "${DB_PORT:-3307}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_PASSWORD:-skill_arcade}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db_data:

@@ -1,0 +1,61 @@
+<h1>Bảng xếp hạng</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:slime, size: 60, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">
+    Bằng điểm thì ai đạt bằng ít lượt hơn xếp trên. Chỉ tính lượt đã chơi xong.
+  </div>
+</div>
+
+<% current_scope = params[:scope].presence || LeaderboardQuery::ALL_TIME %>
+<% current_game = params[:game].presence || LeaderboardQuery::TOTAL %>
+
+<div class="tabs">
+  <% { "all_time" => "Toàn thời gian", "weekly" => "Tuần này", "monthly" => "Tháng này" }.each do |value, label| %>
+    <%= link_to label, leaderboards_path(scope: value, game: current_game),
+          class: ("is-active" if current_scope == value) %>
+  <% end %>
+</div>
+
+<div class="tabs">
+  <%= link_to "Tổng", leaderboards_path(scope: current_scope, game: "total"),
+        class: ("is-active" if current_game == "total") %>
+  <% Game.active.order(:id).each do |game| %>
+    <%= link_to game.name, leaderboards_path(scope: current_scope, game: game.slug),
+          class: ("is-active" if current_game == game.slug) %>
+  <% end %>
+</div>
+
+<% if @query.period %>
+  <p class="muted small">
+    Từ <%= l @query.period.first, format: :short %> đến <%= l @query.period.last, format: :short %>
+    (giờ Việt Nam, tuần bắt đầu từ thứ Hai)
+  </p>
+<% end %>
+
+<table>
+  <thead>
+    <tr>
+      <th>Hạng</th>
+      <th>Người chơi</th>
+      <th>Điểm</th>
+      <th>Số lượt để đạt</th>
+      <th>Thời điểm đạt</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% if @entries.empty? %>
+      <tr><td colspan="5" class="muted">Chưa có lượt chơi nào hoàn thành trong khoảng này.</td></tr>
+    <% end %>
+    <% @entries.each do |entry| %>
+      <tr class="<%= "rank-1" if entry.rank == 1 %>">
+        <td><%= entry.rank %></td>
+        <td><%= entry.display_name %></td>
+        <td><%= entry.score %></td>
+        <td><%= entry.attempts_to_best %></td>
+        <td class="muted small"><%= l entry.achieved_at, format: :short if entry.achieved_at %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+

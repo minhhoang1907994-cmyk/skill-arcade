@@ -1,0 +1,45 @@
+<h1>Đăng ký</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:mage, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">Tạo nhân vật của bạn để bước vào Skill Arcade.</div>
+</div>
+
+<div class="panel">
+  <%= form_with model: @user, url: users_path, class: "form" do |f| %>
+    <% if @user.errors.any? %>
+      <ul class="errors">
+        <% @user.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <div class="field">
+      <%= f.label :email, "Email" %>
+      <%= f.email_field :email, required: true, placeholder: "ten.nta@gmail.com" %>
+      <p class="muted small">Chỉ chấp nhận email dạng <code>xxx.nta@gmail.com</code></p>
+    </div>
+
+    <div class="field">
+      <%= f.label :display_name, "Tên hiển thị" %>
+      <%= f.text_field :display_name, required: true %>
+      <p class="muted small">Tên này xuất hiện trên bảng xếp hạng, không được trùng người khác.</p>
+    </div>
+
+    <div class="field">
+      <%= f.label :password, "Mật khẩu" %>
+      <%= f.password_field :password, required: true, minlength: 8 %>
+      <p class="muted small">Tối thiểu 8 ký tự.</p>
+    </div>
+
+    <div class="field">
+      <%= f.label :password_confirmation, "Nhập lại mật khẩu" %>
+      <%= f.password_field :password_confirmation, required: true %>
+    </div>
+
+    <%= f.submit "Đăng ký", class: "btn--primary" %>
+  <% end %>
+</div>
+
+<p><%= link_to "Đã có tài khoản? Đăng nhập", login_path %></p>

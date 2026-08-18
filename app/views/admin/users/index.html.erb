@@ -1,0 +1,38 @@
+<h1>Quản trị tài khoản</h1>
+
+<div class="flash flash--alert">
+  Xoá tài khoản sẽ xoá luôn toàn bộ lượt chơi, câu trả lời và log chấm điểm của người đó.
+  Thao tác không hoàn tác được.
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Email</th>
+      <th>Tên hiển thị</th>
+      <th>Vai trò</th>
+      <th>Ngày tạo</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @users.each do |user| %>
+      <tr>
+        <td><%= user.id %></td>
+        <td><%= user.email %></td>
+        <td><%= user.display_name %></td>
+        <td><%= user.admin? ? tag.span("admin", class: "badge") : "" %></td>
+        <td class="muted small"><%= l user.created_at, format: :short %></td>
+        <td>
+          <% if user == current_user %>
+            <span class="muted small">tài khoản của bạn</span>
+          <% else %>
+            <%= button_to "Xoá", admin_user_path(user), method: :delete, class: "btn--danger",
+                  data: { turbo_confirm: "Xoá tài khoản #{user.email}? Không hoàn tác được." } %>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

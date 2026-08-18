@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <title><%= content_for(:title) || "Skill Arcade" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Skill Arcade">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Font pixel cho phần khung giao diện. Nếu không tải được (máy offline),
+        CSS đã khai fallback sang monospace nên layout vẫn dùng bình thường. %>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+  </head>
+
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <%= link_to logged_in? ? games_path : root_path, class: "site-header__brand",
+              style: "display:flex; align-items:center; gap:10px" do %>
+          <%= pixel_sprite(:hero, size: 34, css_class: "sprite--brand") %>
+          <span>Skill Arcade</span>
+        <% end %>
+
+        <nav>
+          <% if logged_in? %>
+            <%= link_to "Game", games_path %>
+          <% end %>
+          <%= link_to "Bảng xếp hạng", leaderboards_path %>
+          <% if current_user&.admin? %>
+            <%= link_to "Tài khoản", admin_users_path %>
+            <%= link_to "Báo cáo câu hỏi", admin_question_reports_path %>
+          <% end %>
+        </nav>
+
+        <div class="site-header__spacer"></div>
+
+        <% if logged_in? %>
+          <span class="site-header__user"><%= current_user.display_name %></span>
+          <%= button_to "Đăng xuất", session_path, method: :delete %>
+        <% else %>
+          <nav>
+            <%= link_to "Đăng nhập", login_path %>
+            <%= link_to "Đăng ký", signup_path %>
+          </nav>
+        <% end %>
+      </div>
+    </header>
+
+    <main>
+      <% if flash[:notice] %>
+        <div class="flash flash--notice"><%= flash[:notice] %></div>
+      <% end %>
+      <% if flash[:alert] %>
+        <div class="flash flash--alert"><%= flash[:alert] %></div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>

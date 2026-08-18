@@ -1,0 +1,315 @@
+<h1><%= @game.name %></h1>
+
+<div class="hero-row">
+  <%= game_sprite(@game, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble"><%= @game.description %></div>
+</div>
+
+<div id="intro" class="panel">
+  <p>
+    Mỗi lượt gồm <strong><%= @game.steps_per_session %> bước</strong>,
+    tối đa <strong><%= @game.max_score %> điểm</strong>.
+    Điểm cao nhất của bạn: <strong><%= current_user.best_score_for(@game) %></strong>.
+  </p>
+  <% if @game.ai_graded? %>
+    <p class="muted small">
+      Game này chấm điểm bằng AI. Tính năng đó thuộc Phase 3 nên hiện chưa chơi được —
+      bắt đầu lượt sẽ báo lỗi dịch vụ chấm điểm.
+    </p>
+  <% end %>
+  <div class="actions">
+    <button id="start-btn" type="button" class="btn--primary">Bắt đầu lượt mới</button>
+    <%= link_to "Quay lại", games_path, class: "btn" %>
+  </div>
+</div>
+
+<div id="play" class="panel" hidden>
+  <div class="score-line">
+    <span class="score-label">Bước</span>
+    <strong><span id="position">-</span> / <%= @game.steps_per_session %></strong>
+    <span class="site-header__spacer"></span>
+    <span class="score-label">Điểm</span>
+    <span class="score-value" id="score">0</span>
+  </div>
+  <div class="progress">
+    <div class="progress__bar" id="progress-bar" style="width: 0%"></div>
+  </div>
+
+  <div id="question"></div>
+  <div id="answer-area"></div>
+
+  <div class="actions actions--split">
+    <div class="actions">
+      <button id="submit-btn" type="button" class="btn--primary">Nộp đáp án</button>
+      <button id="report-btn" type="button" class="btn">Báo câu hỏi sai</button>
+    </div>
+    <button id="abandon-btn" type="button" class="btn btn--danger">Bỏ lượt</button>
+  </div>
+
+  <div id="feedback"></div>
+</div>
+
+<div id="result" class="panel" hidden>
+  <h2 class="panel__title">Kết thúc lượt</h2>
+  <%= pixel_sprite(:chest, size: 72, css_class: "sprite--bounce") %>
+  <p class="result-score" id="result-score">0</p>
+  <p id="result-text" class="muted"></p>
+  <div class="actions">
+    <button id="replay-btn" type="button" class="btn--primary">Chơi lại</button>
+    <%= link_to "Bảng xếp hạng", leaderboards_path(game: @game.slug), class: "btn" %>
+    <%= link_to "Danh sách game", games_path, class: "btn" %>
+  </div>
+</div>
+
+<script type="module">
+  const slug = <%= @game.slug.to_json.html_safe %>;
+  const totalSteps = <%= @game.steps_per_session %>;
+  const maxScore = <%= @game.max_score %>;
+  const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+  let sessionId = null;
+  let step = null;
+  let questionId = null;
+  let stepShownAt = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        // Bắt buộc: endpoint dùng session cookie nên vẫn chịu CSRF protection (spec §13).
+        "X-CSRF-Token": csrf,
+        ...(options.headers || {})
+      }
+    });
+    const body = res.status === 204 ? null : await res.json().catch(() => null);
+    if (!res.ok) throw Object.assign(new Error("api"), { status: res.status, body });
+    return body;
+  }
+
+  function showFeedback(text, kind) {
+    const el = $("feedback");
+    el.className = "feedback feedback--" + kind;
+    el.textContent = text;
+  }
+
+  function clearFeedback() {
+    $("feedback").className = "";
+    $("feedback").textContent = "";
+  }
+
+  function renderStep(data) {
+    step = data.position;
+    questionId = data.question_id;
+    stepShownAt = Date.now();
+    $("position").textContent = step;
+    $("progress-bar").style.width = ((step - 1) * 100 / totalSteps) + "%";
+    clearFeedback();
+    $("submit-btn").disabled = false;
+
+    const c = data.content;
+    if (slug === "bug_hunt") {
+      renderBugHunt(c);
+    } else if (slug === "estimate_poker") {
+      $("question").innerHTML = "<p><strong>Task:</strong> " + escapeHtml(c.task_description) + "</p>" +
+        '<p class="muted small">' + escapeHtml(c.context || "") + "</p>";
+      $("answer-area").innerHTML =
+        '<div class="form"><div class="field"><label for="hours">Ước lượng (giờ)</label>' +
+        '<input id="hours" type="number" min="0.5" step="0.5" autofocus></div></div>';
+    } else if (slug === "spec_detective") {
+      $("question").innerHTML = '<div class="scenario-log">' + escapeHtml(c.requirement_text) + "</div>";
+      $("answer-area").innerHTML =
+        '<div class="form"><div class="field"><label for="points">Các điểm mơ hồ (mỗi dòng một điểm)</label>' +
+        '<textarea id="points" rows="4"></textarea></div>' +
+        '<div class="field"><label for="questions">Câu hỏi làm rõ</label>' +
+        '<textarea id="questions" rows="4"></textarea></div></div>';
+    } else {
+      renderScenario(c);
+    }
+  }
+
+  function renderBugHunt(c) {
+    $("question").innerHTML = "";
+    const ol = document.createElement("ol");
+    ol.className = "code-lines";
+    c.code_lines.forEach((line, i) => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      li.tabIndex = 0;
+      li.setAttribute("role", "button");
+      li.setAttribute("aria-label", "Dòng " + (i + 1));
+      const pick = () => selectLine(i + 1, li);
+      li.addEventListener("click", pick);
+      // Điều hướng bằng bàn phím — yêu cầu a11y ở spec §15.
+      li.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+        if (e.key === "ArrowDown") { e.preventDefault(); li.nextElementSibling?.focus(); }
+        if (e.key === "ArrowUp") { e.preventDefault(); li.previousElementSibling?.focus(); }
+      });
+      ol.appendChild(li);
+    });
+    $("question").appendChild(ol);
+
+    // Loại bug hiển thị hết ra ngoài dạng chip bấm chọn — không dùng dropdown,
+    // để người chơi thấy toàn bộ lựa chọn và không vô tình nộp giá trị mặc định.
+    $("answer-area").className = "";
+    $("answer-area").innerHTML =
+      '<p class="score-label">Dòng đã chọn: <span id="chosen-line">chưa chọn</span></p>' +
+      '<p class="score-label" style="margin-top:14px">Loại bug</p>' +
+      '<div class="chips" role="radiogroup" aria-label="Loại bug">' +
+      c.bug_types.map((t) =>
+        '<label><input type="radio" name="bug-type" value="' + escapeHtml(t) + '">' +
+        "<span>" + escapeHtml(t) + "</span></label>"
+      ).join("") +
+      "</div>";
+  }
+
+  function renderScenario(c) {
+    const node = c.nodes[step - 1];
+    $("question").innerHTML = "";
+    if (c.initial_logs && step === 1) {
+      const log = document.createElement("div");
+      log.className = "scenario-log";
+      log.textContent = c.initial_logs;
+      $("question").appendChild(log);
+    }
+    const p = document.createElement("p");
+    p.innerHTML = "<strong>" + escapeHtml(node.prompt) + "</strong>";
+    $("question").appendChild(p);
+
+    $("answer-area").className = "options";
+    $("answer-area").innerHTML = node.options
+      .map((o) => '<label><input type="radio" name="opt" value="' + o.key + '"> ' +
+                  escapeHtml(o.label) + "</label>")
+      .join("");
+    $("answer-area").dataset.nodeKey = node.key;
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s == null ? "" : String(s);
+    return d.innerHTML;
+  }
+
+  function selectLine(n, li) {
+    document.querySelectorAll(".code-lines li").forEach((el) => el.classList.remove("is-selected"));
+    li.classList.add("is-selected");
+    const chosen = $("chosen-line");
+    chosen.textContent = n;
+    chosen.dataset.value = n;
+  }
+
+  function buildAnswer() {
+    if (slug === "bug_hunt") {
+      const line = $("chosen-line").dataset.value;
+      if (!line) throw new Error("Chọn một dòng code trước");
+      const type = document.querySelector('input[name="bug-type"]:checked');
+      if (!type) throw new Error("Chọn loại bug");
+      return { line: Number(line), bug_type: type.value };
+    }
+    if (slug === "estimate_poker") {
+      const hours = Number($("hours").value);
+      if (!hours) throw new Error("Nhập số giờ ước lượng");
+      return { hours };
+    }
+    if (slug === "spec_detective") {
+      return {
+        ambiguous_points: $("points").value.split("\n").filter((s) => s.trim()),
+        questions: $("questions").value
+      };
+    }
+    const chosen = document.querySelector('input[name="opt"]:checked');
+    if (!chosen) throw new Error("Chọn một phương án");
+    return { node_key: $("answer-area").dataset.nodeKey, option_key: chosen.value };
+  }
+
+  $("start-btn").addEventListener("click", async () => {
+    $("start-btn").disabled = true;
+    try {
+      const data = await api("/api/v1/games/" + slug + "/sessions", { method: "POST" });
+      sessionId = data.session_id;
+      $("score").textContent = data.score;
+      $("intro").hidden = true;
+      $("result").hidden = true;
+      $("play").hidden = false;
+      renderStep(data.current);
+    } catch (e) {
+      alert(e.body?.message || "Không bắt đầu được lượt chơi");
+    } finally {
+      $("start-btn").disabled = false;
+    }
+  });
+
+  $("submit-btn").addEventListener("click", async () => {
+    let answer;
+    try {
+      answer = buildAnswer();
+    } catch (e) {
+      showFeedback(e.message, "bad");
+      return;
+    }
+
+    // Chặn double-submit ở client; server vẫn có unique index làm lớp cuối (§9).
+    $("submit-btn").disabled = true;
+    try {
+      const data = await api("/api/v1/sessions/" + sessionId + "/answers", {
+        method: "POST",
+        body: JSON.stringify({ position: step, answer, elapsed_ms: Date.now() - stepShownAt })
+      });
+
+      $("score").textContent = data.total_score;
+      $("progress-bar").style.width = (step * 100 / totalSteps) + "%";
+      showFeedback("+" + data.awarded_score + " điểm. " + (data.explanation || ""),
+                   data.awarded_score > 0 ? "good" : "bad");
+
+      if (data.finished) {
+        setTimeout(() => finish(data.summary), 1800);
+      } else {
+        setTimeout(() => renderStep(data.next), 1800);
+      }
+    } catch (e) {
+      if (e.status === 409) {
+        showFeedback("Câu này đã được trả lời, đang tải lại trạng thái", "neutral");
+        const data = await api("/api/v1/sessions/" + sessionId + "/current");
+        renderStep(data.current);
+      } else {
+        showFeedback(e.body?.message || "Có lỗi xảy ra", "bad");
+        $("submit-btn").disabled = false;
+      }
+    }
+  });
+
+  function finish(summary) {
+    $("result-score").textContent = summary.score + " / " + maxScore;
+    $("result-text").textContent =
+      "Điểm cao nhất của bạn: " + summary.personal_best +
+      (summary.is_new_best ? " (kỷ lục mới)" : "") +
+      ". Đây là lượt thứ " + summary.attempt_number + ".";
+    $("play").hidden = true;
+    $("result").hidden = false;
+  }
+
+  $("abandon-btn").addEventListener("click", async () => {
+    if (!confirm("Bỏ lượt này? Điểm sẽ không được tính.")) return;
+    await api("/api/v1/sessions/" + sessionId + "/abandon", { method: "POST" });
+    location.reload();
+  });
+
+  $("report-btn").addEventListener("click", async () => {
+    const reason = prompt("Câu hỏi này sai ở đâu?");
+    if (!reason) return;
+    try {
+      await api("/api/v1/questions/" + questionId + "/reports", {
+        method: "POST",
+        body: JSON.stringify({ reason })
+      });
+      showFeedback("Đã gửi báo cáo, admin sẽ xem lại", "neutral");
+    } catch (e) {
+      showFeedback(e.body?.message || "Không gửi được báo cáo", "bad");
+    }
+  });
+
+  $("replay-btn").addEventListener("click", () => location.reload());
+</script>

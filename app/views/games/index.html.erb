@@ -1,0 +1,58 @@
+<h1>Chọn màn chơi</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:hero, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">
+    <% if @total_score.zero? %>
+      Chào <%= current_user.display_name %>! Chọn một màn để bắt đầu hành trình.
+    <% elsif @total_score == 500 %>
+      Bạn đã chinh phục toàn bộ 5 màn. Không còn gì để cày nữa!
+    <% else %>
+      Còn <%= 500 - @total_score %> điểm nữa là hoàn thành hết 5 màn.
+    <% end %>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="score-line">
+    <span class="score-label">Tổng điểm</span>
+    <span class="score-value"><%= @total_score %></span>
+    <span class="score-label">/ 500</span>
+    <% if @total_score == 500 %>
+      <span class="badge">Hoàn thành hết</span>
+    <% end %>
+  </div>
+  <div class="progress">
+    <div class="progress__bar" style="width: <%= (@total_score / 5.0).round(1) %>%"></div>
+  </div>
+  <p class="muted small">
+    Tổng điểm là tổng điểm cao nhất của bạn ở từng màn. Chơi lại chỉ thay thế khi điểm cao hơn.
+  </p>
+</div>
+
+<div class="game-grid">
+  <% @games.each do |game| %>
+    <% best = @best_scores.fetch(game.id, 0) %>
+    <div class="panel game-card game-card--<%= game.slug %>">
+      <%= game_sprite(game, size: 72, css_class: "sprite--card sprite--bounce") %>
+      <h2 class="panel__title"><%= game.name %></h2>
+      <p><%= game.description %></p>
+
+      <div class="score-line">
+        <span class="score-value"><%= best %></span>
+        <span class="score-label">/ <%= game.max_score %></span>
+        <% if best == game.max_score %>
+          <span class="badge">Đạt trần</span>
+        <% end %>
+      </div>
+      <div class="progress">
+        <div class="progress__bar" style="width: <%= (best * 100.0 / game.max_score).round(1) %>%"></div>
+      </div>
+
+      <div class="actions">
+        <%= link_to "Chơi", game_path(game.slug), class: "btn btn--primary" %>
+        <%= link_to "Xếp hạng", leaderboards_path(game: game.slug), class: "btn" %>
+      </div>
+    </div>
+  <% end %>
+</div>
