@@ -7,7 +7,7 @@
 - **Priority**: High
 - **Phase**: Phase 1 — cả 5 game, chưa có phần thưởng vật chất
 - **Ngày soạn**: 2026-08-18
-- **Version**: 1.10 (chốt hosting Render Hobby; cache store sang Redis; mở Q10 vì Neon là PostgreSQL)
+- **Version**: 1.11 (đóng toàn bộ Open Question trừ Q6 — chốt Aiven for MySQL và kênh liên hệ xoá tài khoản)
 - **Input**: `docs/clarify/clarify_skill-arcade.md` (5 vòng clarify, đã đóng toàn bộ BLOCKER)
 
 ## 2. User Story
@@ -702,9 +702,12 @@ Retention: **corrected 2026-08-19** — the app does not rotate logs. `config/en
 - [x] **Q5**: Hosting ở đâu, có HTTPS và backup DB chưa? → **Owner chốt 2026-08-19: Render, gói Hobby.** Ba phần của câu hỏi này: (1) HTTPS — đã xong từ trước bằng `force_ssl` + `assume_ssl` trong `production.rb`, không phụ thuộc nền tảng; (2) thời gian lưu log — Render Hobby là 7 ngày, đã điền vào §14 và trang chính sách; (3) backup DB — phụ thuộc nhà cung cấp DB, tách thành Q10. Render không có managed MySQL nên DB bắt buộc dùng dịch vụ ngoài.
 - [ ] **Q6**: KPI đo thành công của app là gì (số người chơi/tuần? số lượt/người?) → **Owner/PM**. Chưa có thì sau 3 tháng không có cơ sở đánh giá có nên duy trì không.
 - [x] **Q7**: Có cần trang chính sách riêng tư không, khi app public và lưu email người dùng? → **Đã làm 2026-08-19** (BR-38): `GET /privacy`, guest đọc được, có link ở footer mọi trang và ở trang đăng ký. Q9 chọn gói Gemini free nên trang này là bắt buộc chứ không còn tuỳ chọn. Còn phụ thuộc Q8 (kênh liên hệ xoá tài khoản) và Q5 (thời gian lưu log) — hai chỗ đó trang nói rõ là chưa chốt.
-- [ ] **Q8**: Người dùng muốn xoá tài khoản thì liên hệ admin bằng đường nào? → **Owner**. Đã chốt là chỉ admin xoá được, nhưng chưa có kênh yêu cầu.
+- [x] **Q8**: Người dùng muốn xoá tài khoản thì liên hệ admin bằng đường nào? → **Owner chốt 2026-08-19: `hoangnm.nta@gmail.com`.** Set qua biến `PRIVACY_CONTACT_EMAIL`, hiện trên `/privacy`. Ghi nhận rủi ro owner đã chấp nhận: đây là email cá nhân trên một trang guest đọc được, nên bot quét email sẽ thấy. Muốn đổi sang mailbox dùng chung thì chỉ cần đổi biến môi trường, không sửa code.
 - [x] **Q9**: Có chấp nhận gửi text người chơi tự gõ ở Spec Detective sang gói Gemini **free** không? → **Owner chốt 2026-08-19: phương án (a) — chấp nhận.** Kéo theo trang chính sách riêng tư (Q7) trở thành hạng mục BẮT BUỘC, không còn là known gap, và màn chơi phải cảnh báo người chơi không dán nội dung nội bộ/bí mật khách hàng. Chi tiết ở §20.
-- [ ] **Q10**: Dùng nhà cung cấp MySQL nào? → **Owner**. Neon (dự định ban đầu) là PostgreSQL **only** nên không dùng được với cấu hình hiện tại mà không chuyển toàn bộ app sang Postgres. Ràng buộc lọc: phải là MySQL thật có **thực thi foreign key**, vì 7 bảng dựa vào FK `CASCADE`/`RESTRICT` và trang chính sách (BR-38) đã hứa với người dùng là xoá tài khoản sẽ xoá luôn dữ liệu chấm AI — lời hứa đó thực thi bằng FK cascade. Hiện trạng verify 2026-08-19: Aiven for MySQL có free tier vĩnh viễn (1GB RAM / 1GB disk / `max_connections` 76, có backup, không cần thẻ, nhưng service bị tắt nếu không hoạt động); PlanetScale đã bỏ free tier từ 04/2024, gói thấp nhất 39 USD/tháng; TiDB Cloud free tier 25GiB nhưng là TiDB chứ không phải MySQL, và FK chỉ GA từ TiDB v8.5.0 — chưa xác nhận được TiDB Cloud Serverless có thực thi FK hay không.
+- [x] **Q10**: Dùng nhà cung cấp MySQL nào? → **Owner chốt 2026-08-19: Aiven for MySQL, gói free.** Chọn được vì là MySQL thật nên thực thi foreign key đầy đủ — điều kiện bắt buộc vì 7 bảng dựa vào FK `CASCADE`/`RESTRICT` và BR-38 đã hứa với người dùng là xoá tài khoản sẽ xoá luôn dữ liệu chấm AI. Neon bị loại vì là PostgreSQL only. TiDB Cloud bị loại vì FK chỉ GA từ TiDB v8.5.0 và chưa xác nhận được TiDB Cloud Serverless có thực thi FK; dung lượng 25GiB của họ cũng không cần thiết. PlanetScale bị loại vì đã bỏ free tier (thấp nhất 39 USD/tháng).
+  > Hạn mức gói free: 1GB RAM / 1GB disk / 1 CPU, `max_connections` 76, có backup, không cần thẻ, dùng vĩnh viễn. Đủ rộng: nguồn phình nhanh nhất là `ai_gradings` mà nó bị hạn mức Gemini 20 request/ngày chặn sẵn — khoảng 2.4KB mỗi dòng, tức ~17MB/năm.
+  > Hai điều kiện của gói free phải biết: **service bị tắt nếu không hoạt động** (cộng với web service Render gói Hobby cũng tự ngủ, nên request đầu sau khi ngủ có thể chậm hoặc lỗi), và không có SLA/support, chỉ một service mỗi loại.
+  > **CHƯA verify**: version MySQL cụ thể của Aiven. Cần kiểm trong console khi tạo service vì §19 yêu cầu ≥ 8.0.16 để CHECK constraint được thực thi (dưới bản đó MySQL bỏ qua âm thầm). Validation ở tầng model vẫn chặn nên không vỡ, nhưng cần biết.
 
 Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy được):
 - Q3 → dùng Rails và Ruby bản ổn định mới nhất tại thời điểm `rails new`
@@ -719,7 +722,7 @@ Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy 
   - `rack-attack` gem — **owner đã duyệt** 2026-08-19 (Q1)
   - `dotenv-rails` gem (chỉ development) và `redis` gem — **owner đã duyệt** 2026-08-19
   - **Render** — nơi chạy app, gói Hobby. Kéo theo: Render **không có managed MySQL** (chỉ Postgres và Key Value), nên DB phải dùng dịch vụ ngoài; filesystem ephemeral nên cache phải là Render Key Value (`REDIS_URL`); BR-24 cần một Render Cron Job riêng, không đi kèm web service
-  - Nhà cung cấp MySQL ngoài — **chưa chốt**, xem Q10
+  - **Aiven for MySQL** gói free — DB production (Q10). Aiven đặt SSL ENABLED và không tắt được, nên `config/database.yml` khai `ssl_mode` bắt buộc: có `DB_SSL_CA` thì `verify_identity`, không có thì tự hạ xuống `required`. Không dùng service URI của Aiven làm `DATABASE_URL` vì scheme `mysql://` làm Rails đi tìm adapter `mysql` thay vì `mysql2`
 - **Ảnh hưởng đến**: không có module hiện hữu nào — repo greenfield
 - **Migration cần thiết**: YES — 7 bảng mới, tạo theo thứ tự `users` → `games` → `questions` → `game_sessions` → `session_answers` → `ai_gradings` → `question_reports`
 - **Breaking change**: NO — bản phát hành đầu tiên
@@ -817,6 +820,7 @@ bắt buộc:
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
+| 1.11 | 2026-08-19 | HoangNM | Đóng Q10 (**Aiven for MySQL** gói free — chọn theo tiêu chí phải thực thi FK thật vì BR-38 hứa xoá tài khoản là xoá dữ liệu chấm AI) và Q8 (`hoangnm.nta@gmail.com`, set qua `PRIVACY_CONTACT_EMAIL`). `config/database.yml` thêm cấu hình TLS cho production vì Aiven bắt buộc SSL; ghi rõ bẫy scheme `mysql://` của service URI Aiven. Chỉ còn Q6 (KPI) mở |
 | 1.10 | 2026-08-19 | HoangNM | Chốt Q5: hosting là **Render gói Hobby** → log giữ **7 ngày**, điền vào §14 và trang chính sách qua `PagesController::LOG_RETENTION_DAYS`. Thêm gem `redis` và chuyển cache store production sang Redis khi có `REDIS_URL`: bắt buộc vì filesystem Render là ephemeral/per-instance nên file store làm rack_attack (throttle 1 lượt/ngày) và circuit breaker mất trạng thái mỗi lần deploy — gói Hobby còn tự ngủ khi hết traffic. Mở **Q10**: Neon là PostgreSQL only nên không dùng được, cần chọn nhà cung cấp MySQL có thực thi FK; ghi rõ hiện trạng Aiven / PlanetScale / TiDB đã verify. §19 ghi nhận Render không có managed MySQL và BR-24 cần Render Cron Job riêng |
 | 1.9 | 2026-08-19 | HoangNM | BR-38: trang `/privacy` (guest đọc được, link ở footer mọi trang + trang đăng ký), cảnh báo không dán nội dung nội bộ ở cả panel intro và ngay trên ô gõ của Spec Detective. Đóng Q7. **Sửa sai §14**: spec ghi "logs rotate at 30 days" nhưng production log ra STDOUT và app không có cấu hình rotation nào — thời gian lưu do nền tảng vận hành quyết định (Q5), nên trang chính sách không nêu con số. Bổ sung công bố Google Fonts nhận IP người dùng — trước đây không có ở đâu trong spec |
 | 1.8 | 2026-08-19 | HoangNM | BR-37: bound tổng hạn mức Gemini ở tầng ứng dụng bằng `Gemini::DailyBudget` — đếm `ai_gradings` trong 24h trượt thay vì thêm throttle rack_attack, vì cần đếm cả lời gọi thất bại và cần trạng thái dùng chung nhiều host. Chặn TRƯỚC khi tạo lượt nên người chơi không mất lượt vì trần hệ thống; mã lỗi mới `AI_QUOTA_EXHAUSTED` ở §5.2. Trang game và card ở /games hiện số lượt còn lại và disable nút khi hết. Xoá đoạn cảnh báo cũ ở màn Spec Detective (nói Phase 3 chưa chơi được) vì đã lỗi thời |
@@ -841,7 +845,7 @@ bắt buộc:
 - [ ] Business rule: BR-06 (personal best), BR-09 (đạt 100 không khoá game), BR-10/11/11a (tie-break theo số lượt, tính riêng cho từng chu kỳ và cho bảng tổng), BR-13/14 (tuần bắt đầu thứ Hai, múi giờ `Asia/Ho_Chi_Minh`), BR-25→29 (công thức điểm 5 game), BR-31 (mọi game đều cộng dồn, không trừ điểm), BR-32 (ưu tiên câu chưa trả lời đúng)
 - [ ] Data: 7 bảng mới; đặc biệt `game_sessions` phải lưu **từng lượt** chứ không chỉ điểm cao nhất — đây là điều kiện để có leaderboard tuần/tháng và tie-break. `games` tách `questions_per_session` và `steps_per_session` (BR-30)
 - [ ] Luồng ngoại lệ: 8.2 (PROD Roulette kết thúc ngay khi chọn hành động không thu hồi được), 8.5 (Gemini lỗi thì lượt không tính điểm, không phạt người chơi)
-- [ ] Open Questions: Q1 (duyệt `rack-attack`), Q3 (Ruby/Rails version), Q4 (ai soát câu hỏi trước khi import), **Q9 (có gửi text người chơi sang gói Gemini free không — xem §20)**. Q2 đã verify xong ở §20
+- [ ] Open Questions: chỉ còn **Q6** (KPI đo thành công của app). Q1–Q5 và Q7–Q10 đã đóng, xem §18
 
 **Ảnh hưởng đến phần khác**: không có module hiện hữu. Phụ thuộc ngoài: Gemini API, MySQL 8, 2 gem cần duyệt.
 

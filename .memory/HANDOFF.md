@@ -11,7 +11,7 @@
 - Hạn mức toàn hệ thống đã bound ở tầng ứng dụng bằng `Gemini::DailyBudget` (BR-37, spec
   v1.8) — KHÔNG dùng throttle rack_attack discriminator hằng số. Lý do chọn cách này ghi ở
   bảng so sánh trong §20.
-- Open Question đã đóng: Q1, Q2, Q3, Q4, Q7, Q9. Còn Q5 (hosting), Q6 (KPI), Q8 (kênh xoá tài khoản). Q9 chốt (a) chấp nhận gói free nên Q7 thành bắt buộc — đã làm.
+- Open Question: chỉ còn **Q6** (KPI). Q1-Q5 và Q7-Q10 đã đóng. Q9 chốt (a) chấp nhận gói free nên Q7 thành bắt buộc — đã làm.
 - Session trước (2026-08-18): dựng project từ repo trống, Phase 1 + Phase 2 xong.
 
 ## Trạng thái hiện tại
@@ -237,17 +237,33 @@ nào thiếu effect.
   Lỗi này chỉ lộ ở lần deploy đầu nếu không test bằng `RAILS_ENV=production`
 - `Gemini::DailyBudget` không bị ảnh hưởng vì đếm `ai_gradings` từ DB, không dùng cache
 
-### Q10 (MỚI) — Neon không dùng được vì là PostgreSQL
-Owner định dùng Neon cho DB, nhưng Neon là **PostgreSQL only**. App đang là MySQL.
-Đã rà hết phạm vi nếu muốn chuyển sang Postgres (nhỏ và gọn, không phải viết lại app):
-`Gemfile` mysql2 → pg; `Drawer#shuffle_order` dùng `RAND()` và `MD5(CONCAT(...))`; migration 8
-dùng `JSON_UNQUOTE`/`JSON_EXTRACT`/`JSON_TYPE`; 5 migration dùng `unsigned: true`; 7 chỗ
-`utf8mb4` trong `schema.rb`; 2 dòng spec dùng `.limit(n).update_all` (Postgres không có
-`UPDATE ... LIMIT`); 3 cột `t.json` nên thành `jsonb`. `LeaderboardQuery` portable, không raw SQL.
-CHECK constraint thì Postgres tốt hơn MySQL.
+### DB production: Aiven for MySQL free (Q10 đã đóng, spec v1.11)
+- **Giữ MySQL, KHÔNG chuyển Postgres.** Neon bị loại vì là PostgreSQL only. Tiêu chí chọn là
+  phải **thực thi FK thật** — 7 bảng dựa vào FK `CASCADE`/`RESTRICT`, và BR-38 đã hứa với người
+  dùng là xoá tài khoản sẽ xoá luôn dữ liệu chấm AI; lời hứa đó thực thi bằng FK cascade chứ
+  không bằng code. TiDB Cloud bị loại vì FK chỉ GA từ TiDB v8.5.0 và chưa xác nhận được TiDB
+  Cloud Serverless có thực thi FK. PlanetScale bỏ free tier từ 04/2024
+- Gói free Aiven: 1GB RAM / 1GB disk / 1 CPU, `max_connections` 76, có backup, không cần thẻ.
+  Đủ rộng vì `ai_gradings` (nguồn phình nhanh nhất) bị hạn mức Gemini 20 request/ngày chặn sẵn —
+  ~2.4KB/dòng, tức ~17MB/năm
+- **Hai bẫy của gói free**: service bị tắt nếu không hoạt động (cộng Render Hobby cũng tự ngủ →
+  request đầu sau khi ngủ có thể chậm/lỗi), và không có SLA/support
+- `config/database.yml` production đã khai TLS: có `DB_SSL_CA` → `ssl_mode: verify_identity`,
+  không có → tự hạ `required` (vẫn mã hoá, KHÔNG xác thực server). Aiven đặt SSL ENABLED và
+  không tắt được. `DB_SSL_MODE` ghi đè thủ công được
+- **BẪY: KHÔNG dùng service URI của Aiven làm `DATABASE_URL`.** URI của họ bắt đầu bằng
+  `mysql://`, Rails suy ra adapter từ scheme nên sẽ tìm adapter `mysql` (không tồn tại) thay vì
+  `mysql2`. Dùng các biến `DB_*` rời, hoặc tự đổi scheme thành `mysql2://`
+- **CHƯA verify**: version MySQL của Aiven. Kiểm trong console khi tạo service — §19 cần
+  ≥ 8.0.16 để CHECK constraint được thực thi. Validation tầng model vẫn chặn nên không vỡ
+- Trong `database.yml` cố ý dùng Ruby thuần (`.to_s.empty?`) chứ không dùng `present?` của
+  ActiveSupport: file này còn bị công cụ không nạp Rails đọc, và bản đầu dùng `present?` đã nổ
+  ngay khi test bằng ERB thuần
 
-**Ràng buộc lọc nhà cung cấp**: phải thực thi FK thật, vì trang chính sách (BR-38) đã hứa xoá
-tài khoản là xoá luôn dữ liệu chấm AI — thực thi bằng FK cascade.
+### Kênh liên hệ xoá tài khoản (Q8 đã đóng)
+`PRIVACY_CONTACT_EMAIL=hoangnm.nta@gmail.com`. Owner đã được nêu rõ và chấp nhận rủi ro: đây là
+email cá nhân trên trang guest đọc được nên bot quét email sẽ thấy. Đổi sang mailbox dùng chung
+thì chỉ cần đổi biến môi trường.
 
 ### Trang chính sách riêng tư — BR-38 (spec v1.9)
 - `GET /privacy` → `PagesController#privacy`, **guest đọc được** (phải đọc được trước khi
@@ -297,11 +313,18 @@ tài khoản là xoá luôn dữ liệu chấm AI — thực thi bằng FK casca
 - **Sửa initializer phải RESTART server**, `config/initializers/*` không reload theo code
 
 ## Việc tiếp theo
-1. **Q10 — chốt nhà cung cấp MySQL** (xem mục Q10 ở trên). Chặn việc deploy
-2. **Q8 — chốt kênh liên hệ xoá tài khoản**, rồi set `PRIVACY_CONTACT_EMAIL`. Đây là chỗ duy
-   nhất trên trang chính sách còn nói "chưa công bố"
-3. Tạo Render Cron Job cho `rake game_sessions:expire_stale` (BR-24) — Render Cron Job là
-   service riêng, không đi kèm web service
+**Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác, không phải quyết định.**
+
+1. **Owner tạo hạ tầng trên Render** (dev không có quyền): Web Service build từ `Dockerfile`
+   (entrypoint đã tự chạy `db:prepare` nên không cần bước migrate riêng), Key Value cho Redis
+   rồi link vào web service, và một Cron Job cho `rake game_sessions:expire_stale` (BR-24).
+   Env var cần set: `RAILS_MASTER_KEY` (lấy từ `config/master.key`, file gitignored và chưa
+   commit nên Render không tự có), `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME`,
+   `DB_SSL_CA`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `PRIVACY_CONTACT_EMAIL`. KHÔNG cần
+   `SECRET_KEY_BASE` — đã verify `credentials.yml.enc` có sẵn `secret_key_base`
+2. **CHƯA verify**: Dockerfile `EXPOSE 80` + `CMD` qua `thrust`, còn Render tiêm biến `PORT`.
+   Cần kiểm ở lần deploy đầu
+3. **Rotate `GEMINI_API_KEY`** — key hiện tại nằm trong chat log của session này
 4. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
    Estimate Poker 50, Escape Room 20, PROD Roulette 20). Cần ~60-70 request = **3-4 ngày**
    ở hạn mức 20/ngày. prod_roulette chưa sinh được lần nào (gặp 503 rồi 429)

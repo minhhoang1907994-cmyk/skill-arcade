@@ -25,6 +25,13 @@ test:
   <<: *default
   database: <%= ENV.fetch("DB_NAME_TEST") { "skill_arcade_test" } %>
 
+# Production dùng Aiven for MySQL (Q10). Aiven đặt SSL ở trạng thái ENABLED và KHÔNG tắt được,
+# nên bắt buộc phải khai TLS ở đây; thiếu là không kết nối được.
+#
+# Không dùng DATABASE_URL: service URI của Aiven bắt đầu bằng `mysql://`, mà Rails suy ra tên
+# adapter từ scheme nên sẽ đi tìm adapter `mysql` (không tồn tại) thay vì `mysql2`. Dùng các biến
+# DB_* rời như dưới đây thì không gặp cái bẫy đó. Muốn dùng URL thì phải tự đổi scheme thành
+# `mysql2://`.
 production:
   <<: *default
   database: <%= ENV.fetch("DB_NAME") { "skill_arcade_production" } %>
@@ -33,3 +40,8 @@ production:
   # nên thiếu biến sẽ làm hỏng cả development và test. Production thiếu mật khẩu thì
   # lỗi sẽ nổ lúc kết nối, kèm thông báo rõ ràng hơn.
   password: <%= ENV["DB_PASSWORD"] %>
+  # Có file CA thì verify_identity (mã hoá + xác thực server, chống MITM). Chưa cấp được CA thì
+  # tự hạ xuống required: vẫn mã hoá nhưng KHÔNG xác thực server — chấp nhận tạm, không im lặng
+  # tắt TLS. Aiven cho tải CA certificate trong console của service.
+  ssl_mode: <%= ENV.fetch("DB_SSL_MODE") { ENV["DB_SSL_CA"].to_s.empty? ? "required" : "verify_identity" } %>
+  <%= "sslca: #{ENV['DB_SSL_CA']}" unless ENV["DB_SSL_CA"].to_s.empty? %>
