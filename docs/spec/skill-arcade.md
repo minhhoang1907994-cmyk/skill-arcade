@@ -7,7 +7,7 @@
 - **Priority**: High
 - **Phase**: Phase 1 — cả 5 game, chưa có phần thưởng vật chất
 - **Ngày soạn**: 2026-08-18
-- **Version**: 1.11 (đóng toàn bộ Open Question trừ Q6 — chốt Aiven for MySQL và kênh liên hệ xoá tài khoản)
+- **Version**: 1.12 (runbook deploy Render + Aiven; mật khẩu admin chuyển sang ENV — đảo quyết định cũ)
 - **Input**: `docs/clarify/clarify_skill-arcade.md` (5 vòng clarify, đã đóng toàn bộ BLOCKER)
 
 ## 2. User Story
@@ -558,7 +558,7 @@ The Spec Detective cap is **per user, so it does not bound the system total** on
 - **Sensitive data**: `password_digest` is never serialized. `answer_key` is excluded from all serializers (BR-03). `GEMINI_API_KEY` is read from ENV and never logged; the `ai_gradings.prompt` column stores prompt content only, never the API key.
 - **Anti-cheat**: scoring is server-side (BR-02); `elapsed_ms` from the client is capped by server-measured elapsed time; `position` must match `current_position + 1`; unique indexes block replay and double-submit.
 - **Known accepted risks** (owner decision, recorded in the clarify report):
-  - Admin seed password `12345678` is hardcoded in `db/seeds.rb`. If this seed runs on production, the admin account is trivially compromised.
+  - ~~Admin seed password `12345678` is hardcoded in `db/seeds.rb`~~ — **reversed 2026-08-19.** The owner originally chose to hardcode it; the decision was revisited when preparing the Render deploy because the exposure turned out to be concrete rather than hypothetical: `bin/docker-entrypoint` runs `db:prepare`, and `DatabaseTasks.prepare_all` seeds whenever the database was just created, so the very first boot against an empty database would publish an admin account with a known password on a public URL — and the app has no password-change feature to fix it afterwards. `db/seeds.rb` now reads `ENV["ADMIN_PASSWORD"]`; development and test keep `12345678` as the default, and production without the variable **skips creating the admin** (the five `games` rows are still seeded so the app works) instead of aborting — aborting mid-seed would leave a schema with no games and `db:prepare` never seeds a second time.
   - The `*.nta@gmail.com` allowlist does not stop a determined outsider — anyone can register such a Gmail address. Rate limiting is the actual protection layer.
 - **Not in scope**: 2FA, OAuth, email verification, CAPTCHA, password reset flow.
 
@@ -820,6 +820,7 @@ bắt buộc:
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
+| 1.12 | 2026-08-19 | HoangNM | Thêm runbook `docs/deploy/render-aiven.md`. **Đảo quyết định cũ về mật khẩu admin** (§12): `db/seeds.rb` đọc `ENV["ADMIN_PASSWORD"]` thay vì hardcode, vì phát hiện đường lộ cụ thể — `db:prepare` tự seed ở lần boot đầu nên admin với mật khẩu đã biết sẽ có mặt trên URL public, mà app không có chức năng đổi mật khẩu. Production thiếu biến thì BỎ QUA tạo admin chứ không abort, để không để lại DB có schema mà không có `games`. Runbook ghi 3 điểm dễ fail đã verify: thứ tự Aiven trước Render (entrypoint chạy `db:prepare` lúc boot), `HTTP_PORT=10000` (thruster listen `HTTP_PORT` mặc định 80 và tự ghi đè `PORT`), và Render KHÔNG tự tiêm biến cho Key Value nên `REDIS_URL` phải set tay |
 | 1.11 | 2026-08-19 | HoangNM | Đóng Q10 (**Aiven for MySQL** gói free — chọn theo tiêu chí phải thực thi FK thật vì BR-38 hứa xoá tài khoản là xoá dữ liệu chấm AI) và Q8 (`hoangnm.nta@gmail.com`, set qua `PRIVACY_CONTACT_EMAIL`). `config/database.yml` thêm cấu hình TLS cho production vì Aiven bắt buộc SSL; ghi rõ bẫy scheme `mysql://` của service URI Aiven. Chỉ còn Q6 (KPI) mở |
 | 1.10 | 2026-08-19 | HoangNM | Chốt Q5: hosting là **Render gói Hobby** → log giữ **7 ngày**, điền vào §14 và trang chính sách qua `PagesController::LOG_RETENTION_DAYS`. Thêm gem `redis` và chuyển cache store production sang Redis khi có `REDIS_URL`: bắt buộc vì filesystem Render là ephemeral/per-instance nên file store làm rack_attack (throttle 1 lượt/ngày) và circuit breaker mất trạng thái mỗi lần deploy — gói Hobby còn tự ngủ khi hết traffic. Mở **Q10**: Neon là PostgreSQL only nên không dùng được, cần chọn nhà cung cấp MySQL có thực thi FK; ghi rõ hiện trạng Aiven / PlanetScale / TiDB đã verify. §19 ghi nhận Render không có managed MySQL và BR-24 cần Render Cron Job riêng |
 | 1.9 | 2026-08-19 | HoangNM | BR-38: trang `/privacy` (guest đọc được, link ở footer mọi trang + trang đăng ký), cảnh báo không dán nội dung nội bộ ở cả panel intro và ngay trên ô gõ của Spec Detective. Đóng Q7. **Sửa sai §14**: spec ghi "logs rotate at 30 days" nhưng production log ra STDOUT và app không có cấu hình rotation nào — thời gian lưu do nền tảng vận hành quyết định (Q5), nên trang chính sách không nêu con số. Bổ sung công bố Google Fonts nhận IP người dùng — trước đây không có ở đâu trong spec |

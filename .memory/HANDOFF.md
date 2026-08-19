@@ -312,18 +312,44 @@ thì chỉ cần đổi biến môi trường.
   hạn mức theo ngày — người chơi sẽ retry cả ngày vô ích
 - **Sửa initializer phải RESTART server**, `config/initializers/*` không reload theo code
 
-## Việc tiếp theo
-**Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác, không phải quyết định.**
+### Runbook deploy: `docs/deploy/render-aiven.md`
+Đã viết đầy đủ, mọi con số verify từ docs chính thức hoặc từ code. Ba điểm quan trọng nhất:
+- **Thứ tự bắt buộc: Aiven TRƯỚC, Render sau.** `bin/docker-entrypoint` chạy `db:prepare` lúc
+  container boot nên không có DB là fail ngay lúc boot
+- **`HTTP_PORT=10000`** là chỗ dễ fail nhất. Render cần app listen `0.0.0.0` tại `PORT`
+  (mặc định 10000), nhưng `thruster` listen ở `HTTP_PORT` (mặc định 80) và còn **tự ghi đè
+  `PORT`** thành `TARGET_PORT` (3000) cho Puma. Verify từ README gem thruster 0.1.25
+- **Render KHÔNG tự tiêm biến cho Key Value** (docs xác nhận) — phải tự copy Internal URL đặt
+  thành `REDIS_URL`. Trước đó tôi nói sai là "tự có khi link"
+- Secret File của Render mount tại `/etc/secrets/<tên file>` → khớp default `DB_SSL_CA` trong
+  `.env.example`
 
-1. **Owner tạo hạ tầng trên Render** (dev không có quyền): Web Service build từ `Dockerfile`
-   (entrypoint đã tự chạy `db:prepare` nên không cần bước migrate riêng), Key Value cho Redis
-   rồi link vào web service, và một Cron Job cho `rake game_sessions:expire_stale` (BR-24).
-   Env var cần set: `RAILS_MASTER_KEY` (lấy từ `config/master.key`, file gitignored và chưa
-   commit nên Render không tự có), `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME`,
-   `DB_SSL_CA`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `PRIVACY_CONTACT_EMAIL`. KHÔNG cần
-   `SECRET_KEY_BASE` — đã verify `credentials.yml.enc` có sẵn `secret_key_base`
-2. **CHƯA verify**: Dockerfile `EXPOSE 80` + `CMD` qua `thrust`, còn Render tiêm biến `PORT`.
-   Cần kiểm ở lần deploy đầu
+### Mật khẩu admin chuyển sang ENV — ĐẢO quyết định cũ (spec v1.12)
+Owner trước đây chọn hardcode `12345678` (clarify muc 2.4, spec §12). **Đảo ngày 2026-08-19** sau
+khi phát hiện đường lộ cụ thể: `bin/docker-entrypoint` chạy `db:prepare`, và
+`DatabaseTasks.prepare_all` có `seed = true if database_initialized && db_config.seeds?` → lần
+boot đầu trên DB trống sẽ tự chạy `db/seeds.rb`, tạo admin với mật khẩu đã biết trên URL public.
+App không có chức năng đổi mật khẩu nên không sửa được sau.
+
+`db/seeds.rb` giờ đọc `ENV["ADMIN_PASSWORD"]`:
+- development/test không set → vẫn `12345678`, quy trình local không đổi
+- **production không set → BỎ QUA tạo admin**, KHÔNG abort. Lý do quan trọng: `db:prepare` chỉ
+  seed đúng một lần lúc DB vừa tạo, nên abort giữa seed sẽ để lại DB có schema mà **không có bản
+  ghi `games`** → app hỏng hẳn và lần deploy sau cũng không seed lại. Bỏ qua thì 5 game vẫn có,
+  app chạy được, chỉ cần set biến rồi `rails db:seed` lại (seed idempotent)
+
+Verify thật bằng `RAILS_ENV=production` trên một DB nháp rồi xoá đi:
+```
+khong co bien -> 5 game duoc tao + "admin: BỎ QUA — ADMIN_PASSWORD chưa được set ở production."
+co bien       -> admin tao voi mat khau do; authenticate('12345678') = false
+dev           -> van dung 12345678 (da tra lai sau khi test)
+```
+
+## Việc tiếp theo
+**Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác.**
+
+1. Owner làm theo `docs/deploy/render-aiven.md`: Aiven → Key Value → Web Service → Cron Job.
+   **Nhớ set `ADMIN_PASSWORD` TRƯỚC lần deploy đầu** — `db:prepare` chỉ seed một lần duy nhất
 3. **Rotate `GEMINI_API_KEY`** — key hiện tại nằm trong chat log của session này
 4. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
    Estimate Poker 50, Escape Room 20, PROD Roulette 20). Cần ~60-70 request = **3-4 ngày**

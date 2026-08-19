@@ -53,17 +53,30 @@ end
 
 # Tài khoản admin.
 #
-# CẢNH BÁO ĐÃ ĐƯỢC GHI NHẬN: mật khẩu để hardcode theo quyết định của owner
-# (xem docs/clarify/clarify_skill-arcade.md muc 2.4). App này chạy public, nên nếu
-# seed chạy trên production thì tài khoản admin có thể bị chiếm. Phương án an toàn
-# hơn (đọc từ ENV + ép đổi mật khẩu lần đầu) đã được đề xuất và owner chọn không dùng.
+# Mật khẩu đọc từ ENV["ADMIN_PASSWORD"]. Owner ĐẢO quyết định cũ ngày 2026-08-19: trước đó chọn
+# hardcode (clarify muc 2.4, spec §12), nay đổi vì phát hiện đường lộ cụ thể khi deploy —
+# `bin/docker-entrypoint` chạy `db:prepare`, và `DatabaseTasks.prepare_all` seed khi DB vừa được
+# tạo, nên lần deploy đầu lên DB trống sẽ tự tạo admin trên URL public. Admin xoá được tài khoản
+# người khác (BR-22), và app không có chức năng đổi mật khẩu để sửa sau.
+#
+# Development/test giữ default "12345678" để không đổi quy trình local.
+#
+# Production KHÔNG có biến thì BỎ QUA việc tạo admin, chứ không abort. Lý do: `db:prepare` chỉ
+# seed đúng một lần lúc DB vừa tạo, nên abort giữa seed sẽ để lại DB có schema mà không có bản ghi
+# `games` — app hỏng hẳn và lần deploy sau cũng không seed lại. Bỏ qua thì 5 game vẫn được tạo,
+# app chạy được, và chỉ cần set biến rồi chạy lại `rails db:seed` (seed này idempotent).
 ADMIN_EMAIL = "hoangnm.nta@gmail.com".freeze
-ADMIN_PASSWORD = "12345678".freeze
+ADMIN_PASSWORD = ENV["ADMIN_PASSWORD"].presence || ("12345678" unless Rails.env.production?)
 
-admin = User.find_or_initialize_by(email: ADMIN_EMAIL)
-admin.display_name = "HoangNM" if admin.display_name.blank?
-admin.password = ADMIN_PASSWORD
-admin.password_confirmation = ADMIN_PASSWORD
-admin.admin = true
-admin.save!
-puts "admin: #{admin.email}"
+if ADMIN_PASSWORD.nil?
+  puts "admin: BỎ QUA — ADMIN_PASSWORD chưa được set ở production."
+  puts "       Set biến đó rồi chạy lại `rails db:seed` để tạo tài khoản admin."
+else
+  admin = User.find_or_initialize_by(email: ADMIN_EMAIL)
+  admin.display_name = "HoangNM" if admin.display_name.blank?
+  admin.password = ADMIN_PASSWORD
+  admin.password_confirmation = ADMIN_PASSWORD
+  admin.admin = true
+  admin.save!
+  puts "admin: #{admin.email}"
+end
