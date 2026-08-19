@@ -55,8 +55,9 @@ end
 #
 # Mật khẩu đọc từ ENV["ADMIN_PASSWORD"]. Owner ĐẢO quyết định cũ ngày 2026-08-19: trước đó chọn
 # hardcode (clarify muc 2.4, spec §12), nay đổi vì phát hiện đường lộ cụ thể khi deploy —
-# `bin/docker-entrypoint` chạy `db:prepare`, và `DatabaseTasks.prepare_all` seed khi DB vừa được
-# tạo, nên lần deploy đầu lên DB trống sẽ tự tạo admin trên URL public. Admin xoá được tài khoản
+# `bin/docker-entrypoint` chạy `db:prepare`, và `DatabaseTasks.prepare_all` seed khi bảng
+# `schema_migrations` chưa tồn tại — tức là khi DB chưa có schema, kể cả DB đã tồn tại mà còn
+# trống. Nên lần deploy đầu lên DB trống sẽ tự tạo admin trên URL public. Admin xoá được tài khoản
 # người khác (BR-22), và app không có chức năng đổi mật khẩu để sửa sau.
 #
 # Development/test giữ default "12345678" để không đổi quy trình local.

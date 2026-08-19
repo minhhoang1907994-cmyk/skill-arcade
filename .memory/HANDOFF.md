@@ -312,6 +312,113 @@ thì chỉ cần đổi biến môi trường.
   hạn mức theo ngày — người chơi sẽ retry cả ngày vô ích
 - **Sửa initializer phải RESTART server**, `config/initializers/*` không reload theo code
 
+### `render.yaml` — hạ tầng Render khai trong repo
+Web service (runtime docker, `healthCheckPath: /up`) + Key Value gói free, cùng region.
+`REDIS_URL` nối tự động bằng `fromService: {type: keyvalue, property: connectionString}` — bỏ được
+bước copy tay dễ quên nhất. Không có bí mật nào trong file: 7 biến `sync: false` để Render hỏi lúc
+tạo blueprint.
+
+`region: oregon` ở cả hai service — khớp service Aiven ở **bờ Tây Mỹ (San Francisco)**, owner xác
+nhận 2026-08-19. Region phải khớp Aiven chứ KHÔNG khớp vị trí người chơi: đã đo bấm "Bắt đầu lượt"
+Bug Hunt sinh **11 query** (trang chủ và /games chỉ 2), còn latency VN→Aiven đo được ~190ms. Đặt
+Render ở singapore thì một lần bấm nút mất ~2,1 giây chỉ để chờ DB. Muốn tối ưu cho người chơi VN
+thì phải chuyển CẢ HAI sang châu Á, chuyển riêng Render là chậm đi.
+
+Không xác định được region Aiven từ ngoài: hostname là `skill-arcade-1`, IP `134.199.233.131`
+(DigitalOcean) không có PTR, `@@hostname`/timezone không mang thông tin region. Chỉ suy được "không
+ở châu Á" từ latency 190ms — phải đọc trên console.
+
+`plan: free` ở cả hai; Render từ chối thì nâng `starter`.
+
+**Cron job cho BR-24 cố ý KHÔNG nằm trong file**: Render tính phí cron theo phút, không có gói
+free, đưa vào là apply blueprint phát sinh tiền. Đã rà tác động của việc thiếu scheduler — nhỏ hơn
+tưởng: leaderboard chỉ đếm lượt `finished` (BR-08) nên không ảnh hưởng; rack_attack đếm request
+chứ không đếm bản ghi lượt; `GameSessions::Creator` không kiểm lượt `in_progress` đang mở nên lượt
+treo không chặn ai chơi. Mất thật sự chỉ là độ chính xác `abandoned_reason` cho thống kê.
+
+### CA của Aiven commit trong repo — KHÔNG dùng Render Secret File
+`config/aiven-ca.pem`, `render.yaml` khai `DB_SSL_CA=/rails/config/aiven-ca.pem`. File có trong
+image vì `Dockerfile` có `WORKDIR /rails` + `COPY . .` và `.dockerignore` không loại trừ nó
+(chỉ chặn `/.env*`, `/config/master.key`, `/config/credentials/*.key`).
+
+**Tôi đã ghi sai ở mấy lượt trước rằng thiếu file CA thì tự hạ xuống `required`.** Test thật cả
+hai đường thiếu, cả hai đều KHÔNG kết nối được:
+- `sslca` trỏ file không tồn tại → `TLS/SSL error: failed to open file`
+- bỏ hẳn `sslca`, chỉ `ssl_mode: required` → `Server certificate validation failed …
+  CERT_E_UNTRUSTEDROOT`, vì CA riêng của Aiven không nằm trong trust store của OS
+
+Nên file CA là BẮT BUỘC. Kéo theo: Render Secret File không dùng được thuận lợi vì nó chỉ thêm
+được SAU khi service tồn tại, mà service không boot nổi khi thiếu CA → lần deploy đầu chắc chắn
+fail. Secret File cũng là per-service nên cron job sau này phải thêm lại.
+
+CA là self-signed Project CA, không chứa private key, **hạn 16/08/2036** — commit an toàn.
+Tải lại từ console thì file tên mặc định `ca.pem`, phải đổi thành `config/aiven-ca.pem`.
+
+### ✅ DB production Aiven ĐÃ provision xong (2026-08-19)
+`avnadmin@skill-arcade-skill-arcade.k.aivencloud.com:11695/defaultdb`
+
+Số đo thật từ `db:preflight` trên Aiven:
+```
+OK   MySQL version     8.4.8                    → đạt yêu cầu >= 8.0.16 của §19
+OK   TLS               TLS_AES_256_GCM_SHA384   → ssl_mode=verify_identity, CÓ xác thực server
+OK   CHECK constraint  DB chặn score = 999      → BR-04 có lưới ở tầng DB
+OK   max_connections   76                        → khớp đúng tài liệu gói free Aiven
+```
+
+Đã nạp: 9 bảng, 5 game, admin (`admin? true`, mật khẩu từ `.env.aiven` authenticate được),
+**83 câu hỏi** (64 manual + 19 ai_generated). Cả 5 game đều đủ câu để chơi; Bug Hunt có đủ 4 ngôn
+ngữ `["java","javascript","php","ruby"]`.
+
+Lưu ý: `db:prepare` KHÔNG chạy `db/seeds/sample_questions.rb` — phải nạp riêng, đã làm.
+
+CA cert của Aiven tải về tên mặc định `ca.pem`, đã đổi thành `tmp/aiven-ca.pem` cho khớp
+`.env.aiven` và tên Secret File khai trong `render.yaml`.
+
+### Sửa lại mô tả điều kiện seed — trước đó tôi ghi chưa chính xác
+`prepare_all` seed khi `initialize_database` trả true, mà hàm đó trả
+`!database_already_initialized` với `database_already_initialized` = **bảng `schema_migrations` có
+tồn tại hay không**. Nên điều kiện đúng là **DB chưa có schema**, KHÔNG phải "DB vừa được tạo" —
+một DB đã tồn tại mà còn trống (đúng trường hợp `defaultdb` Aiven tạo sẵn) vẫn bị seed. Đã sửa ở
+`db/seeds.rb`, runbook và spec §12.
+
+### `script/aiven.ps1` — chạy preflight/prepare lên Aiven không cần gõ mật khẩu
+Đọc `.env.aiven` (gitignored qua `/.env*`), set biến, rồi chạy task. `.env.aiven.example` là
+template — phải thêm ngoại lệ `!/.env.aiven.example` vào `.gitignore` vì `/.env*` chặn cả nó.
+- không cờ → chỉ `db:preflight`, KHÔNG ghi gì lên DB
+- `-Prepare` → `db:prepare` (GHI lên production) rồi tự `db:preflight` lại. Bắt buộc có
+  `ADMIN_PASSWORD` mới cho chạy, vì `db:prepare` chỉ tự seed đúng một lần
+- `-Command "<lệnh rails>"` → chạy lệnh rails tuỳ ý lên Aiven, vd
+  `-Command "runner db/seeds/sample_questions.rb"` hoặc `-Command "questions:import[file]"`.
+  Dùng cái này thay vì tự export biến ở shell để mật khẩu không vào history
+- Cố ý KHÔNG in `DB_PASSWORD` ra output
+
+Đã test end-to-end bằng một DB nháp trên máy (không dùng Aiven, không dùng DB dev): tạo DB → seed
+5 game + admin → preflight all OK. Đã xoá DB nháp và file `.env.aiven` test.
+
+**BẪY MÔI TRƯỜNG — Windows PowerShell 5.1 đọc `.ps1` theo ANSI nếu file không có BOM UTF-8.**
+Bản đầu tôi ghi file không BOM → tiếng Việt bị mangle thành ký tự `'` làm vỡ cú pháp string,
+PowerShell báo `TerminatorExpectedAtEndOfString`. Phải ghi bằng `utf-8-sig`. Ghi chú này đã để ở
+dòng đầu chính file `.ps1`. Ngoài ra cần
+`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` để output tiếng Việt không ra ký tự lạ.
+
+### `rake db:preflight` — đo DB thật thay vì suy từ số version
+`lib/tasks/db_checks.rake`. Chạy được cả từ máy local (trỏ biến `DB_*` vào Aiven) và từ Render.
+Kiểm 4 thứ: MySQL version >= 8.0.16, **TLS bằng `Ssl_cipher` của chính phiên đang kết nối** (config
+khai đúng mà server không bật thì vẫn ra kết nối trần — cách này bắt được), **CHECK constraint bằng
+cách thử `update_column(:score, 999)`** để bỏ qua validation model, và `max_connections` so với pool.
+Abort nếu không đạt.
+
+An toàn trên production: phép thử CHECK nằm trong transaction và luôn `raise ActiveRecord::Rollback`.
+Đã verify không để lại bản ghi (chỉ tốn vài giá trị auto-increment, MySQL không trả lại).
+
+Chạy trên DB dev: MySQL 8.4.11 / TLS `TLS_AES_256_GCM_SHA384` / CHECK chặn được / max_conn 151.
+
+Đã bổ sung 2 đường lỗi cho đúng mục đích dùng (task này thường chạy đầu tiên lên một DB mới):
+- DB chưa có schema → CHECK constraint ra `SKIP` chứ không ném `StatementInvalid`. Bản đầu tôi
+  viết `Game.first` trực tiếp nên nó nổ trên DB trống — đúng tình huống Aiven mới tạo
+- Không nối được / sai mật khẩu / DB không tồn tại → thông báo tiếng người kèm host, thay vì
+  backtrace Ruby
+
 ### Runbook deploy: `docs/deploy/render-aiven.md`
 Đã viết đầy đủ, mọi con số verify từ docs chính thức hoặc từ code. Ba điểm quan trọng nhất:
 - **Thứ tự bắt buộc: Aiven TRƯỚC, Render sau.** `bin/docker-entrypoint` chạy `db:prepare` lúc

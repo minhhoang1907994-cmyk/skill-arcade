@@ -1,0 +1,124 @@
+# Blueprint hạ tầng Render. Khai ở đây thay vì bấm tay trong dashboard để lần sau tái lập được
+# và để biết vì sao từng giá trị được đặt như vậy.
+#
+# Dùng: Render Dashboard → New → Blueprint → chọn repo này. Render đọc file này, tạo các service
+# và HỎI những biến đánh `sync: false`.
+#
+# KHÔNG có trong file này, cố ý:
+# - Cron job cho BR-24: Render tính phí cron theo phút, không có gói free. Đưa vào đây thì apply
+#   blueprint là phát sinh tiền. Xem docs/deploy/render-aiven.md mục 5
+# - Mọi giá trị bí mật: khai `sync: false` để Render hỏi lúc tạo, không nằm trong git
+#
+# HAI TRƯỜNG phải sửa cho khớp môi trường của bạn:
+#
+# - `region`: đang là `oregon` để khớp service Aiven ở BỜ TÂY MỸ (San Francisco) — owner xác nhận
+#   2026-08-19. Trong 3 region Mỹ của Render (oregon / ohio / virginia) thì oregon gần SFO nhất.
+#   Region PHẢI khớp region Aiven, KHÔNG phải khớp vị trí người chơi. Lý do, đã đo trên chính app
+#   này: bấm "Bắt đầu lượt" Bug Hunt sinh 11 query (trang chủ và /games chỉ 2 query). Chặng app↔DB
+#   đi 11 lần mỗi lần bấm, còn chặng người dùng↔Render chỉ đi MỘT lần.
+#   Đo thật từ Việt Nam tới Aiven: ~190ms. Đặt Render ở singapore thì mỗi lần bấm nút mất ~2,1
+#   giây (11 x 190ms) chỉ để chờ DB, vì mọi query phải vượt Thái Bình Dương. Đặt ở oregon thì
+#   chặng app↔DB nằm trong cùng bờ Tây nên còn khoảng vài chục ms.
+#   Đánh đổi đã chấp nhận: người chơi ở VN chịu ~190ms cho chặng tới Render, nhưng chặng đó chỉ đi
+#   một lần mỗi request.
+#   Đổi CẢ HAI service cho giống nhau, không thì Key Value không dùng được đường nội bộ.
+#
+# - `plan`: nếu Render từ chối `free` cho loại service nào thì nâng lên `starter`
+
+services:
+  # ---------------------------------------------------------------------------
+  # Cache dùng chung. BẮT BUỘC phải có, không phải tuỳ chọn.
+  #
+  # Không có nó thì production rơi về file store, mà filesystem của Render là ephemeral và riêng
+  # từng instance → mỗi lần deploy hoặc spin down sẽ mất bộ đếm rack_attack (gồm throttle 1
+  # lượt/ngày của Spec Detective, spec §12) và trạng thái Gemini::CircuitBreaker (§15). Web
+  # service gói free còn tự ngủ khi hết traffic nên throttle gần như vô hiệu.
+  # ---------------------------------------------------------------------------
+  - type: keyvalue
+    name: skill-arcade-cache
+    plan: free
+    region: oregon
+    # Rỗng = chỉ cho truy cập qua mạng nội bộ của Render, không mở ra Internet.
+    ipAllowList: []
+    # noeviction thay vì allkeys-lru: bị evict là throttle tự reset trong im lặng, còn hết bộ nhớ
+    # thì lệnh ghi báo lỗi và error_handler trong production.rb ghi log — thà thấy lỗi.
+    # Dữ liệu ở đây chỉ vài key nhỏ nên thực tế không bao giờ đầy.
+    maxmemoryPolicy: noeviction
+
+  # ---------------------------------------------------------------------------
+  # Web service, build từ Dockerfile có sẵn trong repo.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: skill-arcade
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    # Route sẵn có trong config/routes.rb, trả 200 nếu app boot được.
+    healthCheckPath: /up
+
+    envVars:
+      # Thruster listen ở HTTP_PORT (mặc định 80) và tự GHI ĐÈ PORT thành TARGET_PORT (3000) cho
+      # Puma, nên nó không đọc PORT của Render. Đặt HTTP_PORT bằng đúng PORT mặc định của Render
+      # (10000) để Thruster listen đúng chỗ Render chờ.
+      - key: HTTP_PORT
+        value: 10000
+
+      # Render tự bơm connection string nội bộ của Key Value vào đây — không phải copy tay.
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: skill-arcade-cache
+          property: connectionString
+
+      # gemini-2.5-flash mà spec chốt ban đầu đã bị Google đóng với API key mới (§20).
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+
+      # Hiện trên trang /privacy để người dùng yêu cầu xoá tài khoản (Q8).
+      - key: PRIVACY_CONTACT_EMAIL
+        value: hoangnm.nta@gmail.com
+
+      # --- Render sẽ hỏi các giá trị dưới đây lúc tạo blueprint ---
+
+      # Nội dung file config/master.key trên máy dev. File đó gitignored và chưa commit nên
+      # Render không tự có. Thiếu biến này thì app không đọc được credentials.
+      - key: RAILS_MASTER_KEY
+        sync: false
+
+      # Thông số Aiven for MySQL. KHÔNG dùng service URI của Aiven làm DATABASE_URL: URI đó bắt
+      # đầu bằng `mysql://` mà Rails suy tên adapter từ scheme nên sẽ tìm adapter `mysql` — không
+      # tồn tại, đúng phải là `mysql2`.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+
+      # CA certificate của Aiven, commit thẳng trong repo tại config/aiven-ca.pem nên có sẵn
+      # trong image (Dockerfile WORKDIR /rails + COPY . ., và .dockerignore không loại trừ nó).
+      #
+      # Vì sao không dùng Secret File của Render: Secret File chỉ thêm được SAU khi service tồn
+      # tại, mà service KHÔNG boot được khi thiếu CA — đã test thật, thiếu file thì lỗi
+      # `failed to open file`, còn bỏ hẳn sslca thì lỗi `CERT_E_UNTRUSTEDROOT` vì CA riêng của
+      # Aiven không nằm trong trust store của OS. Dùng Secret File thì lần deploy đầu chắc chắn
+      # fail. CA certificate là thông tin công khai (self-signed Project CA, không chứa private
+      # key, hạn 2036) nên commit được.
+      - key: DB_SSL_CA
+        value: /rails/config/aiven-ca.pem
+
+      # Mật khẩu admin lúc seed. Chỉ cần nếu để Render tự chạy db:prepare trên một DB chưa có
+      # schema — `db:prepare` seed đúng một lần, lúc bảng schema_migrations chưa tồn tại. DB Aiven
+      # đã được provision từ máy dev nên lần deploy này sẽ KHÔNG seed lại; giữ biến ở đây để lần
+      # sau dựng môi trường mới không bị thiếu. Thiếu biến thì seed BỎ QUA việc tạo admin (5 game
+      # vẫn được tạo) — cố ý không tạo admin mật khẩu yếu trên URL public.
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false

@@ -46,6 +46,19 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
+  # Biến DB_SSL_CA có nhưng file không tồn tại. Với Aiven thì kết nối sẽ THẤT BẠI (CA riêng của
+  # Aiven không có trong trust store của OS nên `ssl_mode: required` vẫn báo CERT_E_UNTRUSTEDROOT).
+  # Cảnh báo này để lỗi cert khó hiểu có kèm nguyên nhân thật: thiếu file CA.
+  if ENV["DB_SSL_CA"].present? && !File.exist?(ENV["DB_SSL_CA"])
+    config.after_initialize do
+      Rails.logger.warn(
+        "[db] DB_SSL_CA trỏ vào #{ENV['DB_SSL_CA']} nhưng FILE KHÔNG TỒN TẠI. Với Aiven thì " \
+        "kết nối DB sẽ thất bại với lỗi cert (CERT_E_UNTRUSTEDROOT) vì CA riêng của Aiven " \
+        "không có trong trust store của OS. Cấp file CA rồi deploy lại."
+      )
+    end
+  end
+
   # Cache store PHẢI dùng chung giữa các instance và sống sót qua deploy.
   #
   # Mặc định của Rails là file store ở tmp/cache. Trên Render thì filesystem là ephemeral và

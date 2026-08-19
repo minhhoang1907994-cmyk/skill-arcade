@@ -40,8 +40,15 @@ production:
   # nên thiếu biến sẽ làm hỏng cả development và test. Production thiếu mật khẩu thì
   # lỗi sẽ nổ lúc kết nối, kèm thông báo rõ ràng hơn.
   password: <%= ENV["DB_PASSWORD"] %>
-  # Có file CA thì verify_identity (mã hoá + xác thực server, chống MITM). Chưa cấp được CA thì
-  # tự hạ xuống required: vẫn mã hoá nhưng KHÔNG xác thực server — chấp nhận tạm, không im lặng
-  # tắt TLS. Aiven cho tải CA certificate trong console của service.
-  ssl_mode: <%= ENV.fetch("DB_SSL_MODE") { ENV["DB_SSL_CA"].to_s.empty? ? "required" : "verify_identity" } %>
-  <%= "sslca: #{ENV['DB_SSL_CA']}" unless ENV["DB_SSL_CA"].to_s.empty? %>
+  # Với Aiven thì FILE CA LÀ BẮT BUỘC, không phải tuỳ chọn. Đã test thật cả hai đường:
+  # - `sslca` trỏ vào file không tồn tại → `TLS/SSL error: failed to open file`
+  # - bỏ hẳn `sslca`, chỉ để `ssl_mode: required` → `Server certificate validation failed ...
+  #   CERT_E_UNTRUSTEDROOT`, vì CA riêng của Aiven không nằm trong trust store của OS
+  # Nên nhánh `required` dưới đây KHÔNG cứu được Aiven. Giữ nó vì hai lý do: nó đúng cho DB nào
+  # dùng CA công khai, và nó biến lỗi "failed to open file" khó hiểu thành một cảnh báo có nội
+  # dung ở `production.rb` cộng lỗi cert rõ ràng.
+  #
+  # Điều kiện là FILE CÓ TỒN TẠI, không phải chỉ biến có được set — vì trên Render biến được khai
+  # trong render.yaml còn file thì phải cấp riêng.
+  ssl_mode: <%= ENV.fetch("DB_SSL_MODE") { ENV["DB_SSL_CA"].to_s.empty? || !File.exist?(ENV["DB_SSL_CA"].to_s) ? "required" : "verify_identity" } %>
+  <%= "sslca: #{ENV['DB_SSL_CA']}" if !ENV["DB_SSL_CA"].to_s.empty? && File.exist?(ENV["DB_SSL_CA"].to_s) %>

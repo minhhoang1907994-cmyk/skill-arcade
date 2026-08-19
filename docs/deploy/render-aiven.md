@@ -13,6 +13,13 @@ Chốt ở spec §18: hosting **Render gói Hobby** (Q5), DB **Aiven for MySQL g
 định. Không có DB kết nối được thì web service **fail ngay lúc boot**, không phải fail lúc có
 request đầu tiên. Nên phải có thông số Aiven trước khi tạo web service.
 
+Khuyến nghị mạnh: **chuẩn bị schema và seed từ máy local** (mục 2.7) trước khi tạo web service.
+Lỗi hiện ngay trên terminal, và kiểm được TLS + CHECK constraint bằng `rake db:preflight` trước
+khi tốn một lượt deploy.
+
+Phần Render đã được khai sẵn trong `render.yaml` ở gốc repo, nên bước 3 là apply Blueprint chứ
+không phải bấm tay từng service.
+
 ## 1. Mật khẩu admin — set `ADMIN_PASSWORD` TRƯỚC lần deploy đầu
 
 `db/seeds.rb` đọc mật khẩu admin từ `ENV["ADMIN_PASSWORD"]` (owner đảo quyết định cũ ngày
@@ -23,8 +30,11 @@ Vì sao phải set trước lần deploy đầu chứ không set sau:
 1. Aiven DB mới tạo là trống
 2. Container khởi động → `bin/docker-entrypoint` chạy `./bin/rails db:prepare`
 3. `ActiveRecord::Tasks::DatabaseTasks.prepare_all` đặt `seed = true if database_initialized &&
-   db_config.seeds?` — DB vừa được tạo nên **nó chạy `db/seeds.rb`**, và đây là **lần duy nhất**
-   nó tự chạy. Lần deploy sau DB đã tồn tại nên không seed nữa
+   db_config.seeds?`, và `initialize_database` trả `!database_already_initialized` với
+   `database_already_initialized` = **bảng `schema_migrations` có tồn tại hay không**. Nên điều
+   kiện seed chính xác là **DB chưa có schema**, không phải "DB vừa được tạo" — một DB đã tồn tại
+   mà còn trống (đúng trường hợp `defaultdb` của Aiven) vẫn bị seed. Và đây là **lần duy nhất** nó
+   tự chạy: lần sau `schema_migrations` đã có nên không seed nữa
 
 Nếu lúc đó chưa có `ADMIN_PASSWORD`, seed sẽ **bỏ qua** việc tạo admin (cố ý không tạo admin với
 mật khẩu yếu trên URL public) và in ra:
@@ -70,18 +80,29 @@ Từ trang overview của service, map sang biến môi trường của app:
 Rails suy ra tên adapter từ scheme nên sẽ đi tìm adapter `mysql` — không tồn tại, adapter đúng là
 `mysql2`. Dùng các biến `DB_*` rời ở trên. Muốn dùng URL thì phải tự sửa scheme thành `mysql2://`.
 
-### 2.4 Tải CA certificate
+### 2.4 CA certificate — đã commit trong repo, không phải tải lại
 
-Aiven đặt SSL ở trạng thái **ENABLED và không tắt được**, nên `config/database.yml` bắt buộc khai
-TLS. Tải file CA certificate trong console của service.
+`config/aiven-ca.pem` đã có trong repo. Chỉ phải tải lại nếu bạn dùng project Aiven khác.
+
+**File CA là BẮT BUỘC với Aiven**, không phải tuỳ chọn. Đã test cả hai đường thiếu:
+
+| Thiếu gì | Lỗi thật |
+|---|---|
+| `sslca` trỏ vào file không tồn tại | `TLS/SSL error: failed to open file` |
+| Bỏ hẳn `sslca`, chỉ để `ssl_mode: required` | `Server certificate validation failed … CERT_E_UNTRUSTEDROOT` |
+
+Đường thứ hai fail vì CA riêng của Aiven không nằm trong trust store của OS. Nên bỏ CA **không**
+phải là "vẫn chạy nhưng mất xác thực server" — nó là không kết nối được.
 
 Cách `database.yml` xử lý:
 
-- có `DB_SSL_CA` → `ssl_mode: verify_identity` (mã hoá **và** xác thực server, chống MITM)
-- không có → tự hạ `ssl_mode: required` (vẫn mã hoá nhưng **không** xác thực server)
+- `DB_SSL_CA` có VÀ file tồn tại → `ssl_mode: verify_identity` (mã hoá + xác thực server)
+- ngược lại → `ssl_mode: required`, và `production.rb` ghi cảnh báo nêu rõ nguyên nhân. Với Aiven
+  thì nhánh này vẫn không kết nối được; nó chỉ biến lỗi cert khó hiểu thành lỗi có nội dung
 - `DB_SSL_MODE` ghi đè thủ công nếu cần
 
-Không bao giờ tự tắt TLS. Nên cấp CA để được `verify_identity`.
+Nếu tải lại CA từ console: file tải về tên mặc định là `ca.pem`, đổi thành `config/aiven-ca.pem`.
+CA hiện tại là self-signed Project CA, **hạn đến 16/08/2036**.
 
 ### 2.5 Hai điều kiện của gói free phải biết
 
@@ -96,66 +117,120 @@ Không bao giờ tự tắt TLS. Nên cấp CA để được `verify_identity`.
 Đủ nhiều năm. Nguồn phình nhanh nhất là `ai_gradings` (giữ vĩnh viễn theo BR-19), nhưng nó bị hạn
 mức Gemini 20 request/ngày chặn sẵn: đo thật một dòng khoảng 2.4KB → ~48KB/ngày → **~17MB/năm**.
 
+### 2.7 Chuẩn bị DB từ máy local TRƯỚC, đừng để Render tự làm
+
+Về nguyên tắc Render tự lo được: entrypoint chạy `db:prepare`. Nhưng làm từ local tốt hơn ở ba
+điểm: thấy lỗi ngay trên terminal thay vì phải đọc log deploy, kiểm được TLS và CHECK constraint
+trước khi tốn một lượt deploy, và tự chọn thời điểm seed thay vì phụ thuộc vào "DB vừa được tạo"
+(mục 1). Sau bước này Render boot lên chỉ thấy DB đã sẵn sàng.
+
+Dùng `script/aiven.ps1` thay vì gõ biến ra dòng lệnh — mật khẩu DB production không nên nằm trong
+history của shell, trong log CI, hay trong chat/ticket.
+
+**Bước 1** — copy template rồi điền thông số lấy từ console Aiven:
+
+```powershell
+Copy-Item .env.aiven.example .env.aiven
+notepad .env.aiven
+```
+
+`.env.aiven` nằm trong `.gitignore` (`/.env*`) nên không bị commit. `.env.aiven.example` có ngoại
+lệ `!/.env.aiven.example` để template vẫn theo repo.
+
+**Bước 2** — kiểm trước, script này KHÔNG ghi gì lên DB:
+
+```powershell
+powershell -File script/aiven.ps1
+```
+
+Script in ra đích kết nối và trạng thái CA (cố ý **không** in `DB_PASSWORD`), rồi chạy
+`db:preflight`. Trên DB còn trống thì phép kiểm CHECK constraint sẽ ra `SKIP` — bình thường, vì
+chưa có bảng nào.
+
+**Bước 3** — tạo schema + seed. Bước này **ghi thật lên DB production**:
+
+```powershell
+powershell -File script/aiven.ps1 -Prepare
+```
+
+Script bắt buộc có `ADMIN_PASSWORD` trong `.env.aiven` mới cho chạy `-Prepare`, vì `db:prepare`
+chỉ tự seed **đúng một lần** lúc DB vừa được tạo — thiếu biến ở đúng lần đó là mất luôn cơ hội tạo
+admin tự động.
+
+Chạy xong `-Prepare` script tự chạy lại `db:preflight`, và lần này CHECK constraint phải ra `OK`.
+
+### 2.8 `db:preflight` kiểm những gì
+
+| Kiểm | Ý nghĩa |
+|---|---|
+| MySQL version | Phải >= 8.0.16 (§19). Đây là cách trả lời câu hỏi ở 2.2 mà không phải tự suy từ số version |
+| TLS | Đo bằng `Ssl_cipher` của **chính phiên đang kết nối**, không đọc config. Config khai đúng mà server không bật thì vẫn ra kết nối trần — cách này bắt được |
+| CHECK constraint | Thử `update_column(:score, 999)` để bỏ qua validation của model, xem DB có chặn không. Trả lời trực tiếp câu "MySQL bản này có thực thi CHECK không" thay vì suy từ version |
+| max_connections | So với pool của app |
+
+Phép kiểm CHECK nằm trong transaction và luôn rollback nên không để lại bản ghi nào. Task **abort**
+nếu version thấp hoặc CHECK không được thực thi, nên nó chặn được việc deploy lên một DB không đạt.
+
+Chạy lại `db:preflight` một lần nữa sau khi deploy lên Render, **từ Render**, để chắc chắn service
+ở đó nối đúng DB và đúng TLS — không chỉ đúng ở máy dev.
+
 ---
 
-## 3. Render Key Value (Redis)
+## 3. Render — deploy bằng Blueprint
 
-Tạo instance **Key Value**, **cùng region** với web service sẽ tạo ở bước 4.
+Repo có `render.yaml` khai sẵn hạ tầng, nên không phải bấm tay từng service. Dashboard → **New**
+→ **Blueprint** → chọn repo này.
 
-Lấy **Internal URL** trong menu Connect (không dùng External URL — nó cần bật IP allow list và đi
-qua đường public).
+`render.yaml` tạo hai service:
 
-**Render KHÔNG tự tiêm biến môi trường cho Key Value.** Phải tự đặt Internal URL thành `REDIS_URL`
-ở bước 4.
-
-### Vì sao bắt buộc phải có Redis
-
-`config/environments/production.rb` dùng `:redis_cache_store` khi có `REDIS_URL`, không có thì vẫn
-boot được bằng file store nhưng ghi cảnh báo vào log. Trên Render, file store là **sai**:
-filesystem của Render là ephemeral và riêng từng instance, nên mỗi lần deploy hoặc spin down sẽ
-mất:
-
-- bộ đếm rack_attack — gồm throttle **1 lượt/ngày** của Spec Detective (§12). Mất là người chơi
-  được lượt mới. Gói Hobby tự ngủ khi hết traffic nên throttle gần như vô hiệu
-- trạng thái `Gemini::CircuitBreaker` (§15)
-
-`Gemini::DailyBudget` không bị ảnh hưởng vì đếm bảng `ai_gradings` chứ không dùng cache (BR-37).
-
----
-
-## 4. Render Web Service
-
-### 4.1 Tạo service
-
-New → **Web Service** → kết nối repo → runtime **Docker** (repo đã có `Dockerfile`). Region phải
-**cùng region với Key Value** ở bước 3.
-
-Không cần khai build command hay start command: `Dockerfile` đã có `ENTRYPOINT` và `CMD`.
-
-### 4.2 Secret File cho CA certificate
-
-Environment → Secret Files → thêm file, dán nội dung CA certificate tải ở bước 2.4.
-
-Render mount secret file tại **`/etc/secrets/<tên file>`**. Đặt tên `aiven-ca.pem` thì path là
-`/etc/secrets/aiven-ca.pem` — đúng giá trị mẫu trong `.env.example`.
-
-### 4.3 Biến môi trường
-
-| Biến | Giá trị | Lấy ở đâu |
+| Service | Loại | Vì sao |
 |---|---|---|
-| `RAILS_MASTER_KEY` | nội dung file `config/master.key` | Trên máy dev. File này **gitignored và chưa commit** nên Render không tự có. Không dán ra ngoài |
-| `DB_HOST` | | Aiven, bước 2.3 |
-| `DB_PORT` | | Aiven, bước 2.3 |
-| `DB_USERNAME` | thường là `avnadmin` | Aiven, bước 2.3 |
-| `DB_PASSWORD` | | Aiven, bước 2.3 |
-| `DB_NAME` | thường là `defaultdb` | Aiven, bước 2.3 |
-| `DB_SSL_CA` | `/etc/secrets/aiven-ca.pem` | Path của secret file ở bước 4.2 |
-| `REDIS_URL` | Internal URL | Render → Key Value → Connect, bước 3 |
-| `HTTP_PORT` | `10000` | Xem 4.4 |
-| `GEMINI_API_KEY` | | Google AI Studio. Dùng key **mới** nếu key cũ đã từng bị dán ra ngoài |
-| `GEMINI_MODEL` | `gemini-3.6-flash` | Cố định. `gemini-2.5-flash` đã bị Google đóng với key mới (§20) |
-| `PRIVACY_CONTACT_EMAIL` | `hoangnm.nta@gmail.com` | Chốt ở Q8. Chưa set thì trang `/privacy` ghi "chưa công bố kênh liên hệ" |
-| `ADMIN_PASSWORD` | mật khẩu mạnh do bạn chọn | Xem mục 1. **Phải set trước lần deploy đầu**, không thì seed bỏ qua việc tạo admin |
+| `skill-arcade` | web, runtime docker | Build từ `Dockerfile` có sẵn, `healthCheckPath: /up` |
+| `skill-arcade-cache` | keyvalue (Redis) | **Bắt buộc**, xem 3.3 |
+
+`REDIS_URL` được nối tự động bằng `fromService` nên **không phải copy tay** — đây là chỗ dễ quên
+nhất nếu tạo tay, và quên là throttle hỏng trong im lặng.
+
+Không có giá trị bí mật nào nằm trong `render.yaml`. Các biến khai `sync: false` sẽ được Render
+**hỏi lúc tạo blueprint**.
+
+### 3.1 Region đã chốt: `oregon`
+
+`render.yaml` đặt `region: oregon` ở **cả hai** service, khớp với service Aiven ở bờ Tây Mỹ
+(San Francisco). Hai service phải cùng region, không thì Key Value không dùng được đường nội bộ.
+
+Vì sao khớp Aiven chứ không khớp vị trí người chơi — đo trên chính app này:
+
+| Thao tác | Số query |
+|---|---|
+| Trang chủ (bảng xếp hạng) | 2 |
+| `/games` | 2 |
+| Bấm "Bắt đầu lượt" Bug Hunt + ra đề | **11** |
+
+Chặng app↔DB đi **11 lần** mỗi lần bấm nút, còn chặng người dùng↔Render chỉ đi **một lần** mỗi
+request. Đo thật từ Việt Nam tới Aiven là ~190ms, nên nếu đặt Render ở `singapore` thì một lần bấm
+nút mất ~2,1 giây (11 × 190ms) chỉ để chờ DB — mọi query phải vượt Thái Bình Dương. Đặt ở `oregon`
+thì chặng đó nằm trong cùng bờ Tây.
+
+Đánh đổi đã chấp nhận: người chơi ở Việt Nam chịu ~190ms cho chặng tới Render, nhưng chặng đó đi
+một lần.
+
+Nếu sau này muốn tối ưu cho người chơi ở Việt Nam thì phải chuyển **cả hai** sang châu Á — chuyển
+riêng Render là làm chậm đi, không phải nhanh lên.
+
+**`plan`** — đang là `free` ở cả hai. Render từ chối thì nâng lên `starter`.
+
+### 3.2 Render sẽ hỏi 7 giá trị này
+
+| Biến | Lấy ở đâu |
+|---|---|
+| `RAILS_MASTER_KEY` | Nội dung file `config/master.key` trên máy dev. File đó gitignored và chưa commit nên Render không tự có. Không dán ra ngoài |
+| `DB_HOST` `DB_PORT` `DB_USERNAME` `DB_PASSWORD` `DB_NAME` | Aiven, bước 2.3 |
+| `ADMIN_PASSWORD` | Mật khẩu mạnh bạn tự chọn, xem mục 1 |
+| `GEMINI_API_KEY` | Google AI Studio. Dùng key **mới** nếu key cũ từng bị dán ra ngoài |
+
+Các biến đã có sẵn giá trị trong `render.yaml`, không phải nhập: `HTTP_PORT` (10000),
+`REDIS_URL` (tự nối), `GEMINI_MODEL`, `PRIVACY_CONTACT_EMAIL`, `DB_SSL_CA`.
 
 **Không cần set:**
 
@@ -164,51 +239,107 @@ Render mount secret file tại **`/etc/secrets/<tên file>`**. Đặt tên `aive
 - `RAILS_ENV` — `Dockerfile` đã đặt `ENV RAILS_ENV="production"`
 - `DATABASE_URL` — xem cảnh báo ở 2.3
 - `RAILS_MAX_THREADS` — để trống thì mặc định 5, phù hợp với `max_connections` 76 của Aiven
+- `PORT` — xem 3.4
 
-### 4.4 `HTTP_PORT` — chỗ dễ fail nhất ở lần deploy đầu
+### 3.3 Không cần Secret File
+
+`config/aiven-ca.pem` đã nằm trong repo nên có sẵn trong Docker image: `Dockerfile` có
+`WORKDIR /rails` và `COPY . .`, còn `.dockerignore` không loại trừ file đó (nó chỉ chặn `/.env*`,
+`/config/master.key` và `/config/credentials/*.key`). `render.yaml` khai
+`DB_SSL_CA=/rails/config/aiven-ca.pem`.
+
+Vì sao **không** dùng Secret File của Render: Secret File chỉ thêm được **sau khi** service tồn
+tại, mà service **không boot được khi thiếu CA** (xem 2.4) — nên lần deploy đầu chắc chắn fail,
+rồi mới thêm file được, rồi deploy lại. Ngoài ra Secret File là per-service nên mọi service cần DB
+(vd cron job ở mục 5) đều phải thêm lại.
+
+CA certificate là thông tin công khai theo bản chất — server trình nó ra cho mọi client để xác
+thực, và nó không chứa private key. Commit được, giống cách AWS ship RDS CA bundle trong code.
+
+### 3.4 `HTTP_PORT` — chỗ dễ fail nhất, và vì sao `render.yaml` đặt nó
 
 Render yêu cầu app listen trên `0.0.0.0` tại port trong biến `PORT`, **mặc định 10000**. Nhưng
 `Dockerfile` chạy `CMD ["./bin/thrust", "./bin/rails", "server"]`, và theo README của gem
-`thruster`:
+`thruster` 0.1.25:
 
 - `HTTP_PORT` — port Thruster listen, **mặc định 80**
 - `TARGET_PORT` — port Puma chạy, mặc định 3000. **Thruster tự ghi đè `PORT` thành giá trị này**
   khi khởi động Puma
 
 Nghĩa là Thruster **không đọc `PORT` của Render** mà còn ghi đè nó. Render nói họ "usually able to
-detect" port khác, nhưng không nên phụ thuộc vào chữ "usually".
-
-Cách chắc chắn: set **`HTTP_PORT=10000`** để Thruster listen đúng chỗ Render chờ.
+detect" port khác, nhưng không nên phụ thuộc vào chữ "usually" — nên `render.yaml` đặt thẳng
+`HTTP_PORT: 10000`.
 
 **Chưa verify**: Thruster có bind vào `0.0.0.0` hay chỉ `127.0.0.1` — README không nói. Nếu deploy
-vẫn fail vì Render không thấy port, phương án dự phòng là bỏ Thruster và cho Puma bind trực tiếp,
-bằng cách khai Docker Command của service:
+vẫn fail vì Render không thấy port, phương án dự phòng là bỏ Thruster, khai thêm vào web service
+trong `render.yaml`:
 
+```yaml
+    dockerCommand: ./bin/rails server -b 0.0.0.0 -p 10000
 ```
-./bin/rails server -b 0.0.0.0 -p 10000
-```
 
-Đánh đổi khi bỏ Thruster: mất X-Sendfile và nén cho file tĩnh. Chấp nhận được với app này.
+Đánh đổi khi bỏ Thruster: mất X-Sendfile và nén cho file tĩnh. Chấp nhận được với app này. Lệnh
+trên vẫn kết thúc bằng `./bin/rails server` nên entrypoint vẫn chạy `db:prepare` như bình thường.
 
-Lưu ý: lệnh dự phòng trên vẫn kết thúc bằng `./bin/rails server` nên entrypoint vẫn chạy
-`db:prepare` như bình thường.
+### 3.5 Vì sao Key Value là bắt buộc, không phải tuỳ chọn
+
+`config/environments/production.rb` dùng `:redis_cache_store` khi có `REDIS_URL`, không có thì vẫn
+boot được bằng file store nhưng ghi cảnh báo vào log. Trên Render, file store là **sai**:
+filesystem của Render là ephemeral và riêng từng instance, nên mỗi lần deploy hoặc spin down sẽ
+mất:
+
+- bộ đếm rack_attack — gồm throttle **1 lượt/ngày** của Spec Detective (§12). Mất là người chơi
+  được lượt mới. Web service gói free tự ngủ khi hết traffic nên throttle gần như vô hiệu
+- trạng thái `Gemini::CircuitBreaker` (§15)
+
+`Gemini::DailyBudget` không bị ảnh hưởng vì đếm bảng `ai_gradings` chứ không dùng cache (BR-37).
 
 ---
 
-## 5. Render Cron Job — BR-24
+## 4. Nếu không dùng Blueprint
 
-BR-24 yêu cầu lượt để quá 24 giờ phải được đánh dấu `abandoned` với lý do `timeout`. Việc này chạy
-bằng rake task, cần một scheduler bên ngoài. Trên Render đó là **Cron Job** — một service riêng,
-không đi kèm web service.
+Tạo tay theo đúng thứ tự, dùng `render.yaml` làm bảng tra giá trị:
 
-- Cùng repo, cùng `Dockerfile`
-- Command: `./bin/rails game_sessions:expire_stale`
-- Lịch: mỗi giờ là đủ (task chỉ tìm lượt đã quá 24 giờ)
-- Env var cần: các biến `DB_*` và `DB_SSL_CA`, cộng `RAILS_MASTER_KEY`. Không cần `GEMINI_*` hay
-  `REDIS_URL`
+1. **Key Value** trước — cần connection string của nó ở bước sau. Chọn `ipAllowList` rỗng để chỉ
+   truy cập nội bộ, `maxmemoryPolicy` = `noeviction`
+2. **Web Service** — New → Web Service → chọn repo → runtime **Docker**, cùng region với Key Value
+3. Copy **Internal URL** của Key Value trong menu Connect, đặt thành `REDIS_URL`. **Render KHÔNG
+   tự tiêm biến này** khi tạo tay — đây là chỗ dễ quên nhất, và quên thì throttle hỏng mà không
+   báo gì ngoài một dòng cảnh báo trong log
+4. Set toàn bộ biến ở mục 3.2 cộng các biến có giá trị sẵn trong `render.yaml`, gồm
+   `DB_SSL_CA=/rails/config/aiven-ca.pem`
 
-Command này **không** kết thúc bằng `./bin/rails server` nên entrypoint sẽ không chạy `db:prepare`
-— đúng như mong muốn, cron job không nên can thiệp schema.
+Không cần thêm Secret File — CA đã nằm trong repo (mục 3.3).
+
+---
+
+## 5. Cron job cho BR-24 — tuỳ chọn, CÓ PHÍ
+
+BR-24 yêu cầu lượt để quá 24 giờ được đánh dấu `abandoned` với lý do `timeout`, chạy bằng
+`rake game_sessions:expire_stale` nên cần scheduler bên ngoài.
+
+**Render tính phí cron job theo phút, không có gói free** (từ khoảng 1 USD/tháng ở gói starter).
+Vì vậy nó **không** nằm trong `render.yaml` — để việc apply blueprint không phát sinh tiền.
+
+### Không có cron job thì mất gì
+
+Ít hơn tưởng. Đã rà lại code:
+
+- **Bảng xếp hạng không ảnh hưởng**: `LeaderboardQuery` chỉ lấy lượt `finished` (BR-08), lượt
+  `in_progress` treo không lọt vào
+- **Rate limit không ảnh hưởng**: rack_attack đếm request, không đếm bản ghi lượt
+- **Không chặn người chơi**: `GameSessions::Creator` không kiểm lượt `in_progress` đang mở, chỉ
+  tăng `attempt_number`, nên lượt treo không làm ai không chơi được
+
+Mất thật sự là độ chính xác của `abandoned_reason` cho mục đích thống kê, và dữ liệu gọn gàng.
+
+### Ba cách
+
+| Cách | Chi phí | Ghi chú |
+|---|---|---|
+| Render Cron Job, `plan: starter`, lịch mỗi giờ | ~1 USD/tháng | Command: `./bin/rails game_sessions:expire_stale`. Không kết thúc bằng `./bin/rails server` nên entrypoint sẽ KHÔNG chạy `db:prepare` — đúng ý, cron không nên đụng schema. Cần các biến `DB_*` + `DB_SSL_CA` + `RAILS_MASTER_KEY`; CA thì đã có trong image nên không phải cấp riêng |
+| Chạy tay khi cần, từ máy dev với biến `DB_*` trỏ vào Aiven | 0 | Đủ với tác động ở trên |
+| Bỏ hẳn | 0 | Ghi vào spec §19 là hạn chế đã biết |
 
 ---
 
@@ -229,6 +360,8 @@ Theo thứ tự, dừng lại ở bước đầu tiên fail:
 7. **Trạng thái sống sót qua deploy**: bấm redeploy, rồi thử tạo lượt Spec Detective lần nữa → vẫn
    phải **429**. Nếu ra 201 thì cache đang là file store, không phải Redis — quay lại bước 2
 8. **Hạn mức AI hiển thị**: mở `/games/spec_detective`, phải thấy số lượt còn lại của hệ thống
+9. **`rake db:preflight` từ chính Render** (one-off job hoặc shell nếu gói có) — xác nhận service ở đó
+   nối đúng DB và đúng TLS, không chỉ đúng ở máy dev
 
 ## 7. Việc sau deploy
 

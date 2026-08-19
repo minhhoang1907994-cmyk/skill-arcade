@@ -10,6 +10,7 @@
 # Ignore all environment files, but keep the template.
 /.env*
 !/.env.example
+!/.env.aiven.example
 
 # Ignore all logfiles and tempfiles.
 /log/*
