@@ -446,7 +446,73 @@ Theo thứ tự, dừng lại ở bước đầu tiên fail:
 9. **`rake db:preflight` từ chính Render** (one-off job hoặc shell nếu gói có) — xác nhận service ở đó
    nối đúng DB và đúng TLS, không chỉ đúng ở máy dev
 
-## 7. Việc sau deploy
+## 7. Gỡ lỗi — những lần fail đã gặp thật
+
+Ba lỗi dưới đây đều đã gặp trong lần deploy đầu ngày 2026-08-19, theo đúng thứ tự này. Sửa lỗi
+trước mới lộ ra lỗi sau, và cả ba đều đã sửa trong repo.
+
+### `bundle install` exit code 16
+
+```
+error: failed to solve: process "/bin/sh -c bundle install && ..." exit code: 16
+```
+
+`Bundler::ProductionError` — `Gemfile.lock` thiếu platform Linux. Xem mục 2.9.
+
+### `bundle install` exit code 5
+
+```
+checking for -lmysqlclient... no
+extconf failed, exit code 1
+```
+
+Thiếu `default-libmysqlclient-dev` ở build stage. Xem mục 2.10.
+
+### `Missing secret_key_base for 'production' environment`
+
+```
+bin/rails aborted!
+ArgumentError: Missing `secret_key_base` for 'production' environment
+Tasks: TOP => db:prepare => db:load_config => environment
+```
+
+**`RAILS_MASTER_KEY` chưa được set trên service.** Rails không giải mã được `credentials.yml.enc`
+nên không lấy được `secret_key_base` và dừng ngay lúc nạp environment — trước cả khi thử nối DB.
+
+Nguyên nhân thường gặp: Render **chỉ hỏi các biến `sync: false` ở lần tạo blueprint đầu tiên**;
+khi cập nhật blueprint sau đó nó BỎ QUA những biến này. Bỏ qua prompt nào ở lần đầu thì biến đó
+không bao giờ được hỏi lại, phải set tay trong dashboard.
+
+Vì lỗi này dừng ở bước nạp environment, nó **che mất** mọi biến thiếu khác. Nên khi sửa, hãy kiểm
+**cả 7 biến `sync: false`** trong một lần thay vì sửa từng cái rồi deploy lại:
+
+| Biến | Lấy ở đâu |
+|---|---|
+| `RAILS_MASTER_KEY` | `Get-Content config\master.key -Raw \| Set-Clipboard` — 32 ký tự hex, không có newline |
+| `DB_HOST` `DB_PORT` `DB_USERNAME` `DB_PASSWORD` `DB_NAME` | `.env.aiven` trên máy dev |
+| `ADMIN_PASSWORD` | mật khẩu mạnh bạn chọn |
+| `GEMINI_API_KEY` | Google AI Studio |
+
+Cách khác cho `secret_key_base`: set thẳng biến **`SECRET_KEY_BASE`**. Rails đọc
+`ENV["SECRET_KEY_BASE"]` trước khi tìm trong credentials, nên nó bỏ qua hẳn chuỗi
+credentials/master-key. `credentials.yml.enc` của repo này hiện **chỉ chứa `secret_key_base`** nên
+làm vậy không mất gì. Chọn `RAILS_MASTER_KEY` nếu sau này muốn để thêm secret vào credentials.
+
+### Lỗi kết nối DB
+
+| Log | Nguyên nhân |
+|---|---|
+| `TLS/SSL error: failed to open file` | `DB_SSL_CA` trỏ vào đường dẫn không có file. Trên Render phải là `/rails/config/aiven-ca.pem` |
+| `CERT_E_UNTRUSTEDROOT` | Không có CA. Xem mục 2.4 — với Aiven thì CA là bắt buộc |
+| `Unknown database` | Sai `DB_NAME`. Aiven mặc định là `defaultdb` |
+| `issue connecting ... username/password` | Sai `DB_USERNAME` / `DB_PASSWORD` |
+
+Chạy `./bin/rails db:preflight` từ chính service (one-off job hoặc shell) để đọc được thông báo có
+nội dung thay vì backtrace.
+
+---
+
+## 8. Việc sau deploy
 
 - Ngân hàng câu hỏi chưa đạt mức tối thiểu §6. Hạn mức Gemini 20 request/ngày nên cần 3-4 ngày
   chạy `rake questions:generate`. `prod_roulette` hiện chưa có câu nào do AI sinh

@@ -376,6 +376,28 @@ lặng lẽ thêm platform vào lock của runner rồi chạy tiếp — CI xan
 **Mỗi lần `bundle install`/`bundle update` trên Windows đều có thể làm mất dòng đó.** Docker build
 fail ở bước `bundle install` thì kiểm chỗ này trước tiên.
 
+### BẪY 3: Missing secret_key_base — RAILS_MASTER_KEY chưa set trên Render
+```
+ArgumentError: Missing `secret_key_base` for 'production' environment
+Tasks: TOP => db:prepare => db:load_config => environment
+```
+Rails không giải mã được `credentials.yml.enc` nên không lấy được `secret_key_base`, dừng ngay lúc
+nạp environment — TRƯỚC cả khi thử nối DB, nên lỗi này **che mất mọi biến thiếu khác**.
+
+Nguyên nhân hệ thống, đã verify từ docs Render: **Render chỉ hỏi biến `sync: false` ở LẦN TẠO
+BLUEPRINT ĐẦU TIÊN**; khi cập nhật blueprint sau đó nó BỎ QUA những biến đó. Bỏ qua prompt nào ở
+lần đầu thì phải set tay trong dashboard, không bao giờ được hỏi lại.
+
+`render.yaml` không sai: `sync: false` KHÔNG cần kèm `value` (đã verify docs).
+
+Đã kiểm: `credentials.yml.enc` chỉ chứa duy nhất `secret_key_base` (128 ký tự), và
+`config/master.key` là 32 hex sạch, không newline. Nên có 2 cách sửa tương đương:
+`RAILS_MASTER_KEY` (Rails-native, giữ credentials dùng được cho secret sau này) hoặc
+`SECRET_KEY_BASE` (Rails đọc ENV này TRƯỚC credentials, bỏ qua hẳn chuỗi master-key).
+
+Lời khuyên cho lần sau: sửa thì kiểm **cả 7 biến `sync: false`** trong một lần, đừng sửa từng cái
+rồi deploy lại — vì lỗi environment che mất các biến thiếu phía sau.
+
 ### BẪY 2: Dockerfile thiếu header dev của MySQL client
 Ngay sau khi sửa platform thì build fail tiếp, cùng bước `bundle install` nhưng **exit code 5**:
 `checking for -lmysqlclient... no` → gem `mysql2` không compile được.
