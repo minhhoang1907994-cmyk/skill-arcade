@@ -9,5 +9,7 @@ class GamesController < ApplicationController
 
   def show
     @game = Game.active.find_by!(slug: params[:slug])
+    # Chỉ hiện ngôn ngữ còn đủ câu cho trọn một lượt.
+    @languages = @game.playable_languages
   end
 end

@@ -8,7 +8,10 @@ class AiGrading < ApplicationRecord
   belongs_to :session_answer
 
   validates :model, presence: true, length: { maximum: 50 }
-  validates :prompt, :response, presence: true
+  validates :prompt, presence: true
+  # Lần gọi thất bại (timeout, HTTP lỗi, breaker mở) không có body trả về. Cột response
+  # là NOT NULL nên ghi chuỗi rỗng, và cột error là nơi mang thông tin (§8.5).
+  validates :response, presence: true, unless: :failed?
   validates :score, numericality: {
     only_integer: true, greater_than_or_equal_to: 0
   }, allow_nil: true

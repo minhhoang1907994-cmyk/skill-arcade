@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_000007) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_000008) do
   create_table "ai_gradings", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "error"
@@ -30,6 +30,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_000007) do
     t.integer "current_position", default: 0, null: false, unsigned: true
     t.datetime "finished_at"
     t.bigint "game_id", null: false
+    t.string "language", limit: 20
     t.integer "score", default: 0, null: false, unsigned: true
     t.datetime "started_at", null: false
     t.string "state", limit: 20, default: "in_progress", null: false
@@ -81,10 +82,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_000007) do
     t.bigint "game_id", null: false
     t.datetime "generated_at"
     t.boolean "hidden", default: false, null: false
+    t.string "language", limit: 20
     t.string "source", limit: 20, default: "ai_generated", null: false
     t.datetime "updated_at", null: false
     t.index ["checksum"], name: "index_questions_on_checksum", unique: true
     t.index ["game_id", "hidden"], name: "index_questions_on_game_id_and_hidden"
+    t.index ["game_id", "language", "hidden"], name: "index_questions_on_game_language_hidden"
     t.index ["game_id"], name: "index_questions_on_game_id"
   end
 

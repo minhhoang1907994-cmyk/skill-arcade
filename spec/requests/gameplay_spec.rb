@@ -8,14 +8,20 @@ RSpec.describe "Gameplay API" do
     post session_path, params: { email: user.email, password: "password123" }
   end
 
-  def create_bug_hunt_questions(count = 3)
+  def create_bug_hunt_questions(count = 3, language: "ruby")
     count.times do |i|
       create(:question, game: game,
-             content: { "language" => "ruby", "code_lines" => [ "a#{i}", "b#{i}" ],
+             content: { "language" => language, "code_lines" => [ "a#{i}", "b#{i}" ],
                         "bug_types" => [ "sql_injection", "xss" ] },
              answer_key: { "buggy_line" => 1, "bug_type" => "sql_injection",
                            "explanation" => "..." })
     end
+  end
+
+  # Bug Hunt phân đề theo ngôn ngữ nên tạo lượt phải kèm language.
+  def start_session(language: "ruby")
+    post api_v1_game_sessions_path(slug: game.slug),
+         params: { language: language }.compact, as: :json
   end
 
   before { login }
@@ -24,7 +30,7 @@ RSpec.describe "Gameplay API" do
     it "tạo lượt mới bắt đầu từ 0 điểm và trả bước đầu tiên (BR-05)" do
       create_bug_hunt_questions
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
 
       expect(response).to have_http_status(:created)
       body = response.parsed_body
@@ -37,7 +43,7 @@ RSpec.describe "Gameplay API" do
     it "không bao giờ trả answer_key về client (BR-03)" do
       create_bug_hunt_questions
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
 
       expect(response.body).not_to include("answer_key")
       expect(response.body).not_to include("buggy_line")
@@ -46,20 +52,81 @@ RSpec.describe "Gameplay API" do
     it "trả 422 khi ngân hàng câu hỏi không đủ" do
       create_bug_hunt_questions(1)
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.parsed_body["code"]).to eq("NO_QUESTIONS_AVAILABLE")
     end
 
+    it "trả 422 khi Bug Hunt không kèm ngôn ngữ" do
+      create_bug_hunt_questions
+
+      start_session(language: nil)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("INVALID_LANGUAGE")
+    end
+
+    it "trả 422 khi ngôn ngữ không có trong ngân hàng câu hỏi" do
+      create_bug_hunt_questions
+
+      start_session(language: "cobol")
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("INVALID_LANGUAGE")
+    end
+
+    it "chốt ngôn ngữ đã chọn vào lượt và chỉ ra đề đúng ngôn ngữ đó" do
+      create_bug_hunt_questions(2, language: "ruby")
+      create_bug_hunt_questions(2, language: "java")
+
+      start_session(language: "java")
+
+      expect(response.parsed_body["language"]).to eq("java")
+      expect(response.parsed_body["current"]["content"]["language"]).to eq("java")
+
+      sid = response.parsed_body["session_id"]
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { line: 1, bug_type: "sql_injection" } }, as: :json
+
+      expect(response.parsed_body["next"]["content"]["language"]).to eq("java")
+      expect(GameSession.find(sid).language).to eq("java")
+    end
+
+    it "câu hiển thị cho client chính là câu server chấm" do
+      create_bug_hunt_questions(6)
+
+      start_session
+      shown_id = response.parsed_body["current"]["question_id"]
+      sid = response.parsed_body["session_id"]
+
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { line: 1, bug_type: "sql_injection" } }, as: :json
+
+      expect(SessionAnswer.sole.question_id).to eq(shown_id)
+    end
+
+    it "tải lại giữa bước vẫn thấy đúng câu đó (spec §13)" do
+      create_bug_hunt_questions(6)
+
+      start_session
+      shown_id = response.parsed_body["current"]["question_id"]
+      sid = response.parsed_body["session_id"]
+
+      2.times do
+        get api_v1_session_current_path(id: sid), as: :json
+        expect(response.parsed_body["current"]["question_id"]).to eq(shown_id)
+      end
+    end
+
     it "tăng attempt_number ở lượt kế tiếp (BR-10)" do
       create_bug_hunt_questions(4)
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
       first_id = response.parsed_body["session_id"]
       GameSession.find(first_id).abandon!(GameSession::USER_QUIT)
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
 
       expect(response.parsed_body["attempt_number"]).to eq(2)
     end
@@ -68,7 +135,7 @@ RSpec.describe "Gameplay API" do
       delete session_path
       create_bug_hunt_questions
 
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
 
       expect(response).to have_http_status(:unauthorized)
     end
@@ -77,7 +144,7 @@ RSpec.describe "Gameplay API" do
   describe "POST /api/v1/sessions/:id/answers" do
     let(:session_id) do
       create_bug_hunt_questions
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
       response.parsed_body["session_id"]
     end
 
@@ -155,7 +222,7 @@ RSpec.describe "Gameplay API" do
     it "kẹp elapsed_ms theo thời gian server đo được (BR-21)" do
       # Client khai 0ms để ăn hệ số 1.0, nhưng server đo thời gian thật.
       create_bug_hunt_questions
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
       sid = response.parsed_body["session_id"]
       GameSession.find(sid).update!(started_at: 90.seconds.ago)
 
@@ -200,23 +267,76 @@ RSpec.describe "Gameplay API" do
     end
   end
 
-  describe "Spec Detective — AI chưa sẵn sàng (§8.5, BR-33)" do
+  describe "Spec Detective — chấm bằng Gemini (§8.5, BR-19, BR-26, BR-33)" do
     let(:detective) do
       create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective",
              questions_per_session: 1, steps_per_session: 1)
     end
 
-    it "trả 503 và đánh dấu lượt là system_error, không tính điểm" do
+    def start_detective
       create(:question, game: detective, content: { "requirement_text" => "xử lý nhanh" },
              answer_key: { "ambiguous_points" => [ "nhanh" ] })
 
       post api_v1_game_sessions_path(slug: detective.slug), as: :json
-      sid = response.parsed_body["session_id"]
+      response.parsed_body["session_id"]
+    end
 
+    def submit_answer(sid)
       post api_v1_session_answers_path(id: sid),
            params: { position: 1,
                      answer: { ambiguous_points: [ "nhanh" ], questions: "Nhanh là bao lâu?" } },
            as: :json
+    end
+
+    def stub_grader(grading)
+      allow_any_instance_of(Gemini::SpecDetectiveGrader).to receive(:call).and_return(grading)
+    end
+
+    it "cộng điểm AI chấm và ghi một bản ghi ai_gradings (BR-19, BR-26)" do
+      stub_grader(
+        Gemini::SpecDetectiveGrader::Grading.new(
+          score: 16, explanation: "Điểm mơ hồ: 8/10. Câu hỏi làm rõ: 8/10.",
+          attributes: { model: "gemini-test", prompt: "p", response: "{}",
+                        score: 16, latency_ms: 42 }
+        )
+      )
+      sid = start_detective
+
+      submit_answer(sid)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["awarded_score"]).to eq(16)
+      expect(response.parsed_body["total_score"]).to eq(16)
+      expect(GameSession.find(sid).state).to eq(GameSession::FINISHED)
+
+      grading = AiGrading.sole
+      expect(grading.score).to eq(16)
+      expect(grading.latency_ms).to eq(42)
+      expect(grading).not_to be_failed
+    end
+
+    it "không trả prompt hay answer_key về client (BR-03)" do
+      stub_grader(
+        Gemini::SpecDetectiveGrader::Grading.new(
+          score: 10, explanation: "ok",
+          attributes: { model: "gemini-test", prompt: "ĐÁP ÁN THAM CHIẾU: nhanh",
+                        response: "{}", score: 10, latency_ms: 1 }
+        )
+      )
+      sid = start_detective
+
+      submit_answer(sid)
+
+      expect(response.body).not_to include("ĐÁP ÁN THAM CHIẾU")
+      expect(response.body).not_to include("answer_key")
+    end
+
+    it "trả 503, đánh dấu system_error và vẫn ghi ai_gradings kèm error (§8.5, BR-19)" do
+      # Không stub grader: test env không có GEMINI_API_KEY nên client raise
+      # ConfigurationError — đúng đường đi thật khi Gemini không dùng được.
+      sid = start_detective
+
+      submit_answer(sid)
 
       expect(response).to have_http_status(:service_unavailable)
       expect(response.parsed_body["code"]).to eq("GRADING_UNAVAILABLE")
@@ -224,14 +344,35 @@ RSpec.describe "Gameplay API" do
       session = GameSession.find(sid)
       expect(session.state).to eq(GameSession::ABANDONED)
       expect(session.abandoned_reason).to eq(GameSession::SYSTEM_ERROR)
+      expect(session.score).to eq(0)
       expect(GameSession.finished).to be_empty
+
+      answer = SessionAnswer.sole
+      expect(answer.score).to eq(0)
+      expect(answer.answer.dig("_meta", "grading_pending")).to be true
+
+      grading = AiGrading.sole
+      expect(grading).to be_failed
+      expect(grading.score).to be_nil
+      expect(grading.error).to include("GEMINI_API_KEY")
+    end
+
+    it "vẫn trả 400 khi thiếu trường trong answer, không phải 503" do
+      sid = start_detective
+
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { ambiguous_points: [ "nhanh" ] } }, as: :json
+
+      expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body["code"]).to eq("VALIDATION_ERROR")
+      expect(AiGrading.count).to eq(0)
     end
   end
 
   describe "POST /api/v1/sessions/:id/abandon (§8.4)" do
     it "đánh dấu user_quit và không tính vào leaderboard" do
       create_bug_hunt_questions
-      post api_v1_game_sessions_path(slug: game.slug), as: :json
+      start_session
       sid = response.parsed_body["session_id"]
 
       post api_v1_session_abandon_path(id: sid), as: :json

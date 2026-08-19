@@ -17,8 +17,34 @@
       bắt đầu lượt sẽ báo lỗi dịch vụ chấm điểm.
     </p>
   <% end %>
+
+  <% if @game.language_scoped? %>
+    <p class="score-label" style="margin-top:8px">Chọn ngôn ngữ lập trình</p>
+    <% if @languages.any? %>
+      <div class="chips" role="radiogroup" aria-label="Ngôn ngữ lập trình">
+        <% @languages.each_with_index do |language, index| %>
+          <label>
+            <input type="radio" name="language" value="<%= language %>"
+                   <%= "checked" if index.zero? %>>
+            <span><%= language %></span>
+          </label>
+        <% end %>
+      </div>
+      <p class="muted small" style="margin-top:10px">
+        Cả lượt chơi chỉ gồm câu hỏi thuộc ngôn ngữ bạn chọn.
+      </p>
+    <% else %>
+      <p class="muted small">
+        Chưa ngôn ngữ nào đủ <%= @game.questions_per_session %> câu hỏi cho một lượt.
+      </p>
+    <% end %>
+  <% end %>
+
   <div class="actions">
-    <button id="start-btn" type="button" class="btn--primary">Bắt đầu lượt mới</button>
+    <button id="start-btn" type="button" class="btn--primary"
+            <%= "disabled" if @game.language_scoped? && @languages.empty? %>>
+      Bắt đầu lượt mới
+    </button>
     <%= link_to "Quay lại", games_path, class: "btn" %>
   </div>
 </div>
@@ -225,10 +251,19 @@
     return { node_key: $("answer-area").dataset.nodeKey, option_key: chosen.value };
   }
 
+  function selectedLanguage() {
+    const picked = document.querySelector('input[name="language"]:checked');
+    return picked ? picked.value : null;
+  }
+
   $("start-btn").addEventListener("click", async () => {
     $("start-btn").disabled = true;
     try {
-      const data = await api("/api/v1/games/" + slug + "/sessions", { method: "POST" });
+      const language = selectedLanguage();
+      const data = await api("/api/v1/games/" + slug + "/sessions", {
+        method: "POST",
+        body: language ? JSON.stringify({ language }) : undefined
+      });
       sessionId = data.session_id;
       $("score").textContent = data.score;
       $("intro").hidden = true;

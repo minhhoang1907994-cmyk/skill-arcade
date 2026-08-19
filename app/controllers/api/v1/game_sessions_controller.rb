@@ -6,7 +6,9 @@ module Api
       # POST /api/v1/games/:slug/sessions
       def create
         game = Game.active.find_by!(slug: params[:slug])
-        session = ::GameSessions::Creator.new(user: current_user, game: game).call
+        session = ::GameSessions::Creator.new(
+          user: current_user, game: game, language: params[:language]
+        ).call
 
         render json: session_payload(session).merge(
           current: ::GameSessions::StepProvider.new(session).payload
@@ -14,6 +16,8 @@ module Api
       rescue ::Questions::Drawer::NotEnoughQuestions
         render_error(:unprocessable_entity, "NO_QUESTIONS_AVAILABLE",
                      "Chưa đủ câu hỏi cho game này")
+      rescue ::GameSessions::Creator::InvalidLanguage => e
+        render_error(:unprocessable_entity, "INVALID_LANGUAGE", e.message)
       rescue ::GameSessions::Creator::ConcurrentCreate => e
         render_error(:conflict, "CONFLICT", e.message)
       end
@@ -49,6 +53,7 @@ module Api
         {
           session_id: session.id,
           game: session.game.slug,
+          language: session.language,
           attempt_number: session.attempt_number,
           total_positions: session.game.steps_per_session,
           score: session.score

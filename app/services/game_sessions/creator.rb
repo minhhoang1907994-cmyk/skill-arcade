@@ -11,13 +11,17 @@ module GameSessions
     MAX_RETRY = 1
 
     class ConcurrentCreate < StandardError; end
+    class InvalidLanguage < StandardError; end
 
-    def initialize(user:, game:)
+    def initialize(user:, game:, language: nil)
       @user = user
       @game = game
+      # Ngôn ngữ chỉ có ý nghĩa với game phân đề theo ngôn ngữ; game khác bỏ qua.
+      @language = game.language_scoped? ? language.presence : nil
     end
 
     def call
+      validate_language!
       # Kiểm tra ngân hàng câu hỏi trước khi tạo bản ghi, để không sinh ra lượt rỗng.
       ensure_questions_available!
 
@@ -34,8 +38,19 @@ module GameSessions
 
     private
 
+    def validate_language!
+      return unless @game.language_scoped?
+
+      raise InvalidLanguage, "cần chọn ngôn ngữ lập trình" if @language.blank?
+      return if @game.available_languages.include?(@language)
+
+      # Ngôn ngữ có trong ngân hàng nhưng chưa đủ câu là chuyện khác — để
+      # ensure_questions_available! báo NO_QUESTIONS_AVAILABLE.
+      raise InvalidLanguage, "ngôn ngữ không hợp lệ"
+    end
+
     def ensure_questions_available!
-      available = Question.playable.where(game: @game).count
+      available = Question.playable.where(game: @game).in_language(@language).count
       return if available >= @game.questions_per_session
 
       raise Questions::Drawer::NotEnoughQuestions, "ngân hàng câu hỏi chưa đủ"
@@ -45,6 +60,7 @@ module GameSessions
       GameSession.create!(
         user: @user,
         game: @game,
+        language: @language,
         attempt_number: next_attempt_number,
         score: 0,
         state: GameSession::IN_PROGRESS,

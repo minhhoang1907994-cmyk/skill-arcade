@@ -7,7 +7,7 @@
 - **Priority**: High
 - **Phase**: Phase 1 — cả 5 game, chưa có phần thưởng vật chất
 - **Ngày soạn**: 2026-08-18
-- **Version**: 1.3 (đã xử lý toàn bộ blocker/warning/suggestion từ `/nta-spec-review`, bổ sung CSRF sau khi verify Phase 1 trên server thật)
+- **Version**: 1.5 (Phase 3 — hạn mức/điều khoản Gemini ở §20, circuit breaker, BR-36)
 - **Input**: `docs/clarify/clarify_skill-arcade.md` (5 vòng clarify, đã đóng toàn bộ BLOCKER)
 
 ## 2. User Story
@@ -105,11 +105,13 @@ Giá trị seed:
 | hidden | boolean | NO | false | | Admin ẩn khi câu bị báo sai |
 | source | varchar(20) | NO | `ai_generated` | | `ai_generated` / `manual` |
 | generated_at | datetime | YES | NULL | | Thời điểm AI sinh ra |
+| language | varchar(20) | YES | NULL | | Ngôn ngữ lập trình của snippet. Chỉ Bug Hunt dùng, game khác để NULL. Nhân ra từ `content.language` để lọc được bằng index |
 | created_at / updated_at | datetime | NO | | | |
 
 Indexes:
 - `index_questions_on_checksum` UNIQUE on `(checksum)`
 - `index_questions_on_game_id_and_hidden` on `(game_id, hidden)` — bốc câu hỏi lúc bắt đầu lượt
+- `index_questions_on_game_language_hidden` on `(game_id, language, hidden)` — bốc câu hỏi cho Bug Hunt theo ngôn ngữ đã chọn
 
 Foreign Keys:
 - `fk_questions_games`: `game_id` → `games.id` (RESTRICT — không cho xoá game còn câu hỏi)
@@ -126,6 +128,7 @@ Foreign Keys:
 | state | varchar(20) | NO | `in_progress` | | `in_progress` / `finished` / `abandoned` |
 | abandoned_reason | varchar(20) | YES | NULL | | `user_quit` / `timeout` / `system_error` — chỉ `system_error` được miễn trừ khỏi bộ đếm rate limit (BR-33) |
 | current_position | int unsigned | NO | 0 | | Vị trí câu/bước hiện tại |
+| language | varchar(20) | YES | NULL | | Ngôn ngữ người chơi chọn cho lượt này (chỉ Bug Hunt). Đề bốc theo từng bước nên phải lưu để mọi bước cùng một ngôn ngữ |
 | started_at | datetime | NO | | | |
 | finished_at | datetime | YES | NULL | | NULL nghĩa là chưa hoàn thành → **không tính điểm** |
 | created_at / updated_at | datetime | NO | | | |
@@ -271,11 +274,18 @@ Cookie: _skill_arcade_session=<SESSION_COOKIE>
 Content-Type: application/json
 ```
 
+Request Body:
+
+| Field | Type | Required | Validation | Description |
+|---|---|---|---|---|
+| language | string | Chỉ với `bug_hunt` | Phải là ngôn ngữ có mặt trong ngân hàng câu hỏi của game | Ngôn ngữ lập trình cho cả lượt (BR-35). Game khác gửi kèm thì bị bỏ qua |
+
 Response Success (`201`):
 ```json
 {
   "session_id": 981,
   "game": "bug_hunt",
+  "language": "php",
   "attempt_number": 4,
   "total_positions": 10,
   "current": {
@@ -356,6 +366,7 @@ Response Errors (áp dụng cho toàn bộ endpoint):
 | 409 | `SESSION_FINISHED` | Nộp đáp án cho lượt đã kết thúc | "Lượt chơi đã kết thúc" |
 | 422 | `NO_QUESTIONS_AVAILABLE` | Ngân hàng câu hỏi không đủ câu chưa ẩn | "Chưa đủ câu hỏi cho game này" |
 | 422 | `EMAIL_NOT_ALLOWED` | Email không khớp allowlist | "Chỉ chấp nhận email dạng xxx.nta@gmail.com" |
+| 422 | `INVALID_LANGUAGE` | Bug Hunt không gửi `language`, hoặc gửi ngôn ngữ không có trong ngân hàng câu hỏi | "Cần chọn ngôn ngữ lập trình" |
 | 422 | `INVALID_CSRF_TOKEN` | Non-GET JSON call thiếu hoặc sai header `X-CSRF-Token` (xem §13) | "Phiên làm việc không hợp lệ, tải lại trang" |
 | 429 | `TOO_MANY_REQUESTS` | Vượt rate limit | "Bạn thao tác quá nhanh, thử lại sau" |
 | 503 | `GRADING_UNAVAILABLE` | Gemini lỗi/timeout, circuit breaker mở | "Hệ thống chấm điểm tạm thời bận, lượt chơi đã được lưu" |
@@ -365,8 +376,8 @@ Response Errors (áp dụng cho toàn bộ endpoint):
 - [ ] Đã chạy `rails new` với MySQL adapter, Ruby/Rails version chốt và ghi vào `CLAUDE.md`
 - [ ] `bcrypt` được bật trong `Gemfile` (cho `has_secure_password`)
 - [ ] Gem `rack-attack` được duyệt và thêm vào `Gemfile` *(chờ owner duyệt — xem Open Questions)*
-- [ ] `GEMINI_API_KEY` có trong biến môi trường, không commit vào repo
-- [ ] Đã chạy `rake questions:generate` + `rake questions:import` để ngân hàng câu hỏi có tối thiểu: Bug Hunt 50 câu, Spec Detective 25 câu, Estimate Poker 50 câu, Escape Room 20 kịch bản, PROD Roulette 20 kịch bản
+- [ ] `GEMINI_API_KEY` có trong biến môi trường, không commit vào repo. Project **không dùng gem dotenv** nên file `.env` không được nạp tự động — phải export biến ở shell/systemd/Docker env. `GEMINI_MODEL` không bắt buộc, mặc định `gemini-2.5-flash`
+- [ ] Đã chạy `rake questions:generate` + `rake questions:import` để ngân hàng câu hỏi có tối thiểu: Bug Hunt 50 câu **cho mỗi ngôn ngữ được mở** (BR-35 giới hạn cả lượt trong một ngôn ngữ, nên mức tối thiểu tính theo từng ngôn ngữ chứ không tính tổng), Spec Detective 25 câu, Estimate Poker 50 câu, Escape Room 20 kịch bản, PROD Roulette 20 kịch bản
   > Mức tối thiểu này được tính để người chơi có ít nhất 5 lượt liên tiếp không gặp lại nội dung cũ (BR-32). Escape Room và PROD Roulette mỗi lượt tiêu thụ trọn 1 kịch bản nên cần nhiều kịch bản hơn tỷ lệ thuận với số lượt kỳ vọng
 - [ ] Đã seed 5 bản ghi `games` và tài khoản admin
 
@@ -443,7 +454,7 @@ Response Errors (áp dụng cho toàn bộ endpoint):
 
 ### 8.5 Gemini lỗi khi chấm Spec Detective
 - Điều kiện: gọi API timeout, lỗi, hoặc circuit breaker đang mở
-- Luồng: ghi `ai_gradings` với `error`, `score = NULL`; trả `503 GRADING_UNAVAILABLE`; `session_answers` được ghi với `score = 0` và đánh dấu chờ chấm lại
+- Luồng: ghi `ai_gradings` với `error`, `score = NULL`; trả `503 GRADING_UNAVAILABLE`; `session_answers` được ghi với `score = 0` và `answer["_meta"]["grading_pending"] = true`. Không có cột riêng cho trạng thái này — dấu hiệu "chờ chấm lại" suy ra từ dữ liệu: `score = 0` **và** có `ai_gradings` kèm `error`. `current_position` **không** tăng vì bước này chưa được chấm
 - Kết quả: lượt chuyển `abandoned` với `abandoned_reason = system_error`, **không tính điểm** — không cho điểm 0 vào personal best vì lỗi hệ thống không phải lỗi người chơi. Lượt này **không bị trừ vào hạn mức rate limit** (BR-33), để người chơi không mất quota vì sự cố ngoài tầm kiểm soát của họ
 
 ## 9. Luồng lỗi (Exception Flows)
@@ -486,6 +497,8 @@ Phần lớn đã cover ở 5.2. Ba luồng cần nêu riêng:
 - **BR-32**: When drawing questions for a new session, unhidden questions the user has never answered correctly are preferred. Previously-answered questions are only reused when there are not enough fresh ones, and the oldest-answered are reused first.
 - **BR-33**: Sessions with `abandoned_reason = 'system_error'` are excluded from rate-limit counters. Sessions abandoned for `user_quit` or `timeout` still count, so a player cannot bypass limits by quitting repeatedly.
 - **BR-34**: Rate-limit rules are evaluated independently. A per-game rule and the global per-user rule both apply; whichever threshold is reached first blocks the request. Spec Detective sessions count toward both its own hourly cap and the general session cap.
+- **BR-36**: The question served for a given step must be stable. A step is drawn on demand rather than fixed at session creation, so the draw is keyed on `(session_id, position)` and is deterministic: displaying a step, reloading it via `GET /sessions/:id/current`, and grading the submitted answer all resolve to the same question record. A non-deterministic draw would grade the player against a question they never saw.
+- **BR-35**: Bug Hunt is scoped to one programming language per session. The player picks the language before the session starts, it is stored on `game_sessions.language`, and every question drawn for that session must have the same `questions.language`. The picker only offers languages whose unhidden question count reaches `questions_per_session`; a language present in the bank but short of that count is still accepted by the API and answered with `NO_QUESTIONS_AVAILABLE`, while an unknown language gives `INVALID_LANGUAGE`. The other four games ignore the field.
 
 ### Scoring rules per game
 
@@ -590,7 +603,7 @@ Retention: Rails application logs rotate at 30 days. `ai_gradings` rows are reta
 - **Performance**: page render and non-AI grading endpoints target under 300ms at p95. Spec Detective grading depends on the Gemini call — target under 5s at p95, hard timeout at 10s.
 - **Leaderboard cost**: computed by query with a 60-second cache. At the expected scale (tens of users, thousands of sessions) no materialized ranking table is needed. Revisit if `game_sessions` exceeds 1 million rows.
 - **Scalability**: the app is stateless apart from the session cookie, so it scales horizontally. MySQL is the only stateful component.
-- **Availability**: Gemini being unavailable degrades gracefully — 4 of 5 games remain fully playable because they grade from `answer_key` in the local DB. A circuit breaker opens after 5 consecutive Gemini failures and stays open for 5 minutes.
+- **Availability**: Gemini being unavailable degrades gracefully — 4 of 5 games remain fully playable because they grade from `answer_key` in the local DB. A circuit breaker opens after 5 consecutive Gemini failures and stays open for 5 minutes. A call rejected by an open breaker is not itself counted as a failure, otherwise every retry would extend the open window indefinitely. Breaker state lives in `Rails.cache`, which is host-local with the current store (`:memory_store` in development, the Rails default `:file_store` in production) — running the app on more than one host gives each host its own breaker until the store is switched to `:mem_cache_store` or Redis.
 - **Accessibility**: WCAG 2.1 AA for the non-game pages. Bug Hunt's click-a-line interaction is desktop-first; a keyboard alternative (arrow keys + Enter to select a line) is required.
 - **Backward compatibility**: N/A — first release, no existing clients.
 - **Localization**: Vietnamese only. No i18n framework in Phase 1; strings may be inline.
@@ -673,13 +686,14 @@ Retention: Rails application logs rotate at 30 days. `ai_gradings` rows are reta
 ## 18. Open Questions
 
 - [ ] **Q1**: Duyệt gem `rack-attack` để làm rate limit? → **Owner**. Không có nó thì phải tự viết middleware, tốn công và dễ sót.
-- [ ] **Q2**: Hạn mức và điều khoản gói free Gemini API hiện hành là gì? → **Dev verify từ trang chính thức của Google**. Ảnh hưởng trực tiếp giới hạn 5 lượt/giờ/user của Spec Detective và số câu sinh được mỗi lô.
+- [x] **Q2**: Hạn mức và điều khoản gói free Gemini API hiện hành là gì? → **Đã verify 2026-08-19 từ trang chính thức của Google**, chi tiết ở §20. Tóm tắt: Google KHÔNG còn công bố bảng hạn mức cố định (phải xem trong AI Studio của từng project), và điều khoản Unpaid Services nói rõ Google dùng nội dung gửi lên để cải thiện sản phẩm, có người thật đọc/annotate, kèm câu "Do not submit sensitive, confidential, or personal information to the Unpaid Services". **Cần owner quyết định** (xem Q9) vì Spec Detective gửi text người chơi tự gõ.
 - [ ] **Q3**: Ruby version và Rails version chốt là bao nhiêu? → **Owner**. Cần điền vào `CLAUDE.md` trước khi viết migration.
 - [ ] **Q4**: Ai chịu trách nhiệm soát file YAML trước khi `rake questions:import`? → **Owner/PM**. Không có admin panel duyệt nên đây là lưới an toàn duy nhất trước khi câu hỏi đến tay người chơi.
 - [ ] **Q5**: Hosting ở đâu, có HTTPS và backup DB chưa? → **Owner/PM**. Ảnh hưởng cấu hình `secure` cookie và kế hoạch deploy.
 - [ ] **Q6**: KPI đo thành công của app là gì (số người chơi/tuần? số lượt/người?) → **Owner/PM**. Chưa có thì sau 3 tháng không có cơ sở đánh giá có nên duy trì không.
 - [ ] **Q7**: Có cần trang chính sách riêng tư không, khi app public và lưu email người dùng? → **Owner**. Spec hiện giả định chưa có.
 - [ ] **Q8**: Người dùng muốn xoá tài khoản thì liên hệ admin bằng đường nào? → **Owner**. Đã chốt là chỉ admin xoá được, nhưng chưa có kênh yêu cầu.
+- [ ] **Q9**: Có chấp nhận gửi text người chơi tự gõ ở Spec Detective sang gói Gemini **free** không? → **Owner**. Điều khoản Unpaid Services cho phép Google dùng nội dung đó để cải thiện sản phẩm và cho người thật đọc (§20). Ba phương án: (a) chấp nhận và ghi rõ trên trang chính sách, (b) chuyển sang Paid Services để có điều khoản dữ liệu khác, (c) bỏ Spec Detective khỏi Phase 1. Không tự chọn thay owner được vì đây là quyết định về dữ liệu người dùng, không phải quyết định kỹ thuật.
 
 Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy được):
 - Q3 → dùng Rails và Ruby bản ổn định mới nhất tại thời điểm `rails new`
@@ -698,10 +712,46 @@ Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy 
 - **Breaking change**: NO — bản phát hành đầu tiên
 - **Scheduled task**: cần một cron/scheduler đánh dấu session quá 24 giờ thành `abandoned` (BR-24). Phase 1 dùng rake task chạy định kỳ, chưa cần queue system
 
-## 20. Change Log
+## 20. Gemini API — hạn mức và điều khoản (verify 2026-08-19)
+
+Đây là kết quả trả lời Open Question Q2. Ghi rõ nguồn để sau này verify lại được, và ghi rõ
+điểm nào CHƯA verify được từ trang chính thức.
+
+### Đã verify từ trang chính thức của Google
+
+| Điểm | Kết luận | Nguồn |
+|---|---|---|
+| Bảng hạn mức free tier | Google **không còn công bố** bảng số cố định trong docs. Trang rate limits chỉ ghi hạn mức phụ thuộc usage tier và phải xem trong Google AI Studio của từng project | `ai.google.dev/gemini-api/docs/rate-limits` |
+| Điều khoản Unpaid Services | Google "uses the content you submit to the Services and any generated responses to provide, improve, and develop Google products and services". Có **người thật** đọc: "human reviewers may read, annotate, and process your API input and output" — được ngắt khỏi Google Account / API key / Cloud project trước khi reviewer xem | `ai.google.dev/gemini-api/terms` |
+| Cảnh báo dữ liệu | Nguyên văn: "Do not submit sensitive, confidential, or personal information to the Unpaid Services" | `ai.google.dev/gemini-api/terms` |
+| Người dùng EEA / Thuỵ Sĩ / UK | Phải dùng Paid Services, điều khoản dữ liệu khác | `ai.google.dev/gemini-api/terms` |
+| `gemini-2.5-flash` | Vẫn còn dùng được, chưa bị đưa vào danh sách deprecated. Đã có các model flash-class mới hơn (3.x) nếu muốn đổi — biến `GEMINI_MODEL` cho phép đổi không cần sửa code | `ai.google.dev/gemini-api/docs/models` |
+
+### CHƯA verify được từ nguồn chính thức
+
+Các con số hạn mức cụ thể (khoảng **10 RPM / 250 request mỗi ngày** cho `gemini-2.5-flash` free
+tier) chỉ tìm thấy ở nguồn thứ ba, không có trên trang của Google. **Không được dùng con số này
+làm cơ sở thiết kế.** Việc phải làm trước khi bật Phase 3 trên môi trường thật: mở AI Studio của
+project, đọc hạn mức thật, rồi cập nhật lại mục này.
+
+### Hệ quả cần biết
+
+- **Rủi ro dữ liệu người dùng (cần owner quyết — Q9)**: Spec Detective gửi text người chơi tự gõ
+  sang Gemini. Với gói free, text đó có thể được người thật của Google đọc và được dùng để cải
+  thiện sản phẩm của Google. Đây là dữ liệu ra khỏi công ty, không phải chuyện "dọn dẹp sau" được.
+- **Trần công suất**: rate limit của app cho phép 5 lượt Spec Detective/giờ/user (BR-34), mỗi lượt
+  5 đoạn = 5 lời gọi Gemini. Nếu hạn mức ngày thật sự ở mức vài trăm request thì tổng số lượt
+  Spec Detective **toàn hệ thống** mỗi ngày chỉ ở mức hàng chục. Sinh đề theo lô cũng ăn cùng hạn
+  mức đó, nên không nên chạy `rake questions:generate` cùng ngày với lúc nhiều người chơi.
+- **Sinh đề tiêu ít request hơn tưởng**: mỗi lời gọi sinh tối đa 5 đề (`BATCH_SIZE`), nên 50 đề
+  Bug Hunt cho một ngôn ngữ tốn khoảng 10-12 request.
+
+## 21. Change Log
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
+| 1.5 | 2026-08-19 | HoangNM | Phase 3: trả lời Open Question Q2 và bổ sung §20 (hạn mức + điều khoản Gemini, kèm phần chưa verify được); mở Q9 xin owner quyết việc gửi text người chơi sang gói free; chi tiết hoá circuit breaker ở §15; BR-36 (câu hỏi của một bước phải ổn định) — phát hiện khi verify Phase 3 rằng câu server chấm không phải câu đã hiển thị; ghi rõ ở §6 là project không có dotenv |
+| 1.4 | 2026-08-19 | HoangNM | Bug Hunt phân đề theo ngôn ngữ lập trình: BR-35, cột `questions.language` + `game_sessions.language` và index `index_questions_on_game_language_hidden` ở §4.2, tham số `language` cho `POST /api/v1/games/:slug/sessions` và mã lỗi `INVALID_LANGUAGE` ở §5. Ngân hàng câu hỏi mẫu hiện có php/ruby/java, mỗi ngôn ngữ 10 câu |
 | 1.0 | 2026-08-18 | HoangNM | Initial draft, tổng hợp từ `docs/clarify/clarify_skill-arcade.md` (5 vòng clarify) |
 | 1.3 | 2026-08-18 | HoangNM | Bổ sung yêu cầu CSRF token cho JSON endpoint vào §13, kèm mã lỗi `INVALID_CSRF_TOKEN` ở §5.2 và test scenario ở §17. Phát hiện khi chạy server thật ở Phase 1: JSON POST không kèm `X-CSRF-Token` bị trả 422, trong khi request spec vẫn xanh vì môi trường test tắt forgery protection |
 | 1.2 | 2026-08-18 | HoangNM | Xử lý 4 suggestion từ `/nta-spec-review`: `display_name` UNIQUE; ghi rõ MySQL tối thiểu 8.0.16 cho CHECK constraint; nêu retention và phạm vi truy cập của nội dung người dùng trong `ai_gradings.prompt`; thêm nhóm Accessibility Tests cho điều hướng Bug Hunt bằng bàn phím |
@@ -709,7 +759,7 @@ Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy 
 
 ---
 
-## 21. Tóm tắt xác nhận *(dành cho team review — xoá trước khi gửi ra ngoài)*
+## 22. Tóm tắt xác nhận *(dành cho team review — xoá trước khi gửi ra ngoài)*
 
 **Tính năng**: Skill Arcade — web app luyện năng lực dev/BA qua 5 mini-game có chấm điểm và bảng xếp hạng.
 
@@ -719,7 +769,7 @@ Giả định tạm khi chưa có câu trả lời (ghi rõ để sau này truy 
 - [ ] Business rule: BR-06 (personal best), BR-09 (đạt 100 không khoá game), BR-10/11/11a (tie-break theo số lượt, tính riêng cho từng chu kỳ và cho bảng tổng), BR-13/14 (tuần bắt đầu thứ Hai, múi giờ `Asia/Ho_Chi_Minh`), BR-25→29 (công thức điểm 5 game), BR-31 (mọi game đều cộng dồn, không trừ điểm), BR-32 (ưu tiên câu chưa trả lời đúng)
 - [ ] Data: 7 bảng mới; đặc biệt `game_sessions` phải lưu **từng lượt** chứ không chỉ điểm cao nhất — đây là điều kiện để có leaderboard tuần/tháng và tie-break. `games` tách `questions_per_session` và `steps_per_session` (BR-30)
 - [ ] Luồng ngoại lệ: 8.2 (PROD Roulette kết thúc ngay khi chọn hành động không thu hồi được), 8.5 (Gemini lỗi thì lượt không tính điểm, không phạt người chơi)
-- [ ] Open Questions: Q1 (duyệt `rack-attack`), Q2 (verify quota Gemini), Q3 (Ruby/Rails version), Q4 (ai soát câu hỏi trước khi import)
+- [ ] Open Questions: Q1 (duyệt `rack-attack`), Q3 (Ruby/Rails version), Q4 (ai soát câu hỏi trước khi import), **Q9 (có gửi text người chơi sang gói Gemini free không — xem §20)**. Q2 đã verify xong ở §20
 
 **Ảnh hưởng đến phần khác**: không có module hiện hữu. Phụ thuộc ngoài: Gemini API, MySQL 8, 2 gem cần duyệt.
 

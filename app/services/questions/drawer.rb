@@ -3,20 +3,29 @@ module Questions
   # không còn đủ câu mới, và ưu tiên câu đã trả lời lâu nhất.
   #
   # Đây là cơ chế hãm việc cày điểm bằng cách chơi lại để gặp lại câu đã biết đáp án.
+  #
+  # language: giới hạn theo ngôn ngữ lập trình (chỉ Bug Hunt dùng). nil thì lấy tất cả.
+  #
+  # seed: chuỗi khoá thứ tự bốc. BẮT BUỘC truyền khi bốc đề để phục vụ một bước cụ thể.
+  # Đề không được lưu sẵn cả bộ lúc tạo lượt (xem GameSessions::Creator), nên mỗi lần
+  # hiển thị bước và mỗi lần chấm bước đó đều bốc lại. Nếu thứ tự là RAND() thuần thì hai
+  # lần bốc cho cùng một bước ra hai câu KHÁC NHAU — người chơi xem câu A mà server chấm
+  # theo đáp án câu B. Truyền cùng một seed thì thứ tự lặp lại được, không cần thêm cột DB.
   class Drawer
     class NotEnoughQuestions < StandardError; end
 
-    def initialize(user:, game:)
+    def initialize(user:, game:, language: nil, seed: nil)
       @user = user
       @game = game
+      @language = language
+      @seed = seed
     end
 
     def call(count = @game.questions_per_session)
-      pool = Question.playable.where(game: @game)
       raise NotEnoughQuestions, "ngân hàng câu hỏi chưa đủ" if pool.count < count
 
       known = answered_correctly_at
-      fresh = pool.where.not(id: known.keys).order(Arel.sql("RAND()")).limit(count).to_a
+      fresh = pool.where.not(id: known.keys).order(shuffle_order).limit(count).to_a
       return fresh if fresh.size >= count
 
       # Không đủ câu mới thì bù bằng câu đã trả lời đúng, cũ nhất trước.
@@ -29,6 +38,18 @@ module Questions
     end
 
     private
+
+    def pool
+      Question.playable.where(game: @game).in_language(@language)
+    end
+
+    # Không có seed thì trộn thật (dùng cho thống kê/khảo sát ngân hàng đề). Có seed thì
+    # trộn theo hàm băm để cùng seed luôn ra cùng thứ tự.
+    def shuffle_order
+      return Arel.sql("RAND()") if @seed.blank?
+
+      Arel.sql(Question.sanitize_sql_array([ "MD5(CONCAT(questions.id, ?))", @seed.to_s ]))
+    end
 
     # question_id => lần cuối người này trả lời đúng câu đó.
     # Điểm > 0 coi như đã biết đáp án.

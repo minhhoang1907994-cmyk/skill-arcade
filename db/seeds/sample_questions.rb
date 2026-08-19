@@ -15,7 +15,14 @@ def upsert_question(game, content, answer_key, difficulty: "medium")
   question
 end
 
-# --- Bug Hunt: 12 snippet (đủ cho 1 lượt 10 câu + dư để lượt sau còn câu mới) ---
+# --- Bug Hunt: 34 snippet, chia theo ngôn ngữ lập trình ---
+# Người chơi chọn ngôn ngữ trước khi vào lượt, và Game#playable_languages chỉ hiện
+# ngôn ngữ có >= questions_per_session (10) câu. Nên php/ruby/java mỗi loại 10 câu;
+# javascript còn 4 câu nên tạm thời chưa hiện trong danh sách chọn.
+#
+# Khi thêm câu mới: bug_type phải nằm trong Question::BUG_HUNT_TYPES. Danh sách đó đi vào
+# content nên thêm/bớt/đổi thứ tự phần tử sẽ đổi checksum của TOÀN BỘ câu Bug Hunt đang có
+# — chạy lại seed sẽ tạo bản ghi trùng thay vì cập nhật.
 bug_hunt = Game.find_by!(slug: Game::BUG_HUNT)
 
 BUG_HUNT_SAMPLES = [
@@ -172,10 +179,296 @@ BUG_HUNT_SAMPLES = [
     buggy_line: 3,
     bug_type: "falsy_check",
     explanation: "Giá trị hợp lệ nhưng falsy (0, '', false) làm cache miss mãi. Dùng 'key in cache'."
+  },
+  # --- php: 6 câu bổ sung cho đủ 10 ---
+  {
+    language: "php",
+    lines: [
+      "public function index() {",
+      "    $orders = Order::all();",
+      "    foreach ($orders as $order) {",
+      "        echo $order->customer->name;",
+      "    }",
+      "}"
+    ],
+    buggy_line: 4,
+    bug_type: "n_plus_one",
+    explanation: "Mỗi vòng lặp nạp thêm một customer. Dùng Order::with('customer')."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function greet(Request $request) {",
+      "    $user = User::find($request->id);",
+      "    return 'Xin chào ' . $user->name;",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "missing_null_check",
+    explanation: "find() trả null khi không thấy bản ghi. Dùng findOrFail hoặc kiểm tra null trước."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function checkout($cart) {",
+      "    $order = Order::create(['total' => $cart->total]);",
+      "    Inventory::decrease($cart->items);",
+      "    $cart->delete();",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_transaction",
+    explanation: "Ba bước ghi không nằm trong DB::transaction. Lỗi giữa chừng để lại đơn không có hàng."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function updateQuantity(Request $request, $itemId) {",
+      "    $item = CartItem::findOrFail($itemId);",
+      "    $item->update(['quantity' => $request->quantity]);",
+      "    return response()->json($item);",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "missing_validation",
+    explanation: "quantity chưa validate. Số âm hoặc chữ đi thẳng vào DB. Dùng $request->validate()."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function renderComment($comment) {",
+      "    $body = $comment->body;",
+      "    echo \"<div class='comment'>\" . $body . \"</div>\";",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "xss",
+    explanation: "Nội dung người dùng in thẳng ra HTML. Dùng htmlspecialchars hoặc in qua Blade {{ }}."
+  },
+  {
+    language: "php",
+    lines: [
+      "public function sendInvoice($order) {",
+      "    try {",
+      "        $this->mailer->send(new Invoice($order));",
+      "    } catch (Exception $e) {",
+      "    }",
+      "}"
+    ],
+    buggy_line: 5,
+    bug_type: "swallowed_exception",
+    explanation: "catch rỗng: mail hỏng nhưng không ai biết. Ít nhất phải log lại lỗi."
+  },
+  # --- ruby: 6 câu bổ sung cho đủ 10 ---
+  {
+    language: "ruby",
+    lines: [
+      "def search(keyword)",
+      "  User.where(\"display_name LIKE '%\#{keyword}%'\").to_a",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "sql_injection",
+    explanation: "Nội suy chuỗi vào SQL. Dùng placeholder: where('display_name LIKE ?', pattern)."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def latest_order_total(user)",
+      "  user.orders.last.total.round(2)",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_null_check",
+    explanation: "Người chưa có đơn thì last trả nil. Kiểm tra nil hoặc dùng &. kèm giá trị mặc định."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def destroy",
+      "  post = Post.find(params[:id])",
+      "  post.destroy!",
+      "  head :no_content",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_authorization",
+    explanation: "Không kiểm tra post thuộc current_user. Lấy qua current_user.posts.find (IDOR)."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def create",
+      "  Rails.logger.info(\"signup params: \#{params.inspect}\")",
+      "  user = User.create!(user_params)",
+      "  render json: { id: user.id }",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "sensitive_data_logging",
+    explanation: "params.inspect chứa cả password. Chỉ log field an toàn, hoặc dùng filter_parameters."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def comment_html(comment)",
+      "  content_tag(:div, raw(comment.body))",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "xss",
+    explanation: "raw tắt escape HTML cho nội dung người dùng nhập. Bỏ raw, hoặc sanitize trước."
+  },
+  {
+    language: "ruby",
+    lines: [
+      "def export_all",
+      "  rows = User.all.map { |u| [ u.email, u.display_name ] }",
+      "  CSV.generate { |csv| rows.each { |r| csv << r } }",
+      "end"
+    ],
+    buggy_line: 2,
+    bug_type: "unbounded_query",
+    explanation: "User.all.map nạp cả bảng vào RAM. Dùng find_each hoặc in_batches."
+  },
+  # --- java: 10 câu (ngôn ngữ mới bổ sung) ---
+  {
+    language: "java",
+    lines: [
+      "public User findByEmail(String email) {",
+      "    String sql = \"SELECT * FROM users WHERE email = '\" + email + \"'\";",
+      "    return jdbcTemplate.queryForObject(sql, userRowMapper);",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "sql_injection",
+    explanation: "Email nối thẳng vào SQL. Dùng query có tham số: queryForObject(sql, args, mapper)."
+  },
+  {
+    language: "java",
+    lines: [
+      "public List<String> customerNames() {",
+      "    List<Order> orders = orderRepository.findAll();",
+      "    return orders.stream()",
+      "        .map(order -> order.getCustomer().getName())",
+      "        .toList();",
+      "}"
+    ],
+    buggy_line: 4,
+    bug_type: "n_plus_one",
+    explanation: "getCustomer() lazy load nên mỗi order thêm một query. Dùng JOIN FETCH hoặc EntityGraph."
+  },
+  {
+    language: "java",
+    lines: [
+      "public String displayName(User user) {",
+      "    return user.getProfile().getDisplayName().trim();",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_null_check",
+    explanation: "getProfile() hoặc getDisplayName() có thể null gây NPE. Dùng Optional hoặc kiểm tra null."
+  },
+  {
+    language: "java",
+    lines: [
+      "public void transfer(Account from, Account to, BigDecimal amount) {",
+      "    from.setBalance(from.getBalance().subtract(amount));",
+      "    accountRepository.save(from);",
+      "    to.setBalance(to.getBalance().add(amount));",
+      "    accountRepository.save(to);",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "missing_transaction",
+    explanation: "Hai lần save không cùng transaction. Thêm @Transactional để lỗi ở save sau rollback cả hai."
+  },
+  {
+    language: "java",
+    lines: [
+      "@DeleteMapping(\"/accounts/{id}\")",
+      "public ResponseEntity<Void> delete(@PathVariable Long id) {",
+      "    accountRepository.deleteById(id);",
+      "    return ResponseEntity.noContent().build();",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "missing_authorization",
+    explanation: "Ai biết id cũng xoá được tài khoản người khác. Phải kiểm tra chủ sở hữu (IDOR)."
+  },
+  {
+    language: "java",
+    lines: [
+      "public BigDecimal applyDiscount(BigDecimal price, int percent) {",
+      "    BigDecimal rate = BigDecimal.valueOf(percent / 100.0);",
+      "    return price.subtract(price.multiply(rate));",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_validation",
+    explanation: "percent không kiểm tra khoảng 0-100. percent > 100 cho ra giá âm."
+  },
+  {
+    language: "java",
+    lines: [
+      "public boolean login(LoginRequest request) {",
+      "    log.info(\"login attempt: {}\", request);",
+      "    return authService.authenticate(request.getEmail(), request.getPassword());",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "sensitive_data_logging",
+    explanation: "toString() của request in cả password vào log. Chỉ log email."
+  },
+  {
+    language: "java",
+    lines: [
+      "protected void doGet(HttpServletRequest req, HttpServletResponse resp) {",
+      "    String keyword = req.getParameter(\"q\");",
+      "    resp.getWriter().write(\"<h2>Ket qua cho \" + keyword + \"</h2>\");",
+      "}"
+    ],
+    buggy_line: 3,
+    bug_type: "xss",
+    explanation: "Tham số query ghi thẳng ra HTML. Phải escape HTML trước khi in."
+  },
+  {
+    language: "java",
+    lines: [
+      "public Config loadConfig(String path) {",
+      "    try {",
+      "        return parser.parse(Files.readString(Path.of(path)));",
+      "    } catch (IOException e) {",
+      "        return null;",
+      "    }",
+      "}"
+    ],
+    buggy_line: 5,
+    bug_type: "swallowed_exception",
+    explanation: "Trả null im lặng: caller ăn NPE mà không biết file cấu hình lỗi. Log và ném lại."
+  },
+  {
+    language: "java",
+    lines: [
+      "public void exportOrders(OutputStream out) {",
+      "    List<Order> orders = orderRepository.findAll();",
+      "    for (Order order : orders) {",
+      "        writeRow(out, order);",
+      "    }",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "unbounded_query",
+    explanation: "findAll() nạp toàn bộ bảng vào RAM. Dùng Slice/Pageable hoặc Stream có phân trang."
   }
 ].freeze
 
-BUG_HUNT_TYPES = BUG_HUNT_SAMPLES.map { |s| s[:bug_type] }.uniq.freeze
+# Danh sách lựa chọn hiển thị cho người chơi — nguồn duy nhất là Question::BUG_HUNT_TYPES,
+# dùng chung với `rake questions:generate` để đề viết tay và đề AI sinh cùng một danh sách.
+BUG_HUNT_TYPES = Question::BUG_HUNT_TYPES
+
+unknown = BUG_HUNT_SAMPLES.map { |s| s[:bug_type] }.uniq - BUG_HUNT_TYPES
+raise "bug_type chưa có trong Question::BUG_HUNT_TYPES: #{unknown.join(', ')}" if unknown.any?
 
 BUG_HUNT_SAMPLES.each do |sample|
   upsert_question(

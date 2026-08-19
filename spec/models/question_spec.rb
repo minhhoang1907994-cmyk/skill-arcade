@@ -34,6 +34,30 @@ RSpec.describe Question do
     end
   end
 
+  describe "cột language" do
+    it "nhân ra từ content khi lưu" do
+      question = create(:question, content: { "language" => "java", "code_lines" => [ "x" ] })
+
+      expect(question.language).to eq("java")
+    end
+
+    it "để nil khi content không có ngôn ngữ" do
+      question = create(:question, content: { "requirement_text" => "xử lý nhanh" })
+
+      expect(question.language).to be_nil
+    end
+  end
+
+  describe "scope :in_language" do
+    it "không lọc gì khi truyền nil" do
+      php = create(:question, content: { "language" => "php", "code_lines" => [ "p" ] })
+      java = create(:question, content: { "language" => "java", "code_lines" => [ "j" ] })
+
+      expect(described_class.in_language(nil)).to contain_exactly(php, java)
+      expect(described_class.in_language("java")).to contain_exactly(java)
+    end
+  end
+
   describe "scope :playable (BR-16)" do
     it "loại câu đã bị ẩn" do
       visible = create(:question)

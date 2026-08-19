@@ -52,10 +52,15 @@ module GameSessions
       drawn_questions.first || raise(NoQuestionAvailable, "không còn câu hỏi khả dụng")
     end
 
-    # Bốc dư một ít để còn lựa chọn sau khi loại các câu đã dùng trong lượt.
+    # Bốc theo đúng ngôn ngữ đã chốt lúc tạo lượt, để mọi bước trong lượt cùng ngôn ngữ.
+    #
+    # seed khoá theo (lượt, bước): cùng một bước được hiển thị và được chấm bằng cùng một
+    # câu hỏi, và người chơi tải lại trang giữa bước vẫn thấy đúng câu đó. Không có seed
+    # thì mỗi lần bốc ra một câu khác và server chấm câu mà người chơi chưa từng thấy.
     def drawn_questions
       @drawn_questions ||= Questions::Drawer
-        .new(user: @session.user, game: @session.game)
+        .new(user: @session.user, game: @session.game, language: @session.language,
+             seed: "#{@session.id}:#{next_position}")
         .call(@session.game.questions_per_session)
     end
   end

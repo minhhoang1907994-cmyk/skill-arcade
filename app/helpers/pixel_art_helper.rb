@@ -105,6 +105,128 @@ module PixelArtHelper
       "................",
       "................",
       "................"
+    ],
+
+    # --- Item trang trí đồng cỏ hai bên trang (PixelArtHelper#scenery_items) ---
+
+    # Bụi cây
+    bush: [
+      "................",
+      "................",
+      "................",
+      "......DDDD......",
+      "....DDGGGGDD....",
+      "...DGGGGGGGGD...",
+      "..DGGGGGGGGGGD..",
+      "..DGGGGGGGGGGD..",
+      ".DGGGGGGGGGGGGD.",
+      ".DGGGGGGGGGGGGD.",
+      ".DDGGGGGGGGGGDD.",
+      "..DDDDDDDDDDDD..",
+      ".....BB..BB.....",
+      ".....BB..BB.....",
+      "................",
+      "................"
+    ],
+
+    # Hoa cúc
+    flower: [
+      "................",
+      "................",
+      ".....PP.PP......",
+      "....PPPPPPP.....",
+      "....PPCCCPP.....",
+      "....PPCCCPP.....",
+      "....PPPPPPP.....",
+      ".....PP.PP......",
+      ".......GG.......",
+      ".......GG.......",
+      "....LL.GG.......",
+      "...LLL.GG.......",
+      ".......GGLLL....",
+      ".......GG.LL....",
+      ".......GG.......",
+      "................"
+    ],
+
+    # Đồng xu
+    coin: [
+      "................",
+      "................",
+      ".....DDDDDD.....",
+      "...DDCCCCCCDD...",
+      "..DCCCCCCCCCCD..",
+      "..DCCHHCCCCCCD..",
+      ".DCCHHCCCCCCCCD.",
+      ".DCCCCCCCCCCCCD.",
+      ".DCCCCCCCCCCCCD.",
+      ".DCCCCCCCCCCCCD.",
+      ".DCCCCCCCCCCCCD.",
+      "..DCCCCCCCCCCD..",
+      "..DCCCCCCCCCCD..",
+      "...DDCCCCCCDD...",
+      ".....DDDDDD.....",
+      "................"
+    ],
+
+    # Bình thuốc hồi phục
+    potion: [
+      "................",
+      "......WWWW......",
+      "......W..W......",
+      "......W..W......",
+      ".....WW..WW.....",
+      "....WW....WW....",
+      "...WW..PP..WW...",
+      "..WW..PPPP..WW..",
+      "..W..PPPPPP..W..",
+      "..W.PPPPPPPP.W..",
+      "..W.PPPPPPPP.W..",
+      "..WW.PPPPPP.WW..",
+      "...WW.PPPP.WW...",
+      "....WWWWWWWW....",
+      "................",
+      "................"
+    ],
+
+    # Thanh kiếm
+    sword: [
+      ".......SS.......",
+      "......SBBS......",
+      "......SBBS......",
+      "......SBBS......",
+      "......SBBS......",
+      "......SBBS......",
+      "......SBBS......",
+      "......SBBS......",
+      "...GGGGGGGGGG...",
+      "...GGGGGGGGGG...",
+      "......HHHH......",
+      "......HHHH......",
+      "......HHHH......",
+      ".....HHHHHH.....",
+      "......PPPP......",
+      "................"
+    ],
+
+    # Nấm
+    mushroom: [
+      "................",
+      "................",
+      ".....RRRRRR.....",
+      "...RRRRRRRRRR...",
+      "..RRWWRRRRWWRR..",
+      "..RRWWRRRRWWRR..",
+      ".RRRRRRRRRRRRRR.",
+      ".RRRRWWRRWWRRRR.",
+      "..RRRRRRRRRRRR..",
+      "....SSSSSSSS....",
+      "....SSSSSSSS....",
+      "....SSSSSSSS....",
+      "....SSSSSSSS....",
+      ".....SSSSSS.....",
+      "................",
+      "................"
     ]
   }.freeze
 
@@ -136,6 +258,38 @@ module PixelArtHelper
     skull: {
       "S" => "#f4f1e4",
       "E" => "var(--ink)"
+    },
+    bush: {
+      "D" => "var(--grass-deep)",    # viền và phần bóng
+      "G" => "var(--grass)",
+      "B" => "#7a4a24"               # thân gỗ
+    },
+    flower: {
+      "P" => "#fff3f6",              # cánh
+      "C" => "var(--coin)",          # nhị
+      "G" => "var(--grass-deep)",    # thân
+      "L" => "var(--grass-dark)"     # lá
+    },
+    coin: {
+      "D" => "var(--coin-dark)",
+      "C" => "var(--coin)",
+      "H" => "#fffdf0"               # điểm sáng
+    },
+    potion: {
+      "W" => "#e8f6ff",              # thuỷ tinh
+      "P" => "var(--brick)"          # thuốc
+    },
+    sword: {
+      "S" => "#eef4ff",              # lưỡi, mặt sáng
+      "B" => "#b3c4e0",              # lưỡi, mặt tối
+      "G" => "var(--coin-dark)",     # chắn tay
+      "H" => "#7a4a24",              # cán
+      "P" => "var(--coin)"           # núm cán
+    },
+    mushroom: {
+      "R" => "var(--brick)",
+      "W" => "#fff8ee",              # đốm
+      "S" => "#f3e6cf"               # cuống
     }
   }.freeze
 
@@ -153,8 +307,32 @@ module PixelArtHelper
     slime: "Quái slime",
     mage: "Pháp sư",
     chest: "Rương báu",
-    skull: "Đầu lâu cảnh báo"
+    skull: "Đầu lâu cảnh báo",
+    bush: "Bụi cây",
+    flower: "Hoa",
+    coin: "Đồng xu",
+    potion: "Bình thuốc",
+    sword: "Thanh kiếm",
+    mushroom: "Nấm"
   }.freeze
+
+  # Item trang trí ở hai lề trang: [sprite, slot vị trí, kiểu chuyển động, bề rộng px].
+  #
+  # Bề rộng ở đây gắn với khoảng lệch của đúng slot đó trong application.css
+  # (.scenery__item--l1 ...) — đổi số ở đây thì phải tính lại khoảng lệch bên CSS,
+  # không thì sprite đè lên khối main hoặc bị cắt ở mép màn hình.
+  SCENERY = [
+    [ :bush,     "l1", "sway", 46 ],
+    [ :flower,   "l2", "sway", 34 ],
+    [ :coin,     "l3", "flip", 30 ],
+    [ :slime,    "l4", "bob",  40 ],
+    [ :mushroom, "l5", "sway", 34 ],
+    [ :flower,   "r1", "sway", 32 ],
+    [ :potion,   "r2", "bob",  34 ],
+    [ :sword,    "r3", "bob",  38 ],
+    [ :chest,    "r4", "sway", 42 ],
+    [ :coin,     "r5", "flip", 28 ]
+  ].freeze
 
   def pixel_sprite(name, size: 64, css_class: nil)
     rows = SPRITES.fetch(name.to_sym)
@@ -175,6 +353,19 @@ module PixelArtHelper
 
   def game_sprite(game, size: 64, css_class: nil)
     pixel_sprite(GAME_SPRITES.fetch(game.slug, :hero), size: size, css_class: css_class)
+  end
+
+  # Thuần trang trí — layout bọc trong container aria-hidden nên aria-label của từng
+  # sprite không đọc lên cho screen reader.
+  def scenery_sprites
+    safe_join(
+      SCENERY.map do |name, slot, motion, size|
+        pixel_sprite(
+          name, size: size,
+          css_class: "scenery__item scenery__item--#{slot} scenery__item--#{motion}"
+        )
+      end
+    )
   end
 
   private

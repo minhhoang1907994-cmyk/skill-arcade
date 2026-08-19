@@ -24,6 +24,10 @@
   </head>
 
   <body>
+    <%# Item JRPG trang trí hai lề trang. Thuần thẩm mỹ nên aria-hidden, và CSS đặt
+        pointer-events: none để không chắn thao tác. Tự ẩn khi màn hình hẹp. %>
+    <div class="scenery" aria-hidden="true"><%= scenery_sprites %></div>
+
     <header class="site-header">
       <div class="site-header__inner">
         <%= link_to logged_in? ? games_path : root_path, class: "site-header__brand",

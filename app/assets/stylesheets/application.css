@@ -15,10 +15,29 @@
   --ink: #23204d;
   --ink-soft: #5f5a94;
 
-  /* Nền: trời sáng chuyển xuống đồng cỏ — tông xanh lá chủ đạo */
-  --sky-1: #bdeaff;
-  --sky-2: #ddf6e4;
-  --sky-3: #b6e9b8;
+  /* Nền: đồng cỏ. Màu nền là var(--grass), phần "sinh động" đến từ lớp cỏ/hoa vẽ
+     bằng gradient bên dưới chứ không từ việc đổi tông màu. */
+  --field: var(--grass);
+  --field-tuft: var(--grass-deep);
+  --field-bloom: var(--coin);
+
+  /* Khối nội dung: tấm bảng gỗ đặt trên đồng cỏ. Nâu trung tính với cả xanh lá của nền
+     và tím của header, nên không tạo cặp màu đối cạnh nhau. Đổi từ --brick sang tông này
+     cũng đưa tương phản của h1 chữ trắng từ 2.6:1 lên 8.4:1. --brick giữ đúng vai trò
+     màu cảnh báo (.errors, .flash--alert, .btn--danger). */
+  --board: #6b4527;
+  --board-dark: #4e3019;
+  --board-line: rgba(0, 0, 0, .16);
+
+  /* Thanh header: khối gạch kiểu Mario.
+     --header là màu THÂN gạch. Tile SVG ở .site-header chỉ vẽ đường vữa và bevel bằng
+     đen/trắng có fill-opacity, thân gạch để trong suốt — nên đổi token này là đổi màu
+     gạch, và dark mode không cần tile riêng.
+     Chọn #b8500e chứ không phải cam sáng #e45c10 của NES vì chữ trắng trên #e45c10 chỉ
+     đạt 3.6:1, còn trên #b8500e đạt 5.0:1 (WCAG AA mà spec §15 yêu cầu). */
+  --header: #b8500e;
+  --header-dark: #8a3a06;
+  --header-deep: #4a1c02;
 
   /* Bề mặt */
   --paper: #fffefa;
@@ -41,6 +60,20 @@
   --shadow: 4px 4px 0 var(--ink);
   --shadow-lg: 6px 6px 0 var(--ink);
 
+  /* Viền chữ 8 hướng, dùng cho chữ nằm TRÊN HOẠ TIẾT (header gạch).
+     Vấn đề không phải contrast trung bình — chữ trắng trên --header đã đạt 5.0:1, vẫn
+     qua WCAG AA. Vấn đề là hoạ tiết gạch có vạch bevel TRẮNG (.26) và vạch vữa gần đen
+     chạy ngang ngay dưới nét chữ: chỗ nét chữ trắng cắt qua vạch trắng thì contrast cục
+     bộ sụp về gần 0. Một text-shadow 1 hướng không cứu được vì chỉ che đúng một phía.
+     Viền 8 hướng thì mọi mép nét chữ đều có đường tối bao quanh nên đọc được trên bất kỳ
+     nền nào, và vẫn giữ nguyên tắc "bóng đổ CỨNG, không blur" của file này.
+     Lưu ý: WCAG không tính viền chữ vào công thức contrast, nên đây là cải thiện khả năng
+     đọc THỰC TẾ chồng lên phần contrast đã đạt chuẩn, không phải cách lách chuẩn. */
+  --text-outline:
+    1px 0 0 var(--ink), -1px 0 0 var(--ink), 0 1px 0 var(--ink), 0 -1px 0 var(--ink),
+    1px 1px 0 var(--ink), -1px 1px 0 var(--ink),
+    1px -1px 0 var(--ink), -1px -1px 0 var(--ink);
+
   --logo-font: "Press Start 2P", "Courier New", monospace;
   --ui-font: "Fredoka", "Segoe UI", system-ui, sans-serif;
   --body-font: "Nunito", "Segoe UI", system-ui, sans-serif;
@@ -52,9 +85,15 @@
     /* Chữ phụ nằm trên panel SÁNG kể cả ở dark mode, nên phải đủ đậm.
        Trước đây để tông tím nhạt khiến chữ gần như chìm vào nền. */
     --ink-soft: #4d6480;
-    --sky-1: #1f4f7a;
-    --sky-2: #2f6f9e;
-    --sky-3: #4290c4;
+    /* Đồng cỏ về đêm: giữ đúng họ xanh lá, chỉ hạ độ sáng để không chói */
+    --field: #2f7d4a;
+    --field-tuft: #1a5c32;
+    --field-bloom: #e8b93a;
+    --board: #563620;
+    --board-dark: #3c2413;
+    --header: #8f3d0a;
+    --header-dark: #6b2c04;
+    --header-deep: #331301;
     --paper: #f7fbff;
     --paper-alt: #dceefb;
   }
@@ -62,15 +101,42 @@
 
 * { box-sizing: border-box; }
 
+/* Nền là đồng cỏ var(--field) (= var(--grass)), phủ lên bốn lớp vẽ bằng gradient.
+   Cố ý KHÔNG đổi tông màu nền để giữ đúng var(--grass); chiều sâu đến từ búi cỏ,
+   hoa, dải cỏ đã cắt và một lớp sáng-tối rất nhạt.
+
+   Thứ tự lớp trong `background-image` là trên xuống dưới, và `background-size` /
+   `-position` / `-repeat` phải khớp theo đúng thứ tự đó. Ô lặp là 132x104px:
+   mỗi ô có 2 búi cỏ 3 lá và 2 bông hoa, đủ thưa để không rối mắt sau panel. */
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 16%, rgba(255, 255, 255, .75) 0 14px, transparent 15px),
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, .75) 0 10px, transparent 11px),
-    radial-gradient(circle at 78% 11%, rgba(255, 255, 255, .7) 0 20px, transparent 21px),
-    radial-gradient(circle at 86% 15%, rgba(255, 255, 255, .7) 0 12px, transparent 13px),
-    linear-gradient(180deg, var(--sky-1) 0%, var(--sky-2) 45%, var(--sky-3) 100%);
+  background-color: var(--grass);
+  background-image:
+    /* hoa nhỏ */
+    radial-gradient(circle 2px at 26px 18px, var(--field-bloom) 99%, transparent 100%),
+    radial-gradient(circle 2px at 100px 74px, #fffdf2 99%, transparent 100%),
+    /* búi cỏ 1 — 3 lá chụm */
+    radial-gradient(ellipse 2px 9px at 40px 58px, var(--field-tuft) 99%, transparent 100%),
+    radial-gradient(ellipse 2px 6px at 33px 61px, var(--field-tuft) 99%, transparent 100%),
+    radial-gradient(ellipse 2px 6px at 47px 61px, var(--field-tuft) 99%, transparent 100%),
+    /* búi cỏ 2 */
+    radial-gradient(ellipse 2px 9px at 108px 26px, var(--field-tuft) 99%, transparent 100%),
+    radial-gradient(ellipse 2px 6px at 101px 29px, var(--field-tuft) 99%, transparent 100%),
+    radial-gradient(ellipse 2px 6px at 115px 29px, var(--field-tuft) 99%, transparent 100%),
+    /* dải cỏ đã cắt, kiểu đường đi trong JRPG */
+    repeating-linear-gradient(90deg,
+      rgba(255, 255, 255, .05) 0 66px, rgba(0, 0, 0, .04) 66px 132px),
+    /* ánh sáng từ trên xuống */
+    linear-gradient(180deg, rgba(255, 255, 255, .13) 0%, rgba(0, 0, 0, .12) 100%);
+  background-size:
+    132px 104px, 132px 104px,
+    132px 104px, 132px 104px, 132px 104px,
+    132px 104px, 132px 104px, 132px 104px,
+    132px 100%,
+    100% 100%;
+  background-repeat: repeat, repeat, repeat, repeat, repeat, repeat, repeat, repeat,
+    repeat-x, no-repeat;
   background-attachment: fixed;
   color: var(--ink);
   font-family: var(--body-font);
@@ -78,22 +144,106 @@ body {
   line-height: 1.7;
 }
 
+/* ---------- Lớp trang trí hai bên (item JRPG) ----------
+
+   Sprite đặt trong hai lề ngoài khối main 1000px, nên chỉ hiện khi màn hình còn đủ
+   lề. `position: fixed` + `%` theo chiều dọc để item luôn nằm trong khung nhìn dù
+   trang dài bao nhiêu. pointer-events: none để không chắn click, và container mang
+   aria-hidden ở layout vì đây thuần trang trí. */
+.scenery {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.scenery__item {
+  position: absolute;
+  filter: drop-shadow(2px 3px 0 rgba(28, 107, 54, .45));
+}
+
+/* Lề chỉ đủ chỗ từ 1140px trở lên: item xa nhất cách tâm 548px, cộng bề rộng sprite
+   vẫn nằm gọn trong lề 70px của mốc này. Dưới ngưỡng đó ẩn hẳn cho khỏi bị cắt. */
+@media (max-width: 1139px) {
+  .scenery { display: none; }
+}
+
+/* Khoảng lệch tính từ tâm trang, PHỤ THUỘC bề rộng sprite của đúng slot đó — bề rộng
+   khai ở PixelArtHelper::SCENERY. Điều kiện cho mỗi slot, với N là số px dưới đây và W
+   là bề rộng sprite: N - W >= 506 (chừa 6px không đè lên main rộng 1000px) và
+   N <= 560 (chừa 10px với mép màn hình ở mốc 1140px). Đổi size sprite thì phải tính lại. */
+.scenery__item--l1 { left: calc(50% - 556px); top: 16%; }    /* bush 46 */
+.scenery__item--l2 { left: calc(50% - 548px); top: 34%; }    /* flower 34 */
+.scenery__item--l3 { left: calc(50% - 544px); top: 52%; }    /* coin 30 */
+.scenery__item--l4 { left: calc(50% - 550px); top: 70%; }    /* slime 40 */
+.scenery__item--l5 { left: calc(50% - 548px); bottom: 6%; }  /* mushroom 34 */
+
+.scenery__item--r1 { right: calc(50% - 546px); top: 12%; }   /* flower 32 */
+.scenery__item--r2 { right: calc(50% - 548px); top: 30%; }   /* potion 34 */
+.scenery__item--r3 { right: calc(50% - 550px); top: 48%; }   /* sword 38 */
+.scenery__item--r4 { right: calc(50% - 552px); top: 66%; }   /* chest 42 */
+.scenery__item--r5 { right: calc(50% - 542px); bottom: 8%; } /* coin 28 */
+
+/* Ba kiểu chuyển động, lệch pha bằng animation-delay để không đập cùng nhịp */
+.scenery__item--sway { animation: scenery-sway 3.6s ease-in-out infinite; }
+.scenery__item--bob { animation: scenery-bob 2.4s ease-in-out infinite; }
+.scenery__item--flip { animation: scenery-flip 2.8s steps(4, end) infinite; }
+
+.scenery__item--l2, .scenery__item--r3 { animation-delay: -.9s; }
+.scenery__item--l4, .scenery__item--r1 { animation-delay: -1.8s; }
+.scenery__item--l5, .scenery__item--r5 { animation-delay: -2.7s; }
+
+@keyframes scenery-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes scenery-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Đồng xu quay quanh trục dọc, kiểu xu trong Mario */
+@keyframes scenery-flip {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(.2); }
+}
+
 /* ---------- Header ---------- */
 
+/* Khối gạch kiểu Mario.
+   Tile SVG 32x32 = 2 hàng gạch, hàng dưới lệch nửa viên (running bond). Tile CHỈ vẽ vữa
+   (đen .42), bevel sáng ở mép trên mỗi hàng (trắng .26) và bóng ở mép dưới (đen .20).
+   Thân gạch trong suốt nên màu gạch là background-color = var(--header).
+   Dùng data URI thay vì gradient CSS vì gradient không diễn đạt được kiểu xếp lệch hàng:
+   vữa dọc phải nằm ở một offset trong nửa trên và offset khác ở nửa dưới, mà một
+   linear-gradient chỉ biến thiên theo đúng một trục. */
 .site-header {
-  background: var(--grass);
+  background-color: var(--brick);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cg shape-rendering='crispEdges'%3E%3Crect y='0' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='2' width='32' height='1' fill='%23fff' fill-opacity='.26'/%3E%3Crect y='15' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect y='16' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='18' width='32' height='1' fill='%23fff' fill-opacity='.26'/%3E%3Crect y='31' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect x='0' y='2' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3Crect x='16' y='18' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(255, 255, 255, .08) 0%, rgba(0, 0, 0, .16) 100%);
+  background-size: 32px 32px, 100% 100%;
+  background-repeat: repeat, no-repeat;
   border-bottom: 4px solid var(--ink);
   box-shadow: 0 4px 0 rgba(35, 32, 77, .2);
   padding: 0 16px;
+  position: relative;
+  z-index: 1;
 }
 
+
 .site-header__inner {
+  position: relative;
   max-width: 1000px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 20px;
-  min-height: 66px;
+  /* 64px = đúng 2 tile gạch 32px, nên hàng gạch cuối không bị cắt giữa viên.
+     Đổi số này thì chọn bội số của 32. */
+  min-height: 64px;
   flex-wrap: wrap;
   padding: 10px 0;
 }
@@ -103,7 +253,8 @@ body {
   font-size: 14px;
   color: var(--coin);
   text-decoration: none;
-  text-shadow: 2px 2px 0 var(--ink);
+  /* Viền trước, rồi bóng đổ tông nâu đậm của vữa để logo nổi khỏi mặt gạch */
+  text-shadow: var(--text-outline), 2px 2px 0 var(--header-deep);
   letter-spacing: 1px;
   line-height: 1.6;
 }
@@ -117,7 +268,7 @@ body {
   font-size: 16px;
   color: #fff;
   text-decoration: none;
-  text-shadow: 1px 1px 0 var(--grass-dark);
+  text-shadow: var(--text-outline);
   padding: 2px 0;
   border-bottom: 3px solid transparent;
 }
@@ -130,14 +281,27 @@ body {
   font-weight: 600;
   font-size: 15px;
   color: #fff;
-  text-shadow: 1px 1px 0 var(--grass-dark);
+  text-shadow: var(--text-outline);
 }
 
 main {
   max-width: 1000px;
   margin: 0 auto;
   padding: 28px 16px 72px;
-  background: var(--brick);
+  position: relative;
+  z-index: 1;
+  background-color: #f3cf70;
+  background-image:
+    /* đường ghép ván gỗ, chạy dọc */
+    repeating-linear-gradient(90deg,
+      transparent 0 118px, var(--board-line) 118px 121px),
+    /* vân gỗ ngang, rất nhạt */
+    repeating-linear-gradient(180deg,
+      rgba(255, 255, 255, .035) 0 3px, transparent 3px 9px),
+    linear-gradient(180deg, rgba(255, 255, 255, .06) 0%, rgba(0, 0, 0, .14) 100%);
+  border-left: 4px solid var(--board-dark);
+  border-right: 4px solid var(--board-dark);
+  border-bottom: 4px solid var(--board-dark);
 }
 
 /* ---------- Chữ ---------- */
@@ -582,4 +746,7 @@ tbody tr:nth-child(even) { background: rgba(255, 201, 60, .14); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
+  /* Nền có thêm sprite động ở hai bên, nên phải tắt cả animation chứ không chỉ
+     transition — nếu không, lớp trang trí vẫn nhảy với người bật giảm chuyển động. */
+  .sprite--bounce, .scenery__item { animation: none !important; }
 }

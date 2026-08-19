@@ -21,6 +21,41 @@ RSpec.describe Questions::Drawer do
       .to raise_error(described_class::NotEnoughQuestions)
   end
 
+  describe "seed" do
+    it "cùng seed thì bốc ra đúng cùng thứ tự" do
+      first = described_class.new(user: user, game: game, seed: "s1:1").call
+      second = described_class.new(user: user, game: game, seed: "s1:1").call
+
+      expect(second.map(&:id)).to eq(first.map(&:id))
+    end
+
+    it "seed khác nhau thì thứ tự khác nhau" do
+      orders = (1..10).map do |i|
+        described_class.new(user: user, game: game, seed: "s:#{i}").call.map(&:id)
+      end
+
+      expect(orders.uniq.size).to be > 1
+    end
+  end
+
+  it "chỉ bốc câu thuộc ngôn ngữ được chỉ định" do
+    java = Array.new(3) do |i|
+      create(:question, game: game,
+             content: { "language" => "java", "code_lines" => [ "j#{i}" ] })
+    end
+
+    drawn = described_class.new(user: user, game: game, language: "java").call
+
+    expect(drawn.map(&:id)).to match_array(java.map(&:id))
+  end
+
+  it "báo lỗi khi ngôn ngữ được chỉ định không đủ câu, dù ngôn ngữ khác còn dư" do
+    create(:question, game: game, content: { "language" => "java", "code_lines" => [ "j" ] })
+
+    expect { described_class.new(user: user, game: game, language: "java").call }
+      .to raise_error(described_class::NotEnoughQuestions)
+  end
+
   it "không bốc câu đã bị ẩn (BR-16)" do
     hidden = Question.where(game: game).first
     hidden.update!(hidden: true)
