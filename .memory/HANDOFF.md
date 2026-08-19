@@ -151,8 +151,9 @@ rack_attack, seeds (5 game + admin), docker-compose, rake `game_sessions:expire_
 - Token `--text-outline` (8 bóng đổ cứng 1px màu `--ink`) cho chữ nằm trên hoạ tiết gạch:
   brand, nav, tên user. Cần nó vì hoạ tiết có vạch bevel TRẮNG chạy dưới nét chữ nên
   contrast CỤC BỘ sụp, dù contrast trung bình vẫn đạt AA — bóng đổ 1 hướng không cứu được.
-  Đòn xoay thêm nếu vẫn khó đọc: hạ `fill-opacity` của 2 rect bevel trắng trong data URI
-  từ `.26` xuống `.18`, hoặc thêm nền tối mờ sau hàng nội dung header
+  Đã hạ thêm `fill-opacity` của 2 rect bevel trắng trong data URI xuống `.18` để bớt
+  va chạm trắng-trên-trắng ngay tại nguồn. Đòn còn lại nếu vẫn khó đọc: thêm nền tối mờ
+  sau hàng nội dung header (đánh đổi: che một phần mặt gạch)
 - `--sea` / `--sea-dark` / `--flame` là slot màu trong palette, hiện KHÔNG chỗ nào dùng
 - `--brick` giờ chỉ còn đúng vai trò màu cảnh báo (`.errors`, `.flash--alert`,
   `.btn--danger`, `.feedback--bad`)

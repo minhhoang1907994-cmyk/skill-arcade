@@ -62,7 +62,7 @@
 
   /* Viền chữ 8 hướng, dùng cho chữ nằm TRÊN HOẠ TIẾT (header gạch).
      Vấn đề không phải contrast trung bình — chữ trắng trên --header đã đạt 5.0:1, vẫn
-     qua WCAG AA. Vấn đề là hoạ tiết gạch có vạch bevel TRẮNG (.26) và vạch vữa gần đen
+     qua WCAG AA. Vấn đề là hoạ tiết gạch có vạch bevel TRẮNG (.18) và vạch vữa gần đen
      chạy ngang ngay dưới nét chữ: chỗ nét chữ trắng cắt qua vạch trắng thì contrast cục
      bộ sụp về gần 0. Một text-shadow 1 hướng không cứu được vì chỉ che đúng một phía.
      Viền 8 hướng thì mọi mép nét chữ đều có đường tối bao quanh nên đọc được trên bất kỳ
@@ -214,7 +214,7 @@ body {
 
 /* Khối gạch kiểu Mario.
    Tile SVG 32x32 = 2 hàng gạch, hàng dưới lệch nửa viên (running bond). Tile CHỈ vẽ vữa
-   (đen .42), bevel sáng ở mép trên mỗi hàng (trắng .26) và bóng ở mép dưới (đen .20).
+   (đen .42), bevel sáng ở mép trên mỗi hàng (trắng .18) và bóng ở mép dưới (đen .20).
    Thân gạch trong suốt nên màu gạch là background-color = var(--header).
    Dùng data URI thay vì gradient CSS vì gradient không diễn đạt được kiểu xếp lệch hàng:
    vữa dọc phải nằm ở một offset trong nửa trên và offset khác ở nửa dưới, mà một
@@ -222,7 +222,7 @@ body {
 .site-header {
   background-color: var(--brick);
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cg shape-rendering='crispEdges'%3E%3Crect y='0' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='2' width='32' height='1' fill='%23fff' fill-opacity='.26'/%3E%3Crect y='15' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect y='16' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='18' width='32' height='1' fill='%23fff' fill-opacity='.26'/%3E%3Crect y='31' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect x='0' y='2' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3Crect x='16' y='18' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cg shape-rendering='crispEdges'%3E%3Crect y='0' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='2' width='32' height='1' fill='%23fff' fill-opacity='.18'/%3E%3Crect y='15' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect y='16' width='32' height='2' fill='%23000' fill-opacity='.42'/%3E%3Crect y='18' width='32' height='1' fill='%23fff' fill-opacity='.18'/%3E%3Crect y='31' width='32' height='1' fill='%23000' fill-opacity='.20'/%3E%3Crect x='0' y='2' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3Crect x='16' y='18' width='2' height='14' fill='%23000' fill-opacity='.42'/%3E%3C/g%3E%3C/svg%3E"),
     linear-gradient(180deg, rgba(255, 255, 255, .08) 0%, rgba(0, 0, 0, .16) 100%);
   background-size: 32px 32px, 100% 100%;
   background-repeat: repeat, no-repeat;
