@@ -31,8 +31,14 @@ ENV RAILS_ENV="production" \
 FROM base AS build
 
 # Install packages needed to build gems
+#
+# default-libmysqlclient-dev là header dev của MySQL client, BẮT BUỘC để compile gem mysql2.
+# Không có nó thì `bundle install` dừng ở `checking for -lmysqlclient... no` với exit code 5.
+# Lưu ý phân biệt với `default-mysql-client` ở base stage: cái đó là CLI, không phải header.
+# Thư viện chia sẻ lúc chạy (libmariadb3) đi kèm `default-mysql-client` ở base stage.
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libvips libyaml-dev pkg-config && \
+    apt-get install --no-install-recommends -y \
+      build-essential default-libmysqlclient-dev git libvips libyaml-dev pkg-config && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems

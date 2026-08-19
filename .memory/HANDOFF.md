@@ -336,6 +336,32 @@ tưởng: leaderboard chỉ đếm lượt `finished` (BR-08) nên không ảnh 
 chứ không đếm bản ghi lượt; `GameSessions::Creator` không kiểm lượt `in_progress` đang mở nên lượt
 treo không chặn ai chơi. Mất thật sự chỉ là độ chính xác `abandoned_reason` cho thống kê.
 
+### ✅ Docker image đã build và chạy thật với DB Aiven (2026-08-19)
+`docker build` xanh (`DOCKER_BUILD_EXIT=0`, image 934MB), rồi `docker run` với env Aiven:
+```
+/up      -> 200
+/privacy -> 200, hiện "Log ứng dụng giữ 7 ngày"
+/        -> 200 (guest)
+db:preflight TỪ TRONG container:
+  OK MySQL version    8.4.8
+  OK TLS              verify_identity, sslca=/rails/config/aiven-ca.pem
+  OK CHECK constraint DB chặn score = 999
+  OK max_connections  76
+0 dòng cảnh báo về DB_SSL_CA  → CA commit trong repo hoạt động đúng trong image
+```
+Đã xoá container, image và file env tạm sau khi verify.
+
+**Hai điểm "chưa verify" trước đây giờ đã xác nhận:**
+- **Thruster CÓ bind `0.0.0.0`**: request từ ngoài container vào qua port map `3001:10000` đi tới
+  được, `remote_addr` là `172.17.0.1`. Nên `HTTP_PORT=10000` trong `render.yaml` là đủ, không cần
+  phương án dự phòng bỏ Thruster
+- Puma log `Listening on http://0.0.0.0:3000` — đúng như README thruster nói, nó ghi đè `PORT`
+  thành `TARGET_PORT` (3000) cho Puma còn tự listen ở `HTTP_PORT`
+
+Ghi chú không phải lỗi: log build có
+`Bundler 4.0.10 is running, but your lockfile was generated with 4.0.14. Installing Bundler
+4.0.14 and restarting` — bundler tự cài đúng version, chỉ tốn thêm thời gian build.
+
 ### BẪY đã làm fail deploy thật: Gemfile.lock thiếu platform Linux
 `Gemfile.lock` sinh trên Windows chỉ có `PLATFORMS: x64-mingw-ucrt`. `Dockerfile` đặt
 `BUNDLE_DEPLOYMENT="1"` nên bundler frozen, không tự thêm platform được → `bundle install` trong
@@ -349,6 +375,21 @@ lặng lẽ thêm platform vào lock của runner rồi chạy tiếp — CI xan
 
 **Mỗi lần `bundle install`/`bundle update` trên Windows đều có thể làm mất dòng đó.** Docker build
 fail ở bước `bundle install` thì kiểm chỗ này trước tiên.
+
+### BẪY 2: Dockerfile thiếu header dev của MySQL client
+Ngay sau khi sửa platform thì build fail tiếp, cùng bước `bundle install` nhưng **exit code 5**:
+`checking for -lmysqlclient... no` → gem `mysql2` không compile được.
+
+`Dockerfile` do `rails new` sinh chỉ cài `build-essential git libvips libyaml-dev pkg-config` ở
+build stage. Đã thêm **`default-libmysqlclient-dev`**.
+
+Đừng lẫn hai gói: `default-libmysqlclient-dev` là **header dev** để COMPILE (build stage), còn
+`default-mysql-client` ở base stage là **CLI** và kéo theo `libmariadb3` cần lúc CHẠY. Có cái sau
+mà thiếu cái trước thì build fail.
+
+**Cách kiểm rẻ**: `docker build -t skill-arcade:preflight .` tại máy — cả hai bẫy lộ ra trong ~1
+phút thay vì phải đợi Render build. NHỚ đọc exit code của chính `docker build`, không phải của lệnh
+bọc ngoài: tôi đã một lần tưởng build xong vì đọc exit code của `tail` đứng sau nó.
 
 ### CA của Aiven commit trong repo — KHÔNG dùng Render Secret File
 `config/aiven-ca.pem`, `render.yaml` khai `DB_SSL_CA=/rails/config/aiven-ca.pem`. File có trong

@@ -208,6 +208,51 @@ thật sự đỏ khi thiếu platform.
 Mỗi lần chạy `bundle install`/`bundle update` trên Windows đều có thể làm mất dòng đó, nên nếu
 Docker build fail ở bước `bundle install` thì kiểm chỗ này trước tiên.
 
+## 2.10 Dockerfile phải có header dev của MySQL client
+
+Lỗi thứ hai gặp ngay sau khi sửa platform, cùng bước `bundle install` nhưng **exit code 5**:
+
+```
+checking for -lmysqlclient... no
+mysql client is missing. You may need to 'sudo apt-get install libmariadb-dev' ...
+extconf failed, exit code 1
+```
+
+Build stage của `Dockerfile` do `rails new` sinh ra chỉ cài `build-essential git libvips libyaml-dev
+pkg-config` — thiếu header dev để compile gem `mysql2`. Đã thêm **`default-libmysqlclient-dev`**.
+
+Phân biệt hai gói dễ lẫn:
+
+| Gói | Là gì | Ở stage nào |
+|---|---|---|
+| `default-libmysqlclient-dev` | **header dev**, cần để COMPILE gem mysql2 | build |
+| `default-mysql-client` | **CLI** `mysql`, và kéo theo thư viện chia sẻ `libmariadb3` cần lúc CHẠY | base (đã có sẵn) |
+
+Có `default-mysql-client` mà thiếu `default-libmysqlclient-dev` thì build fail — đúng trường hợp đã
+gặp.
+
+### Cách kiểm trước khi tốn một lượt deploy
+
+Build VÀ chạy thử image tại máy, nếu có Docker. Đây là cách kiểm gần nhất với những gì Render làm:
+
+```powershell
+docker build -t skill-arcade:preflight .
+
+# Chạy với env thật. Tạo file env cho docker từ .env.aiven, nhưng ĐỔI DB_SSL_CA sang đường dẫn
+# TRONG image, và thêm HTTP_PORT + RAILS_MASTER_KEY.
+docker run -d --name skill-arcade-test -p 3001:10000 --env-file <file env> skill-arcade:preflight
+curl http://localhost:3001/up
+docker exec skill-arcade-test ./bin/rails db:preflight
+docker logs skill-arcade-test
+```
+
+Đã chạy đúng quy trình này ngày 2026-08-19 và tất cả xanh, gồm `db:preflight` từ trong container báo
+`sslca=/rails/config/aiven-ca.pem` và `verify_identity`.
+
+Hai lỗi ở 2.9 và 2.10 đều lộ ra ở bước này trong khoảng một phút, thay vì phải đợi Render build rồi
+đọc log. **Lưu ý đọc đúng exit code của `docker build`**, đừng đọc exit code của lệnh bọc ngoài —
+tôi đã một lần tưởng build thành công vì đọc exit code của `tail` đứng sau nó.
+
 ---
 
 ## 3. Render — deploy bằng Blueprint
@@ -304,9 +349,13 @@ Nghĩa là Thruster **không đọc `PORT` của Render** mà còn ghi đè nó.
 detect" port khác, nhưng không nên phụ thuộc vào chữ "usually" — nên `render.yaml` đặt thẳng
 `HTTP_PORT: 10000`.
 
-**Chưa verify**: Thruster có bind vào `0.0.0.0` hay chỉ `127.0.0.1` — README không nói. Nếu deploy
-vẫn fail vì Render không thấy port, phương án dự phòng là bỏ Thruster, khai thêm vào web service
-trong `render.yaml`:
+**Đã verify 2026-08-19**: Thruster CÓ bind `0.0.0.0`. Chạy image thật với `HTTP_PORT=10000` và port
+map `3001:10000`, request từ ngoài container đi tới được (`remote_addr` là `172.17.0.1`), còn Puma
+log `Listening on http://0.0.0.0:3000` — đúng như README nói, Thruster ghi đè `PORT` thành
+`TARGET_PORT` cho Puma và tự listen ở `HTTP_PORT`. Nên `HTTP_PORT=10000` là đủ.
+
+Phương án dự phòng dưới đây chỉ dùng nếu vì lý do khác mà Render không nhận ra port — bỏ Thruster,
+khai thêm vào web service trong `render.yaml`:
 
 ```yaml
     dockerCommand: ./bin/rails server -b 0.0.0.0 -p 10000

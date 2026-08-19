@@ -7,7 +7,7 @@
 - **Priority**: High
 - **Phase**: Phase 1 — cả 5 game, chưa có phần thưởng vật chất
 - **Ngày soạn**: 2026-08-18
-- **Version**: 1.17 (CA của Aiven commit trong repo vì file CA là bắt buộc; region Render chốt `oregon`)
+- **Version**: 1.18 (sửa 2 lỗi làm fail Docker build; image đã build và chạy thật với DB Aiven)
 - **Input**: `docs/clarify/clarify_skill-arcade.md` (5 vòng clarify, đã đóng toàn bộ BLOCKER)
 
 ## 2. User Story
@@ -820,6 +820,7 @@ bắt buộc:
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
+| 1.18 | 2026-08-19 | HoangNM | Sửa hai lỗi làm fail Docker build trên Render, cả hai ở bước `bundle install`: (1) `Gemfile.lock` sinh trên Windows chỉ có `PLATFORMS: x64-mingw-ucrt` trong khi Dockerfile đặt `BUNDLE_DEPLOYMENT=1` → exit code 16 `Bundler::ProductionError`; sửa bằng `bundle lock --add-platform x86_64-linux` và thêm `spec/gemfile_lock_spec.rb` làm guard vì CI không bắt được. (2) Build stage thiếu `default-libmysqlclient-dev` nên gem `mysql2` không compile → exit code 5. Đã build và CHẠY image thật với DB Aiven: `/up`, `/privacy`, `/` đều 200, `db:preflight` từ trong container báo `verify_identity` với `sslca=/rails/config/aiven-ca.pem`. Xác nhận luôn Thruster bind `0.0.0.0` nên `HTTP_PORT=10000` là đủ |
 | 1.17 | 2026-08-19 | HoangNM | Chốt `region: oregon` cho cả hai service Render, khớp service Aiven ở bờ Tây Mỹ — region phải khớp Aiven chứ không khớp vị trí người chơi vì đo được một lần bấm "Bắt đầu lượt" sinh 11 query, còn chặng người dùng↔Render chỉ đi một lần. **Sửa một điều tôi ghi sai**: thiếu file CA KHÔNG phải là hạ cấp âm thầm xuống `required` — test thật cho thấy Aiven vẫn báo `CERT_E_UNTRUSTEDROOT` vì CA riêng của họ không có trong trust store OS, tức là không kết nối được. Do đó CA được commit tại `config/aiven-ca.pem` thay vì dùng Render Secret File (Secret File chỉ thêm được sau khi service tồn tại → lần deploy đầu chắc chắn fail, và phải lặp lại cho từng service cần DB) |
 | 1.16 | 2026-08-19 | HoangNM | Provision DB production trên Aiven for MySQL và đo bằng `db:preflight`: **MySQL 8.4.8** (đạt yêu cầu >= 8.0.16 của §19), TLS `TLS_AES_256_GCM_SHA384` với `verify_identity`, **CHECK constraint được thực thi thật**, `max_connections` 76 đúng như tài liệu gói free. Nạp 5 game, admin, và 83 câu hỏi. **Sửa lại mô tả điều kiện seed** ở §12: `prepare_all` seed khi bảng `schema_migrations` chưa tồn tại (tức DB chưa có schema, kể cả DB đã tồn tại mà còn trống), không phải "DB vừa được tạo" như ghi trước đó — `defaultdb` của Aiven tồn tại sẵn nên phân biệt này quan trọng |
 | 1.15 | 2026-08-19 | HoangNM | Thêm `script/aiven.ps1` + `.env.aiven.example`: chạy `db:preflight` và `db:prepare` lên DB production mà mật khẩu chỉ nằm trong file gitignored, không vào history của shell hay chat/ticket. `-Prepare` là cờ riêng vì bước đó ghi thật lên production. `db:preflight` bổ sung hai đường lỗi cho đúng mục đích dùng: DB chưa có schema thì SKIP phép kiểm CHECK thay vì nổ `StatementInvalid`, và lỗi kết nối/sai mật khẩu/thiếu DB thì báo bằng thông báo có host thay vì backtrace |
