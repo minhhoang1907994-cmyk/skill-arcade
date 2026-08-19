@@ -219,6 +219,36 @@ Chất lượng đề AI đã soát: bug_hunt 4/5 câu `buggy_line` chỉ đúng
 người chơi dễ click lệch. escape_room đủ 8 node đúng `steps_per_session`, không option_key
 nào thiếu effect.
 
+### Hạ tầng đã chốt: Render Hobby + cache Redis (spec v1.10)
+- **Q5 đóng**: app chạy trên **Render, gói Hobby** → log giữ **7 ngày**
+  (`PagesController::LOG_RETENTION_DAYS`, đổi gói thì sửa hằng số đó). Render retention theo
+  gói: Hobby 7 / Pro 14 / Scale-Enterprise 30 ngày; quá hạn là mất hẳn, nâng gói không lấy lại
+- **Render KHÔNG có managed MySQL** — chỉ Postgres và Key Value (Redis). DB buộc phải dùng dịch
+  vụ ngoài
+- Gem `redis` đã duyệt. `production.rb` dùng `:redis_cache_store` khi có `REDIS_URL`, không có
+  thì vẫn boot bằng file store nhưng log cảnh báo. **BẮT BUỘC phải có Redis trên Render**:
+  filesystem của Render là ephemeral + per-instance nên file store làm rack_attack (throttle
+  1 lượt/ngày Spec Detective) và `Gemini::CircuitBreaker` mất trạng thái mỗi lần deploy, mà gói
+  Hobby còn tự ngủ khi hết traffic → throttle gần như vô hiệu
+- Verify: có `REDIS_URL` → `cache_store = :redis_cache_store` và
+  `Rack::Attack.cache.store = RedisCacheStoreProxy`; không có → file store + cảnh báo
+- **BẪY đã gặp**: bản đầu tôi gọi `Rails.logger.warn` ngay trong `production.rb` → `Rails.logger`
+  lúc đó còn `nil` nên **production không boot được**. Phải hoãn vào `config.after_initialize`.
+  Lỗi này chỉ lộ ở lần deploy đầu nếu không test bằng `RAILS_ENV=production`
+- `Gemini::DailyBudget` không bị ảnh hưởng vì đếm `ai_gradings` từ DB, không dùng cache
+
+### Q10 (MỚI) — Neon không dùng được vì là PostgreSQL
+Owner định dùng Neon cho DB, nhưng Neon là **PostgreSQL only**. App đang là MySQL.
+Đã rà hết phạm vi nếu muốn chuyển sang Postgres (nhỏ và gọn, không phải viết lại app):
+`Gemfile` mysql2 → pg; `Drawer#shuffle_order` dùng `RAND()` và `MD5(CONCAT(...))`; migration 8
+dùng `JSON_UNQUOTE`/`JSON_EXTRACT`/`JSON_TYPE`; 5 migration dùng `unsigned: true`; 7 chỗ
+`utf8mb4` trong `schema.rb`; 2 dòng spec dùng `.limit(n).update_all` (Postgres không có
+`UPDATE ... LIMIT`); 3 cột `t.json` nên thành `jsonb`. `LeaderboardQuery` portable, không raw SQL.
+CHECK constraint thì Postgres tốt hơn MySQL.
+
+**Ràng buộc lọc nhà cung cấp**: phải thực thi FK thật, vì trang chính sách (BR-38) đã hứa xoá
+tài khoản là xoá luôn dữ liệu chấm AI — thực thi bằng FK cascade.
+
 ### Trang chính sách riêng tư — BR-38 (spec v1.9)
 - `GET /privacy` → `PagesController#privacy`, **guest đọc được** (phải đọc được trước khi
   đăng ký). Link ở footer mọi trang + ở trang đăng ký
@@ -267,13 +297,15 @@ nào thiếu effect.
 - **Sửa initializer phải RESTART server**, `config/initializers/*` không reload theo code
 
 ## Việc tiếp theo
-1. **Q8 — chốt kênh liên hệ xoá tài khoản**, rồi set `PRIVACY_CONTACT_EMAIL`. Đây là chỗ duy
+1. **Q10 — chốt nhà cung cấp MySQL** (xem mục Q10 ở trên). Chặn việc deploy
+2. **Q8 — chốt kênh liên hệ xoá tài khoản**, rồi set `PRIVACY_CONTACT_EMAIL`. Đây là chỗ duy
    nhất trên trang chính sách còn nói "chưa công bố"
-2. **Q5 — chốt nền tảng vận hành**, rồi điền thời gian lưu log vào §14 và trang chính sách
-3. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
+3. Tạo Render Cron Job cho `rake game_sessions:expire_stale` (BR-24) — Render Cron Job là
+   service riêng, không đi kèm web service
+4. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
    Estimate Poker 50, Escape Room 20, PROD Roulette 20). Cần ~60-70 request = **3-4 ngày**
    ở hạn mức 20/ngày. prod_roulette chưa sinh được lần nào (gặp 503 rồi 429)
-4. Cân nhắc sửa prompt Bug Hunt: nói rõ với bug "thiếu transaction" thì `buggy_line` trỏ
+5. Cân nhắc sửa prompt Bug Hunt: nói rõ với bug "thiếu transaction" thì `buggy_line` trỏ
    vào dòng ghi DB đầu tiên, để khớp quy ước của bộ đề viết tay
 
 ## Ghi chú quan trọng

@@ -46,8 +46,41 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  # config.cache_store = :mem_cache_store
+  # Cache store PHẢI dùng chung giữa các instance và sống sót qua deploy.
+  #
+  # Mặc định của Rails là file store ở tmp/cache. Trên Render thì filesystem là ephemeral và
+  # riêng từng instance, nên file store làm MẤT hai thứ mỗi lần deploy hoặc spin down:
+  # - bộ đếm rack_attack, gồm throttle 1 lượt/ngày của Spec Detective (§12) — mất là người chơi
+  #   được lượt mới, throttle gần như vô hiệu vì web service gói Hobby tự ngủ khi không có traffic
+  # - trạng thái Gemini::CircuitBreaker (§15)
+  # Gemini::DailyBudget không bị ảnh hưởng vì đếm từ bảng ai_gradings, không dùng cache.
+  #
+  # Không có REDIS_URL thì vẫn boot được nhưng cảnh báo rõ ràng, để sự xuống cấp này không âm
+  # thầm — thà log ầm lên còn hơn để throttle hỏng mà không ai biết.
+  if ENV["REDIS_URL"].present?
+    config.cache_store = :redis_cache_store, {
+      url: ENV["REDIS_URL"],
+      connect_timeout: 1,
+      read_timeout: 1,
+      write_timeout: 1,
+      reconnect_attempts: 1,
+      # Redis chết thì cache miss, KHÔNG được làm sập request. Cache miss với rack_attack nghĩa
+      # là tạm thời không chặn, chấp nhận được hơn là toàn bộ app trả 500.
+      error_handler: lambda { |method:, returning:, exception:|
+        Rails.logger.error("[cache] redis lỗi ở #{method}: #{exception.class}: #{exception.message}")
+      }
+    }
+  else
+    # Phải hoãn tới after_initialize: trong lúc file này đang được nạp thì Rails.logger vẫn còn
+    # nil, gọi thẳng sẽ ném NoMethodError và app KHÔNG boot được — nghĩa là thiếu REDIS_URL sẽ
+    # làm sập deploy thay vì chỉ xuống cấp.
+    config.after_initialize do
+      Rails.logger.warn(
+        "[cache] REDIS_URL chưa được set — dùng file store. rack_attack và circuit breaker sẽ " \
+        "mất trạng thái mỗi lần deploy/restart và không dùng chung giữa các instance."
+      )
+    end
+  end
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # config.active_job.queue_adapter = :resque

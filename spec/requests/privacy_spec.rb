@@ -27,6 +27,12 @@ RSpec.describe "Trang chính sách riêng tư (Q7)" do
     expect(body_text).to include("fonts.googleapis.com")
   end
 
+  it "nêu đúng số ngày lưu log theo gói Render đang dùng" do
+    get privacy_path
+
+    expect(body_text).to include("Log ứng dụng giữ #{PagesController::LOG_RETENTION_DAYS} ngày")
+  end
+
   it "nói rõ bản ghi chấm điểm AI giữ vĩnh viễn và bảng xếp hạng là công khai" do
     get privacy_path
 

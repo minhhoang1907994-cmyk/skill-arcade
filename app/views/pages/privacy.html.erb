@@ -122,9 +122,10 @@
       <strong>Lượt chơi và câu trả lời</strong> giữ đến khi tài khoản của bạn bị xoá.
     </li>
     <li>
-      <strong>Log ứng dụng</strong>: app ghi log ra đầu ra tiêu chuẩn của tiến trình, nên thời
-      gian lưu do nền tảng vận hành quyết định, <strong>không do app quyết định</strong>. Nền
-      tảng vận hành hiện chưa chốt, nên chúng tôi chưa nêu được con số cụ thể ở đây.
+      <strong>Log ứng dụng giữ <%= @log_retention_days %> ngày.</strong> App ghi log ra đầu ra
+      tiêu chuẩn của tiến trình, nên con số này do nền tảng vận hành quyết định — app đang chạy
+      trên Render và đây là thời gian lưu log của gói đang dùng. Quá <%= @log_retention_days %>
+      ngày là log mất hẳn.
     </li>
   </ul>
 </div>

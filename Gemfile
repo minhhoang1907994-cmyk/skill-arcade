@@ -16,8 +16,10 @@ gem "turbo-rails"
 gem "stimulus-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
-# Use Redis adapter to run Action Cable in production
-# gem "redis", ">= 4.0.1"
+# Cache store dùng chung cho nhiều instance. BẮT BUỘC trên Render: filesystem của Render là
+# ephemeral và riêng từng instance, nên file store làm rack_attack (throttle 1 lượt/ngày của
+# Spec Detective) và Gemini::CircuitBreaker mất trạng thái mỗi lần deploy hoặc spin down.
+gem "redis", ">= 4.0.1"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"
