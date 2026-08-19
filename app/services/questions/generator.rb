@@ -17,12 +17,18 @@ module Questions
     # Sinh đề chạy offline nên chịu được timeout dài hơn lời gọi lúc chơi (10s ở §15).
     GENERATION_TIMEOUT_SECONDS = 120
     # Chia lô nhỏ: một response quá dài dễ bị cắt vì maxOutputTokens.
+    # Hai game kịch bản khai batch_size riêng trong BLUEPRINTS vì một đề của chúng gồm cả
+    # nodes + options + effects, gấp nhiều lần một đề Bug Hunt. Để 5 thì Gemini dừng giữa
+    # chừng với finishReason = MAX_TOKENS — đã gặp thật với incident_escape_room.
     BATCH_SIZE = 5
     # Đề bị loại ở bước validate (vd buggy_line trỏ sai dòng) làm lô đó hụt, nên phải cho
     # phép gọi thêm vài lô. Nhưng PHẢI có trần: nếu Gemini liên tục trả đề không dùng được
     # thì vòng lặp sẽ chạy mãi và nện API cho đến khi hết quota.
     EXTRA_BATCH_ALLOWANCE = 2
-    MAX_OUTPUT_TOKENS = 8192
+    MAX_OUTPUT_TOKENS = 16_384
+    # Sinh đề chạy offline nên cho model suy nghĩ nhiều hơn lúc chấm (128) để đề khá hơn.
+    # Vẫn phải chừa phần lớn MAX_OUTPUT_TOKENS cho nội dung vì thinking token tính chung.
+    THINKING_BUDGET = 1024
     DIFFICULTIES = [ "easy", "medium", "hard" ].freeze
 
     Batch = Struct.new(:records, :model, :prompts, keyword_init: true)
@@ -48,10 +54,10 @@ module Questions
     def call(count:)
       records = []
       prompts = []
-      max_batches = (count.to_f / BATCH_SIZE).ceil + EXTRA_BATCH_ALLOWANCE
+      max_batches = (count.to_f / batch_size).ceil + EXTRA_BATCH_ALLOWANCE
 
       while records.size < count && prompts.size < max_batches
-        wanted = [ count - records.size, BATCH_SIZE ].min
+        wanted = [ count - records.size, batch_size ].min
         prompt = build_prompt(wanted)
         prompts << prompt
         records.concat(generate_batch(prompt))
@@ -65,7 +71,8 @@ module Questions
     def generate_batch(prompt)
       response = @breaker.run do
         raw = @client.generate(prompt, response_schema: response_schema,
-                               temperature: 1.0, max_output_tokens: MAX_OUTPUT_TOKENS)
+                               temperature: 1.0, max_output_tokens: MAX_OUTPUT_TOKENS,
+                               thinking_budget: THINKING_BUDGET)
         JSON.parse(raw.text)
       end
 
@@ -112,6 +119,10 @@ module Questions
 
     def blueprint
       @blueprint ||= BLUEPRINTS[@game.slug]
+    end
+
+    def batch_size
+      blueprint[:batch_size] || BATCH_SIZE
     end
 
     # Gom array [{option_key, ...}] thành hash {option_key => {...}} vì responseSchema
@@ -264,6 +275,8 @@ module Questions
       },
 
       Game::INCIDENT_ESCAPE_ROOM => {
+        # Một đề gồm cả nodes + options + effects nên nặng gấp nhiều lần Bug Hunt.
+        batch_size: 2,
         item_schema: {
           type: "object",
           properties: {
@@ -330,6 +343,8 @@ module Questions
       },
 
       Game::PROD_ROULETTE => {
+        # Một đề gồm cả nodes + options + effects nên nặng gấp nhiều lần Bug Hunt.
+        batch_size: 2,
         item_schema: {
           type: "object",
           properties: {

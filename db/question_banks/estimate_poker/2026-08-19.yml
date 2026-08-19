@@ -1,0 +1,69 @@
+# Đề do Gemini sinh — CHƯA vào DB.
+#
+# Soát tay trước khi import (Open Question Q4): kiểm tra đáp án có đúng không,
+# nội dung có phù hợp không, và với Bug Hunt là buggy_line có trỏ đúng dòng không.
+# Sửa trực tiếp trong file này rồi mới chạy:
+#   rake 'questions:import[db/question_banks/estimate_poker/2026-08-19.yml]'
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-08-19T04:32:34Z'
+questions:
+- content:
+    task_description: Thêm field 'is_vip' vào API GET /api/v1/users/me và response
+      DTO tương ứng.
+    context: Database đã có sẵn column 'is_vip' trong bảng 'users'. Entity User trong
+      backend đã mapping sẵn field này. Đã có Unit Test cho User Controller.
+  answer_key:
+    actual_hours: 3.0
+    reasoning: Thời gian chủ yếu để update DTO, bổ sung logic mapping trong Service
+      layer, thêm assertion vào Unit Test hiện có và chạy lại test suite ngắn.
+  difficulty: easy
+- content:
+    task_description: Tích hợp Webhook nhận thông báo trạng thái thanh toán từ cổng
+      thanh toán VNPAY.
+    context: Đã có sẵn Order Service. Chưa có endpoint callback cho VNPAY. Cần verify
+      checksum/signature bằng secret_key và cập nhật trạng thái đơn hàng trong DB.
+  answer_key:
+    actual_hours: 14.0
+    reasoning: Thời gian dành cho việc nghiên cứu tài liệu checksum của VNPAY, viết
+      logic verify signature, xử lý tính idempotent để tránh ghi trùng giao dịch khi
+      nhận trùng webhook, và viết Integration Test giả lập request.
+  difficulty: medium
+- content:
+    task_description: Viết script Data Migration để chuyển đổi cấu trúc lưu trữ địa
+      chỉ khách hàng từ text tự do sang định dạng chuẩn chứa province_id, district_id
+      và ward_id.
+    context: Bảng 'customers' hiện có 500,000 record. Cần parse chuỗi địa chỉ cũ,
+      map với bảng danh mục hành chính có sẵn và ghi log các record không thể tự động
+      map.
+  answer_key:
+    actual_hours: 28.0
+    reasoning: Phần lớn thời gian nằm ở việc xử lý các trường hợp dữ liệu cũ bị sai
+      chính tả/thiếu thông tin, viết thuật toán fuzzy matching, tối ưu batch processing
+      để không làm lock bảng, và kiểm thử rollback trên môi trường Staging.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng Export Báo cáo Doanh thu định dạng Excel
+      hỗ trợ filter theo thời gian, chi nhánh và xử lý bất đồng bộ (Asynchronous Export).
+    context: Dữ liệu báo cáo tổng hợp từ 4 bảng giao dịch với hàng triệu record. API
+      hiện tại bị timeout nếu query trực tiếp. Cần dùng Redis và Celery để xử lý queue
+      và lưu file ra AWS S3.
+  answer_key:
+    actual_hours: 45.0
+    reasoning: Cần thiết kế luồng background job (tạo task, polling trạng thái, gửi
+      notification), tối ưu các câu truy vấn SQL phức tạp tránh full table scan, format
+      file Excel nhiều sheet bằng thư viện mã nguồn mở, và test tải với lượng dữ liệu
+      lớn.
+  difficulty: hard
+- content:
+    task_description: Cấu hình Rate Limiting cho API đăng nhập POST /api/v1/auth/login
+      dựa trên IP và username để chống brute-force.
+    context: Hệ thống microservices chạy Spring Boot. Đã có sẵn Redis Cluster đang
+      hoạt động cho mục đích lưu session.
+  answer_key:
+    actual_hours: 6.0
+    reasoning: Thời gian dùng để viết Middleware/Interceptor truy vấn Redis theo thuật
+      toán Sliding Window, trả về HTTP status 429 Too Many Requests kèm header Retry-After,
+      và viết Unit/Integration test giả lập spam request.
+  difficulty: easy

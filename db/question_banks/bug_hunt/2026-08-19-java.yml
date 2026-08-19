@@ -1,0 +1,145 @@
+# Đề do Gemini sinh — CHƯA vào DB.
+#
+# Soát tay trước khi import (Open Question Q4): kiểm tra đáp án có đúng không,
+# nội dung có phù hợp không, và với Bug Hunt là buggy_line có trỏ đúng dòng không.
+# Sửa trực tiếp trong file này rồi mới chạy:
+#   rake 'questions:import[db/question_banks/bug_hunt/2026-08-19-java.yml]'
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-19T04:31:37Z'
+language: java
+questions:
+- content:
+    language: java
+    code_lines:
+    - public void authenticateUser(String username, String password) {
+    - '    log.info("Authenticating user: {} with password: {}", username, password);'
+    - "    userRepository.findByUsernameAndPassword(username, password);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi mật khẩu dưới dạng văn bản thuần vào log gây nguy cơ lộ thông
+      tin nhạy cảm; cần xóa bỏ tham số mật khẩu khỏi câu lệnh log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public List<Order> searchOrders(String status) {
+    - '    String query = "SELECT * FROM orders WHERE status = ''" + status + "''";'
+    - "    Query nativeQuery = entityManager.createNativeQuery(query, Order.class);"
+    - "    return nativeQuery.getResultList();"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Cộng trực tiếp tham số status vào chuỗi SQL gây ra lỗ hổng SQL Injection;
+      cần dùng truyền tham số (parameterized query).
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public void updateAccountBalance(Account acc, BigDecimal amount) {
+    - "    try {"
+    - "        bankService.transfer(acc.getId(), amount);"
+    - "    } catch (Exception e) {}"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối catch rỗng nuốt ngoại lệ mà không log hay xử lý, làm ẩn lỗi
+      hệ thống; cần log lỗi hoặc ném ngoại lệ để cấp trên xử lý.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public String getCustomerDomain(Customer customer) {
+    - "    String email = customer.getContactInfo().getEmail();"
+    - '    return email.substring(email.indexOf("@") + 1);'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_null_check
+    explanation: Gọi hàm getEmail() từ customer.getContactInfo() mà không kiểm tra
+      null có thể gây NullPointerException nếu khách hàng chưa có contactInfo.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public void transferMoney(Long fromId, Long toId, BigDecimal amount) {
+    - "    accountRepository.deduct(fromId, amount);"
+    - "    accountRepository.add(toId, amount);"
+    - '    auditLogRepository.save(new AuditLog("TRANSFER", amount));'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Phương thức cập nhật nhiều bảng dữ liệu nhưng không có annotation
+      @Transactional, dẫn đến nguy cơ sai lệch dữ liệu nếu phát sinh lỗi giữa chừng.
+  difficulty: hard

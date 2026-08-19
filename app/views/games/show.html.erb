@@ -11,11 +11,28 @@
     tối đa <strong><%= @game.max_score %> điểm</strong>.
     Điểm cao nhất của bạn: <strong><%= current_user.best_score_for(@game) %></strong>.
   </p>
+  <%# Game chấm bằng AI bị hạn mức của dịch vụ bên ngoài giới hạn, nên nói rõ số lượt còn
+      lại ở đây. Không nói thì người chơi bấm Bắt đầu rồi mới nhận 503 và không hiểu vì sao. %>
   <% if @game.ai_graded? %>
-    <p class="muted small">
-      Game này chấm điểm bằng AI. Tính năng đó thuộc Phase 3 nên hiện chưa chơi được —
-      bắt đầu lượt sẽ báo lỗi dịch vụ chấm điểm.
-    </p>
+    <% sessions_left = @ai_budget.sessions_left(@game) %>
+    <% if sessions_left.positive? %>
+      <p class="muted small">
+        Game này chấm điểm bằng AI nên có hạn mức: mỗi người <strong>1 lượt/ngày</strong>, và
+        toàn hệ thống hôm nay còn <strong><%= sessions_left %> lượt</strong>.
+      </p>
+      <p class="feedback feedback--bad">
+        Nội dung bạn gõ ở game này được gửi sang Google Gemini (gói miễn phí) để chấm điểm, và
+        theo điều khoản của Google thì người thật của Google có thể đọc.
+        <strong>Đừng dán nội dung nội bộ hoặc của khách hàng vào ô trả lời.</strong>
+        <%= link_to "Chi tiết ở chính sách riêng tư", privacy_path %>.
+      </p>
+    <% else %>
+      <p class="feedback feedback--neutral">
+        Hôm nay hệ thống đã dùng hết hạn mức của dịch vụ chấm điểm AI
+        (<%= @ai_budget.used %>/<%= Gemini::DailyBudget::DAILY_REQUEST_LIMIT %> lượt gọi trong
+        24 giờ qua). Mời bạn quay lại ngày mai, hoặc chơi 4 game còn lại.
+      </p>
+    <% end %>
   <% end %>
 
   <% if @game.language_scoped? %>
@@ -40,9 +57,13 @@
     <% end %>
   <% end %>
 
+  <%# Hai lý do không chơi được, cả hai đều biết trước ở server: chưa đủ câu cho ngôn ngữ
+      nào, hoặc hết hạn mức chấm điểm AI của ngày. %>
+  <% cannot_start = (@game.language_scoped? && @languages.empty?) ||
+                    (@game.ai_graded? && !@ai_budget.enough_for_session?(@game)) %>
   <div class="actions">
     <button id="start-btn" type="button" class="btn--primary"
-            <%= "disabled" if @game.language_scoped? && @languages.empty? %>>
+            <%= "disabled" if cannot_start %>>
       Bắt đầu lượt mới
     </button>
     <%= link_to "Quay lại", games_path, class: "btn" %>
@@ -147,7 +168,11 @@
     } else if (slug === "spec_detective") {
       $("question").innerHTML = '<div class="scenario-log">' + escapeHtml(c.requirement_text) + "</div>";
       $("answer-area").innerHTML =
-        '<div class="form"><div class="field"><label for="points">Các điểm mơ hồ (mỗi dòng một điểm)</label>' +
+        '<div class="form">' +
+        // Nhắc lại ngay tại ô gõ, không chỉ ở panel intro: người chơi đã cuộn qua panel đó.
+        '<p class="muted small">Nội dung dưới đây được gửi sang Google Gemini để chấm. ' +
+        'Không dán nội dung nội bộ hoặc của khách hàng.</p>' +
+        '<div class="field"><label for="points">Các điểm mơ hồ (mỗi dòng một điểm)</label>' +
         '<textarea id="points" rows="4"></textarea></div>' +
         '<div class="field"><label for="questions">Câu hỏi làm rõ</label>' +
         '<textarea id="questions" rows="4"></textarea></div></div>';

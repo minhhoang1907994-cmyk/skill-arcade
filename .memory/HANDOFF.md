@@ -2,14 +2,16 @@
 
 ## Session gần nhất
 - Ngày: 2026-08-19
-- Tóm tắt: **Phase 3 (AI/Gemini) đã code xong**, spec lên v1.5. Cùng ngày trước đó:
-  Bug Hunt phân đề theo ngôn ngữ (BR-35, v1.4). Cuối session: đổi bảng màu nền
-  (đồng cỏ + bảng gỗ + header gạch Mario) và thêm item JRPG hai bên. **Toàn bộ chưa commit.**
-- CHẶN: chưa có `GEMINI_API_KEY` nên chưa gọi Gemini thật lần nào. Đường lỗi (503)
-  đã verify đầy đủ; đường thành công chỉ verify bằng client giả trong rspec.
-- CẦN OWNER QUYẾT — Open Question **Q9** (spec §20): điều khoản gói Gemini free cho
-  phép Google dùng nội dung gửi lên để cải thiện sản phẩm và cho người thật đọc.
-  Spec Detective gửi text người chơi tự gõ. Chưa quyết thì không nên bật Phase 3 thật.
+- Tóm tắt: **Phase 3 chạy thật với Gemini**, spec lên v1.6. Đã có API key, đã chấm
+  Spec Detective thật và sinh + import 19 câu đề AI. Cùng ngày: Bug Hunt phân đề theo
+  ngôn ngữ (BR-35), giao diện đồng cỏ + bảng gỗ + header gạch Mario + item JRPG.
+- **Hạn mức free chỉ 20 request/NGÀY cho mỗi model** (đo từ HTTP 429 thật, xem spec §20).
+  Spec Detective tiêu 5 request/lượt → 4 lượt/ngày cho toàn hệ thống. Owner chốt hạ
+  throttle xuống **1 lượt/ngày/user** (spec v1.7), đã áp dụng và verify trên server thật.
+- Hạn mức toàn hệ thống đã bound ở tầng ứng dụng bằng `Gemini::DailyBudget` (BR-37, spec
+  v1.8) — KHÔNG dùng throttle rack_attack discriminator hằng số. Lý do chọn cách này ghi ở
+  bảng so sánh trong §20.
+- Open Question đã đóng: Q1, Q2, Q3, Q4, Q7, Q9. Còn Q5 (hosting), Q6 (KPI), Q8 (kênh xoá tài khoản). Q9 chốt (a) chấp nhận gói free nên Q7 thành bắt buộc — đã làm.
 - Session trước (2026-08-18): dựng project từ repo trống, Phase 1 + Phase 2 xong.
 
 ## Trạng thái hiện tại
@@ -20,6 +22,18 @@ ruby -S rspec           → 133 examples, 0 failures
 ruby bin/rubocop        → 87 files, no offenses
 bin/rails zeitwerk:check → All is good!
 ```
+
+### Số đo thật từ Gemini (không phải từ docs) — chi tiết ở spec §20
+| Điều | Kết quả |
+|---|---|
+| Hạn mức free | **20 request/ngày MỖI MODEL** (HTTP 429 ghi rõ `limit: 20`) |
+| `gemini-2.5-flash` | HTTP 404, Google đã đóng với key mới → dùng `gemini-3.6-flash` |
+| `gemini-2.5-flash-lite` | HTTP 404 y hệt |
+| Tắt thinking | `thinkingBudget: 0` → HTTP 400, KHÔNG tắt được trên flash 3.x |
+| Field đúng | `generationConfig.thinkingConfig.thinkingBudget`. `thinkingLevel` đặt trực tiếp dưới `generationConfig` → 400 unknown name |
+| Thinking token | tính vào `maxOutputTokens`. Để 256 → `MAX_TOKENS` mà chưa sinh nội dung |
+| Độ trễ chấm | `thinkingLevel: low` 10.6s (quá hạn) / budget 128 quá 10s với bài dài / **budget 32 → 2.3-5.2s** |
+| Lỗi tạm | HTTP 503 "high demand" xuất hiện ngẫu nhiên giữa lô sinh đề |
 
 Đã chơi thật qua API trên server đang chạy (phần rspec không thay được):
 - POST không kèm `X-CSRF-Token` → 422 `INVALID_CSRF_TOKEN`; có token → 201
@@ -86,7 +100,7 @@ rack_attack, seeds (5 game + admin), docker-compose, rake `game_sessions:expire_
 - `db/seeds/sample_questions.rb` — câu viết tay (`source: "manual"`).
   Chạy: `ruby bin/rails runner db/seeds/sample_questions.rb`
 
-### Chọn ngôn ngữ lập trình cho Bug Hunt (BR-35, spec v1.4) — chưa commit
+### Chọn ngôn ngữ lập trình cho Bug Hunt (BR-35)
 - Migration `20260818000008_add_language_to_questions_and_sessions.rb`:
   `questions.language`, index `index_questions_on_game_language_hidden`,
   `game_sessions.language`, kèm backfill nhân `content.language` ra cột riêng
@@ -103,7 +117,7 @@ rack_attack, seeds (5 game + admin), docker-compose, rake `game_sessions:expire_
 - Spec `docs/spec/skill-arcade.md` lên **v1.4**: BR-35, 2 cột ở §4.2, param `language`
   + mã lỗi ở §5, §6 sửa "tối thiểu 50 câu" thành tính theo TỪNG ngôn ngữ
 
-### Phase 3 — AI/Gemini (chưa commit)
+### Phase 3 — AI/Gemini
 - `app/services/gemini/` — **thư mục MỚI, phải restart server** (bẫy autoload đã biết)
   - `error.rb` — `Gemini::Error`, gốc của mọi lỗi phía Gemini. Circuit breaker đếm đúng
     lớp này, nên lỗi lập trình (ArgumentError...) không làm breaker mở
@@ -130,7 +144,7 @@ rack_attack, seeds (5 game + admin), docker-compose, rake `game_sessions:expire_
   đường lỗi; `AiGrading` cho `response` rỗng khi `failed?` (cột NOT NULL)
 - `Question::BUG_HUNT_TYPES` — danh sách chuẩn 12 loại bug, seed dùng chung với generator
 
-### Giao diện — đổi bảng màu nền + item JRPG (chưa commit)
+### Giao diện — đổi bảng màu nền + item JRPG
 - **Token đã XOÁ**: `--sky-1/2/3` (và override dark mode của chúng). Không còn chỗ nào
   tham chiếu. Thay bằng:
   - `--field` / `--field-tuft` / `--field-bloom` — đồng cỏ hai bên trang.
@@ -180,17 +194,87 @@ oan; với Spec Detective thì AI chấm bài của đoạn A theo đáp án đo
 Sửa: `Questions::Drawer` nhận `seed:`, thứ tự bốc là `MD5(CONCAT(questions.id, seed))`;
 `StepProvider` truyền `seed: "#{session.id}:#{next_position}"`. Không thêm cột DB.
 
+### Cấu hình môi trường Gemini (đã xong)
+- `dotenv-rails` đã duyệt và thêm, **chỉ ở group `:development`**. Cố ý không có ở test:
+  nếu test env nạp `.env` thì rspec gọi Gemini THẬT, đốt hạn mức và làm test phụ thuộc
+  mạng. Đã gặp thật — 1 test fail vì lý do đó, phải sửa sang stub `Gemini::Client`
+- `.env` (gitignored qua `/.env*`) chứa `GEMINI_API_KEY` + `GEMINI_MODEL`
+- **Key hiện tại đã bị dán vào chat log → nên rotate ở AI Studio**
+
+### Ngân hàng đề hiện có
+| Game | Tổng | manual | ai_generated |
+|---|---|---|---|
+| bug_hunt | 45 | 40 | 5 (java) |
+| spec_detective | 11 | 6 | 5 |
+| estimate_poker | 17 | 12 | 5 |
+| incident_escape_room | 7 | 3 | 4 |
+| prod_roulette | 3 | 3 | 0 |
+
+Bug Hunt theo ngôn ngữ: java 15 / javascript 10 / php 10 / ruby 10 — cả 4 đều playable.
+File YAML đã sinh nằm ở `db/question_banks/<game>/2026-08-19*.yml`, import lại được
+(idempotent theo checksum).
+
+Chất lượng đề AI đã soát: bug_hunt 4/5 câu `buggy_line` chỉ đúng chỗ; câu thiếu
+`@Transactional` chỉ vào dòng signature trong khi bộ đề tay đánh dòng `save` đầu tiên —
+người chơi dễ click lệch. escape_room đủ 8 node đúng `steps_per_session`, không option_key
+nào thiếu effect.
+
+### Trang chính sách riêng tư — BR-38 (spec v1.9)
+- `GET /privacy` → `PagesController#privacy`, **guest đọc được** (phải đọc được trước khi
+  đăng ký). Link ở footer mọi trang + ở trang đăng ký
+- Nội dung viết theo THỰC TẾ CODE, không theo spec. Quá trình viết bắt được 1 chỗ spec sai:
+  §14 ghi "logs rotate at 30 days" nhưng `production.rb` log ra **STDOUT** và app không có
+  cấu hình rotation nào → thời gian lưu do nền tảng vận hành quyết định (Q5 chưa chốt).
+  Đã sửa §14 và trang chính sách KHÔNG nêu con số
+- Bắt được thêm 1 điểm chưa có ở đâu trong spec: CSS `@import` font từ **Google Fonts**
+  (`application.css:11`) nên mỗi lần tải trang là Google nhận IP + User-Agent người dùng.
+  Đã công bố trên trang
+- Cảnh báo "không dán nội dung nội bộ/khách hàng" ở **hai chỗ**: panel intro của Spec
+  Detective và ngay trên ô textarea (người chơi đã cuộn qua panel intro rồi)
+- Kênh liên hệ xoá tài khoản đọc từ `PRIVACY_CONTACT_EMAIL` (Q8 chưa chốt). Chưa set thì
+  trang nói thẳng "chưa công bố kênh liên hệ" — **không bịa địa chỉ**. Đã thêm vào
+  `.env.example`
+- Spec `privacy_spec.rb` dùng `body_text` (nén khoảng trắng) vì ERB ngắt dòng làm chuỗi bị
+  tách — assert trên `response.body` thô rất giòn, đã gặp thật
+
+### Trần hạn mức Gemini toàn hệ thống — BR-37 (spec v1.8)
+- `app/services/gemini/daily_budget.rb`: giới hạn 20 request trong **cửa sổ TRƯỢT 24 giờ**,
+  đếm số dòng `ai_gradings` (BR-19 bảo đảm mọi lời gọi có 1 dòng, **kể cả lời gọi thất bại** —
+  mà lần thất bại vẫn tiêu hạn mức Google). Một lượt tiêu `steps_per_session` request, làm
+  tròn XUỐNG nên không ai vào lượt rồi giữa đường hết hạn mức
+- Vì sao cửa sổ trượt: không biết Google chốt ngày theo múi giờ nào; cửa sổ trượt luôn chặt
+  hơn hoặc bằng mọi cửa sổ ngày cố định
+- Vì sao đếm `ai_gradings` chứ không dùng `Rails.cache` như circuit breaker: cache là
+  per-host, DB thì mọi host cùng thấy một con số
+- `GameSessions::Creator#ensure_ai_budget!` chặn **TRƯỚC** khi tạo bản ghi → `503`
+  `AI_QUOTA_EXHAUSTED`, không tạo `game_sessions` row nên người chơi không mất lượt vì trần
+  của hệ thống
+- UI: trang game hiện "hôm nay còn N lượt", hết thì disable nút + thông báo; card ở `/games`
+  có badge "Hết hạn mức hôm nay". Đã xoá đoạn text cũ nói "Phase 3 chưa chơi được"
+- **Thứ tự 2 lớp chặn**: rack_attack là middleware nên chạy TRƯỚC controller. Người đã dùng
+  lượt của mình → `429`; người chưa dùng mà hệ thống hết hạn mức → `503 AI_QUOTA_EXHAUSTED`.
+  Verify thật cả hai đường bằng 2 user khác nhau
+- **HẠN CHẾ đã biết**: `rake questions:generate` không ghi `ai_gradings` nên request sinh đề
+  KHÔNG được tính vào budget. Task tự in phần đã dùng cho chấm điểm và cảnh báo nếu lô sắp
+  vượt, nhưng không trừ được. Cố ý không abort
+
+### Rate limit Spec Detective (spec v1.7)
+- `config/initializers/rack_attack.rb`: `sessions/spec_detective/user` từ 5 lượt/giờ →
+  **1 lượt/ngày**. Verify thật: lần 1 → 201, lần 2 và 3 → 429, bug_hunt không bị ảnh hưởng
+- Thông điệp 429 giờ tra theo `rack.attack.matched` (hằng `THROTTLE_MESSAGES`) thay vì dùng
+  chung một câu. Lý do: "Bạn thao tác quá nhanh" đúng với hạn mức theo phút/giờ nhưng SAI với
+  hạn mức theo ngày — người chơi sẽ retry cả ngày vô ích
+- **Sửa initializer phải RESTART server**, `config/initializers/*` không reload theo code
+
 ## Việc tiếp theo
-1. **Owner quyết Q9** (spec §20) trước khi bật Phase 3 thật — rủi ro dữ liệu, không phải
-   quyết định kỹ thuật
-2. Export `GEMINI_API_KEY` rồi verify đường thành công thật: sinh 1 lô đề nhỏ
-   (`rake "questions:generate[bug_hunt,5,java]"`) và chấm thật 1 lượt Spec Detective
-3. Mở AI Studio đọc hạn mức thật của project, cập nhật §20 (con số 10 RPM / 250 RPD
-   hiện chỉ từ nguồn thứ ba, CHƯA verify từ Google)
-4. Sinh ngân hàng đề đạt mức tối thiểu §6: Bug Hunt 50 câu **mỗi ngôn ngữ**,
-   Spec Detective 25, Estimate Poker 50, Escape Room 20, PROD Roulette 20
-5. Cân nhắc `dotenv-rails` (CẦN DUYỆT theo CLAUDE.md) — hiện `.env` không được nạp,
-   phải export biến bằng tay
+1. **Q8 — chốt kênh liên hệ xoá tài khoản**, rồi set `PRIVACY_CONTACT_EMAIL`. Đây là chỗ duy
+   nhất trên trang chính sách còn nói "chưa công bố"
+2. **Q5 — chốt nền tảng vận hành**, rồi điền thời gian lưu log vào §14 và trang chính sách
+3. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
+   Estimate Poker 50, Escape Room 20, PROD Roulette 20). Cần ~60-70 request = **3-4 ngày**
+   ở hạn mức 20/ngày. prod_roulette chưa sinh được lần nào (gặp 503 rồi 429)
+4. Cân nhắc sửa prompt Bug Hunt: nói rõ với bug "thiếu transaction" thì `buggy_line` trỏ
+   vào dòng ghi DB đầu tiên, để khớp quy ước của bộ đề viết tay
 
 ## Ghi chú quan trọng
 
@@ -201,7 +285,7 @@ BỘ câu cũ → `upsert_question` không tìm thấy bản ghi cũ và tạo b
 nhật. Thêm câu mới thì dùng lại 12 bug_type đã có, hoặc phải xử lý câu cũ trước.
 
 ### Ngân hàng Bug Hunt hiện chỉ đủ mức tối thiểu
-Mỗi ngôn ngữ đúng 10 câu = `questions_per_session`. Chơi lại cùng ngôn ngữ sẽ gặp lại
+php/ruby/javascript đúng 10 câu = `questions_per_session` (java 15 sau khi import đề AI). Chơi lại cùng ngôn ngữ sẽ gặp lại
 toàn bộ 10 câu (BR-32 buộc phải fallback sang câu đã trả lời đúng). Muốn có câu mới ở
 lượt sau thì cần thêm ít nhất 2-3 câu mỗi ngôn ngữ.
 

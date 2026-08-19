@@ -6,7 +6,9 @@
 - Database: MySQL
 - Architecture: Monolith MVC
 
-> Version Ruby/Rails/MySQL: điền sau khi chạy `rails new` (đọc từ `.ruby-version`, `Gemfile.lock`).
+- Ruby: 4.0.5 (`.ruby-version`)
+- Rails: 8.1.3.1 (`Gemfile.lock`)
+- MySQL: 8.4 (`docker-compose.yml`), adapter `mysql2`
 
 ## Project Conventions
 

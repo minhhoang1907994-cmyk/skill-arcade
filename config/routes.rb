@@ -16,6 +16,9 @@ Rails.application.routes.draw do
   # Leaderboard (guest xem được)
   get "leaderboards", to: "leaderboards#show", as: :leaderboards
 
+  # Chính sách riêng tư — phải đọc được trước khi đăng ký nên để guest xem (Q7, spec §14).
+  get "privacy", to: "pages#privacy", as: :privacy
+
   # Admin (spec section 3 — chỉ users.admin = true)
   namespace :admin do
     resources :users, only: [ :index, :destroy ]

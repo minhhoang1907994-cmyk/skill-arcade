@@ -13,6 +13,11 @@ module GameSessions
     class ConcurrentCreate < StandardError; end
     class InvalidLanguage < StandardError; end
 
+    # Hạn mức Gemini còn lại không đủ cho trọn một lượt. Chặn TRƯỚC khi tạo bản ghi để người
+    # chơi không vào giữa lượt rồi mới nhận 503 và mất lượt (§8.5 chỉ nói về lỗi bất ngờ; hết
+    # hạn mức là chuyện biết trước được).
+    class QuotaExhausted < StandardError; end
+
     def initialize(user:, game:, language: nil)
       @user = user
       @game = game
@@ -22,6 +27,7 @@ module GameSessions
 
     def call
       validate_language!
+      ensure_ai_budget!
       # Kiểm tra ngân hàng câu hỏi trước khi tạo bản ghi, để không sinh ra lượt rỗng.
       ensure_questions_available!
 
@@ -47,6 +53,19 @@ module GameSessions
       # Ngôn ngữ có trong ngân hàng nhưng chưa đủ câu là chuyện khác — để
       # ensure_questions_available! báo NO_QUESTIONS_AVAILABLE.
       raise InvalidLanguage, "ngôn ngữ không hợp lệ"
+    end
+
+    # Chỉ game chấm bằng AI mới tiêu hạn mức Gemini. 4 game còn lại chấm từ answer_key nên
+    # không bị chặn ở đây (spec §15: Gemini hỏng thì 4/5 game vẫn chơi được).
+    def ensure_ai_budget!
+      return unless @game.ai_graded?
+
+      budget = Gemini::DailyBudget.new
+      return if budget.enough_for_session?(@game)
+
+      raise QuotaExhausted,
+            "hạn mức chấm điểm AI hôm nay đã dùng hết (#{budget.used}/" \
+            "#{Gemini::DailyBudget::DAILY_REQUEST_LIMIT} lượt gọi trong 24 giờ qua)"
     end
 
     def ensure_questions_available!

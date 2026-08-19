@@ -1,0 +1,164 @@
+<% content_for :title, "Chính sách riêng tư — Skill Arcade" %>
+
+<h1>Chính sách riêng tư</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:mage, size: 64) %>
+  <div class="hero-row__bubble">
+    Trang này nói đúng những gì app thực sự làm với dữ liệu của bạn, không phải những gì
+    app dự định làm.
+  </div>
+</div>
+
+<div class="panel">
+  <p class="muted small">Áp dụng từ <%= @effective_on.strftime("%d/%m/%Y") %>.</p>
+  <p>
+    Skill Arcade là app luyện tập nội bộ, chỉ nhận email dạng <code>xxx.nta@gmail.com</code>.
+    Nhưng app <strong>chạy public trên Internet</strong> — bảng xếp hạng xem được mà không cần
+    đăng nhập.
+  </p>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">1. App lưu gì của bạn</h2>
+
+  <table>
+    <thead>
+      <tr><th>Khi nào</th><th>Lưu gì</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Đăng ký</td>
+        <td>Email, tên hiển thị. Mật khẩu chỉ lưu dạng băm bcrypt — app không giữ mật khẩu gốc
+          và không có cách nào đọc lại được.</td>
+      </tr>
+      <tr>
+        <td>Chơi mỗi lượt</td>
+        <td>Game nào, lượt thứ mấy, điểm, trạng thái lượt, thời điểm bắt đầu và kết thúc.</td>
+      </tr>
+      <tr>
+        <td>Mỗi câu trả lời</td>
+        <td><strong>Nội dung bạn nhập</strong>, điểm của câu đó, thời gian bạn trả lời.</td>
+      </tr>
+      <tr>
+        <td>Báo câu hỏi sai</td>
+        <td>Lý do bạn viết, kèm câu hỏi bị báo.</td>
+      </tr>
+      <tr>
+        <td>Bảo mật đăng nhập</td>
+        <td>Số lần đăng nhập sai liên tiếp và thời điểm tài khoản bị khoá tạm.</td>
+      </tr>
+      <tr>
+        <td>Log ứng dụng</td>
+        <td>Email và địa chỉ IP khi đăng ký / đăng nhập; IP khi bị chặn vì thao tác quá nhiều.</td>
+      </tr>
+      <tr>
+        <td>Cookie</td>
+        <td>Đúng một cookie phiên để giữ đăng nhập. Không đọc được bằng JavaScript, và chỉ gửi
+          qua HTTPS. Không có cookie theo dõi, không có cookie quảng cáo.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">2. Dữ liệu đi ra khỏi công ty</h2>
+
+  <p class="feedback feedback--bad">
+    Ở game <strong>Spec Detective</strong>, nội dung bạn tự gõ được gửi sang <strong>Google
+    Gemini</strong> để chấm điểm. App đang dùng gói <strong>miễn phí</strong> của Google. Theo
+    điều khoản gói miễn phí, Google dùng nội dung gửi lên để phát triển và cải thiện sản phẩm
+    của Google, và <strong>người thật của Google có thể đọc, đánh dấu và xử lý</strong> nội dung
+    đó. Chính Google khuyến cáo không gửi thông tin nhạy cảm, bí mật hoặc thông tin cá nhân vào
+    dịch vụ miễn phí.
+  </p>
+
+  <p>
+    Nghĩa là: <strong>đừng dán nội dung nội bộ của công ty hoặc của khách hàng vào ô trả lời.</strong>
+    Hãy viết bằng lời của bạn về đoạn yêu cầu mà game đưa ra. Cùng với nội dung bạn gõ, app gửi
+    kèm đoạn yêu cầu của câu hỏi và đáp án tham chiếu để Gemini có căn cứ chấm.
+  </p>
+
+  <p>
+    Ngoài ra, giao diện dùng font từ <strong>Google Fonts</strong>, nên mỗi lần bạn mở một trang
+    của app, trình duyệt của bạn kết nối tới <code>fonts.googleapis.com</code> và
+    <code>fonts.gstatic.com</code>. Google nhận được địa chỉ IP và thông tin trình duyệt của bạn
+    qua các kết nối đó.
+  </p>
+
+  <p>
+    Bốn game còn lại (Bug Hunt, Estimate Poker, Incident Escape Room, PROD Roulette) chấm điểm
+    hoàn toàn trong app, <strong>không gửi gì ra ngoài</strong>.
+  </p>
+
+  <p>
+    App <strong>không</strong> có công cụ phân tích hành vi, <strong>không</strong> có quảng cáo,
+    và <strong>không</strong> bán hay chia sẻ dữ liệu của bạn cho bên thứ ba nào khác.
+  </p>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">3. Cái gì công khai</h2>
+  <p>
+    Bảng xếp hạng <strong>xem được không cần đăng nhập</strong>. Trên đó hiện:
+    tên hiển thị, điểm, số lượt cần để đạt điểm đó, và thời điểm đạt.
+  </p>
+  <p>
+    Email của bạn <strong>không</strong> hiện công khai ở đâu. Nếu bạn không muốn tên thật xuất
+    hiện trên bảng xếp hạng, hãy chọn tên hiển thị không phải tên thật ngay khi đăng ký — hiện
+    app chưa có chức năng tự đổi tên hiển thị.
+  </p>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">4. Giữ trong bao lâu</h2>
+  <ul>
+    <li>
+      <strong>Bản ghi chấm điểm AI giữ vĩnh viễn.</strong> Mỗi lần gọi Gemini, app lưu lại nội
+      dung đã gửi (gồm phần bạn gõ) và nội dung nhận về, và không bao giờ xoá. Đây là bằng chứng
+      duy nhất để giải trình nếu bạn khiếu nại điểm do AI chấm. Chỉ quản trị viên đọc được.
+    </li>
+    <li>
+      <strong>Lượt chơi và câu trả lời</strong> giữ đến khi tài khoản của bạn bị xoá.
+    </li>
+    <li>
+      <strong>Log ứng dụng</strong>: app ghi log ra đầu ra tiêu chuẩn của tiến trình, nên thời
+      gian lưu do nền tảng vận hành quyết định, <strong>không do app quyết định</strong>. Nền
+      tảng vận hành hiện chưa chốt, nên chúng tôi chưa nêu được con số cụ thể ở đây.
+    </li>
+  </ul>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">5. Quyền của bạn</h2>
+  <p>
+    Hiện <strong>chỉ quản trị viên xoá được tài khoản</strong>, bạn không tự xoá được. Khi một
+    tài khoản bị xoá, toàn bộ lượt chơi, câu trả lời và bản ghi chấm điểm AI của tài khoản đó bị
+    xoá theo. Đây cũng là cách duy nhất hiện có để xoá dữ liệu chấm điểm AI của bạn.
+  </p>
+  <% if @contact %>
+    <p>
+      Muốn yêu cầu xoá tài khoản hoặc hỏi về dữ liệu của mình, liên hệ:
+      <strong><%= @contact %></strong>.
+    </p>
+  <% else %>
+    <p class="feedback feedback--neutral">
+      App <strong>chưa công bố kênh liên hệ</strong> để yêu cầu xoá tài khoản. Trong lúc chờ,
+      bạn liên hệ trực tiếp người quản trị Skill Arcade trong nội bộ công ty.
+    </p>
+  <% end %>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">6. Thay đổi trang này</h2>
+  <p class="muted small">
+    Nội dung trang này thay đổi khi app thay đổi cách xử lý dữ liệu. Mốc áp dụng ở đầu trang
+    được cập nhật cùng lúc.
+  </p>
+  <div class="actions">
+    <%= link_to "Về bảng xếp hạng", root_path, class: "btn" %>
+    <% unless logged_in? %>
+      <%= link_to "Đăng ký", signup_path, class: "btn btn--primary" %>
+    <% end %>
+  </div>
+</div>

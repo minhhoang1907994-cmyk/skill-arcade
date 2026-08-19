@@ -16,7 +16,11 @@ module Gemini
 
     HOST = "generativelanguage.googleapis.com".freeze
     API_VERSION = "v1beta".freeze
-    DEFAULT_MODEL = "gemini-2.5-flash".freeze
+    # gemini-2.5-flash mà spec chốt ban đầu đã bị Google đóng với API key mới: gọi thật
+    # trả HTTP 404 "no longer available to new users. Please update your code to use
+    # models/gemini-3.6-flash". Trang docs vẫn liệt kê 2.5-flash là còn dùng được, nên
+    # ở đây tin theo API thật chứ không theo docs.
+    DEFAULT_MODEL = "gemini-3.6-flash".freeze
 
     OPEN_TIMEOUT_SECONDS = 5
     READ_TIMEOUT_SECONDS = 10
@@ -37,25 +41,43 @@ module Gemini
 
     # response_schema: JSON Schema để Gemini trả đúng cấu trúc (structured output).
     # Bắt buộc dùng cho cả chấm điểm và sinh đề — không parse text tự do.
-    def generate(prompt, response_schema:, temperature: 0.2, max_output_tokens: 2048)
+    #
+    # thinking_budget: số token model được phép dùng để "suy nghĩ". Model 3.x bật thinking
+    # mặc định và KHÔNG tắt hẳn được (`thinkingBudget: 0` bị API trả 400).
+    #
+    # Số đo thật trên gemini-3.6-flash, prompt chấm Spec Detective đầy đủ:
+    #   thinkingConfig.thinkingLevel = "low"  → 10.6s      (vượt hard timeout 10s của §15)
+    #   thinkingBudget = 128                  → quá 10s với bài trả lời dài
+    #   thinkingBudget = 32                   → 2.3 / 2.9 / 3.6 / 5.2s qua 4 lần đo
+    # Nên mặc định là 32, khớp với read_timeout mặc định 10s của chính client này — đường
+    # mặc định là đường chấm lúc chơi. Sinh đề chạy offline thì truyền budget lớn hơn để đề
+    # có chất lượng hơn (xem Questions::Generator::THINKING_BUDGET). nil thì bỏ hẳn field.
+    #
+    # max_output_tokens: LƯU Ý thinking token tính vào hạn mức này. Đặt quá thấp thì model
+    # tiêu hết budget vào thinking rồi dừng với finishReason = MAX_TOKENS mà chưa kịp sinh
+    # nội dung — đã gặp thật khi để 256.
+    def generate(prompt, response_schema:, temperature: 0.2, max_output_tokens: 2048,
+                 thinking_budget: 32)
       raise ConfigurationError, "GEMINI_API_KEY chưa được cấu hình" if @api_key.blank?
 
       started_at = now_ms
-      body = post(payload(prompt, response_schema, temperature, max_output_tokens))
+      body = post(payload(prompt, response_schema, temperature, max_output_tokens,
+                          thinking_budget))
       Response.new(text: extract_text(body), raw_body: body, latency_ms: now_ms - started_at)
     end
 
     private
 
-    def payload(prompt, response_schema, temperature, max_output_tokens)
+    def payload(prompt, response_schema, temperature, max_output_tokens, thinking_budget)
       {
         contents: [ { role: "user", parts: [ { text: prompt } ] } ],
         generationConfig: {
           temperature: temperature,
           maxOutputTokens: max_output_tokens,
           responseMimeType: "application/json",
-          responseSchema: response_schema
-        }
+          responseSchema: response_schema,
+          thinkingConfig: thinking_budget && { thinkingBudget: thinking_budget }
+        }.compact
       }
     end
 

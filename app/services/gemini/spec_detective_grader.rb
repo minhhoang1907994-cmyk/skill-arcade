@@ -13,7 +13,9 @@ module Gemini
 
     AMBIGUITY_POINTS = 10
     QUESTION_POINTS = 10
-    MAX_OUTPUT_TOKENS = 512
+    # Phải chừa chỗ cho thinking token — chúng tính vào maxOutputTokens. Để 512 thì model
+    # tiêu hết vào thinking rồi dừng với MAX_TOKENS, chưa kịp sinh JSON điểm.
+    MAX_OUTPUT_TOKENS = 2048
 
     RESPONSE_SCHEMA = {
       type: "object",

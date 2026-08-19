@@ -229,8 +229,12 @@ body {
   border-bottom: 4px solid var(--ink);
   box-shadow: 0 4px 0 rgba(35, 32, 77, .2);
   padding: 0 16px;
-  position: relative;
-  z-index: 1;
+  /* Dính lên đầu khi cuộn. z-index phải LỚN HƠN của main (1) để nội dung cuộn xuống
+     dưới thanh gạch chứ không đè lên nó. Mặt gạch đục hoàn toàn nên không cần lớp nền
+     phụ. .scenery ở z-index 0 nên vẫn nằm dưới cả hai. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 
@@ -303,6 +307,30 @@ main {
   border-right: 4px solid var(--board-dark);
   border-bottom: 4px solid var(--board-dark);
 }
+
+/* ---------- Footer ----------
+
+   Nằm trên nền cỏ, ngoài khối main. Chữ mực trên var(--grass) đạt tương phản 6.9:1 nên không
+   cần viền chữ như ở header gạch. */
+.site-footer {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 14px 20px 40px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+
+.site-footer a { color: var(--ink); text-decoration: underline; }
+.site-footer a:hover { color: var(--grass-deep); }
 
 /* ---------- Chữ ---------- */
 

@@ -17,8 +17,7 @@ namespace :questions do
     end
 
     puts "Đang sinh #{count} đề cho #{slug}#{language ? " (#{language})" : ''}..."
-    puts "Lưu ý: mỗi lô #{Questions::Generator::BATCH_SIZE} đề tiêu 1 request Gemini — " \
-         "gói free có hạn mức theo ngày, xem AI Studio của project."
+    report_budget(game, count)
 
     batch = Questions::Generator.new(game: game, language: language).call(count: count)
 
@@ -51,6 +50,28 @@ namespace :questions do
     end
   rescue Questions::Importer::InvalidFile => e
     abort("File không dùng được: #{e.message}")
+  end
+
+  # Sinh đề và chấm điểm lúc chơi ĂN CHUNG hạn mức 20 request/ngày (spec §20). Task này không
+  # ghi ai_gradings nên Gemini::DailyBudget không thấy được request của chính nó — chỉ cảnh báo
+  # dựa trên phần chấm điểm đã dùng, và để người chạy tự cộng. Cố ý không abort: người vận hành
+  # có thể biết hôm nay không ai chơi Spec Detective nên dùng cả hạn mức để sinh đề.
+  def report_budget(game, count)
+    per_batch = Questions::Generator::BLUEPRINTS.dig(game.slug, :batch_size) ||
+                Questions::Generator::BATCH_SIZE
+    needed = (count.to_f / per_batch).ceil
+    budget = Gemini::DailyBudget.new
+    limit = Gemini::DailyBudget::DAILY_REQUEST_LIMIT
+
+    puts "Hạn mức: #{limit} request/NGÀY cho mỗi model. Lô này cần khoảng #{needed} request " \
+         "(#{per_batch} đề/request)."
+    puts "Đã dùng cho CHẤM ĐIỂM trong 24h qua: #{budget.used}/#{limit}. Request sinh đề KHÔNG " \
+         "ghi vào ai_gradings nên không nằm trong số này — tự cộng thêm nếu đã chạy task này."
+
+    return unless budget.used + needed > limit
+
+    puts "CẢNH BÁO: #{budget.used} + #{needed} vượt #{limit}. Khả năng cao gặp HTTP 429 giữa lô, " \
+         "và người chơi Spec Detective hôm nay sẽ bị chặn. Ctrl+C nếu muốn dừng."
   end
 
   # Không ghi đè file đã tồn tại: file cũ có thể đã được người soạn đề soát và sửa tay.

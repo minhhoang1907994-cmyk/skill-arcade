@@ -332,8 +332,11 @@ RSpec.describe "Gameplay API" do
     end
 
     it "trả 503, đánh dấu system_error và vẫn ghi ai_gradings kèm error (§8.5, BR-19)" do
-      # Không stub grader: test env không có GEMINI_API_KEY nên client raise
-      # ConfigurationError — đúng đường đi thật khi Gemini không dùng được.
+      # Stub ở tầng client, không phải tầng grader: cần grader chạy thật để chứng minh nó
+      # dựng đủ attributes cho ai_gradings khi lỗi. Không dựa vào việc test env thiếu
+      # GEMINI_API_KEY — như vậy test không đổi kết quả theo biến môi trường của máy chạy.
+      allow_any_instance_of(Gemini::Client).to receive(:generate)
+        .and_raise(Gemini::Client::RequestFailed, "Gemini timeout sau 10s")
       sid = start_detective
 
       submit_answer(sid)
@@ -354,7 +357,46 @@ RSpec.describe "Gameplay API" do
       grading = AiGrading.sole
       expect(grading).to be_failed
       expect(grading.score).to be_nil
-      expect(grading.error).to include("GEMINI_API_KEY")
+      expect(grading.error).to include("Gemini timeout sau 10s")
+    end
+
+    it "chặn TRƯỚC khi tạo lượt khi hết hạn mức ngày, mã riêng AI_QUOTA_EXHAUSTED" do
+      create(:question, game: detective, content: { "requirement_text" => "xử lý nhanh" },
+             answer_key: { "ambiguous_points" => [ "nhanh" ] })
+      # Hạn mức tính bằng số dòng ai_gradings trong 24h qua, nên dựng đúng ở tầng đó.
+      other = create(:game_session, game: detective, user: create(:user))
+      Gemini::DailyBudget::DAILY_REQUEST_LIMIT.times do
+        answer = create(:session_answer_record, session: other,
+                        question: create(:question, game: detective,
+                                         content: { "requirement_text" => "x#{SecureRandom.hex(4)}" },
+                                         answer_key: { "ambiguous_points" => [ "y" ] }))
+        AiGrading.create!(session_answer: answer, model: "gemini-test", prompt: "p",
+                          response: "{}", score: 5)
+      end
+
+      post api_v1_game_sessions_path(slug: detective.slug), as: :json
+
+      expect(response).to have_http_status(:service_unavailable)
+      expect(response.parsed_body["code"]).to eq("AI_QUOTA_EXHAUSTED")
+      # Không tạo lượt nào: người chơi không mất lượt vì trần công suất của hệ thống
+      expect(GameSession.where(game: detective, user: user)).to be_empty
+    end
+
+    it "không chặn 4 game còn lại khi hết hạn mức AI (spec §15)" do
+      create_bug_hunt_questions
+      other = create(:game_session, game: detective, user: create(:user))
+      Gemini::DailyBudget::DAILY_REQUEST_LIMIT.times do
+        answer = create(:session_answer_record, session: other,
+                        question: create(:question, game: detective,
+                                         content: { "requirement_text" => "x#{SecureRandom.hex(4)}" },
+                                         answer_key: { "ambiguous_points" => [ "y" ] }))
+        AiGrading.create!(session_answer: answer, model: "gemini-test", prompt: "p",
+                          response: "{}", score: 5)
+      end
+
+      start_session
+
+      expect(response).to have_http_status(:created)
     end
 
     it "vẫn trả 400 khi thiếu trường trong answer, không phải 503" do

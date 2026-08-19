@@ -55,6 +55,13 @@ group :development, :test do
   gem "factory_bot_rails"
 end
 
+# Nạp .env cho máy dev. CHỈ ở development, cố ý không có ở test: nếu test env cũng nạp .env
+# thì rspec sẽ gọi Gemini THẬT — đốt hạn mức 20 request/ngày và làm test phụ thuộc mạng.
+# Production dùng biến môi trường thật của hạ tầng, không dùng file .env.
+group :development do
+  gem "dotenv-rails"
+end
+
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"

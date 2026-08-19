@@ -71,5 +71,11 @@
 
       <%= yield %>
     </main>
+
+    <%# Chính sách riêng tư phải có đường vào từ mọi trang, kể cả khi chưa đăng nhập (Q7). %>
+    <footer class="site-footer">
+      <%= link_to "Chính sách riêng tư", privacy_path %>
+      <span>Skill Arcade — app luyện tập nội bộ</span>
+    </footer>
   </body>
 </html>

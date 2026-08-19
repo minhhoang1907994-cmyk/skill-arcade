@@ -15,10 +15,12 @@ def upsert_question(game, content, answer_key, difficulty: "medium")
   question
 end
 
-# --- Bug Hunt: 34 snippet, chia theo ngôn ngữ lập trình ---
+# --- Bug Hunt: 40 snippet, chia theo ngôn ngữ lập trình ---
 # Người chơi chọn ngôn ngữ trước khi vào lượt, và Game#playable_languages chỉ hiện
-# ngôn ngữ có >= questions_per_session (10) câu. Nên php/ruby/java mỗi loại 10 câu;
-# javascript còn 4 câu nên tạm thời chưa hiện trong danh sách chọn.
+# ngôn ngữ có >= questions_per_session (10) câu. Bốn ngôn ngữ php/ruby/java/javascript
+# mỗi loại đúng 10 câu, tức là vừa đủ MỘT lượt và không có câu dư — chơi lại cùng ngôn
+# ngữ sẽ gặp lại toàn bộ 10 câu (BR-32 phải fallback). Ngân hàng thật do
+# `rake questions:generate` bổ sung.
 #
 # Khi thêm câu mới: bug_type phải nằm trong Question::BUG_HUNT_TYPES. Danh sách đó đi vào
 # content nên thêm/bớt/đổi thứ tự phần tử sẽ đổi checksum của TOÀN BỘ câu Bug Hunt đang có
@@ -460,6 +462,83 @@ BUG_HUNT_SAMPLES = [
     buggy_line: 2,
     bug_type: "unbounded_query",
     explanation: "findAll() nạp toàn bộ bảng vào RAM. Dùng Slice/Pageable hoặc Stream có phân trang."
+  },
+  # --- javascript: 6 câu bổ sung cho đủ 10 ---
+  {
+    language: "javascript",
+    lines: [
+      "app.get('/users', async (req, res) => {",
+      "  const sql = `SELECT * FROM users WHERE email = '${req.query.email}'`;",
+      "  const [rows] = await db.query(sql);",
+      "  res.json(rows);",
+      "});"
+    ],
+    buggy_line: 2,
+    bug_type: "sql_injection",
+    explanation: "Template string nối thẳng query param vào SQL. Dùng placeholder: db.query(sql, [email])."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "router.delete('/posts/:id', async (req, res) => {",
+      "  await Post.destroy({ where: { id: req.params.id } });",
+      "  res.status(204).end();",
+      "});"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_authorization",
+    explanation: "Không kiểm tra post thuộc req.user. Thêm điều kiện userId vào where (IDOR)."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "async function login(req, res) {",
+      "  console.log('login body', req.body);",
+      "  const user = await auth.verify(req.body.email, req.body.password);",
+      "  res.json({ id: user.id });",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "sensitive_data_logging",
+    explanation: "req.body chứa cả password. Chỉ log field an toàn, hoặc lọc trước khi log."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "async function syncOrders() {",
+      "  try {",
+      "    await api.pushOrders(await Order.pending());",
+      "  } catch (e) {",
+      "  }",
+      "}"
+    ],
+    buggy_line: 5,
+    bug_type: "swallowed_exception",
+    explanation: "catch rỗng: đồng bộ hỏng nhưng không ai biết. Ít nhất phải log và báo lỗi lên trên."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "function setQuantity(cart, itemId, raw) {",
+      "  cart.items[itemId].quantity = parseInt(raw, 10);",
+      "  return cart;",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "missing_validation",
+    explanation: "parseInt có thể ra NaN và không kiểm tra khoảng hợp lệ. Validate trước khi gán."
+  },
+  {
+    language: "javascript",
+    lines: [
+      "async function exportUsers(stream) {",
+      "  const users = await User.findAll();",
+      "  users.forEach((u) => stream.write(toCsvRow(u)));",
+      "}"
+    ],
+    buggy_line: 2,
+    bug_type: "unbounded_query",
+    explanation: "findAll() không giới hạn nạp cả bảng vào RAM. Dùng phân trang hoặc cursor stream."
   }
 ].freeze
 

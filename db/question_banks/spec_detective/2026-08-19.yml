@@ -1,0 +1,129 @@
+# Đề do Gemini sinh — CHƯA vào DB.
+#
+# Soát tay trước khi import (Open Question Q4): kiểm tra đáp án có đúng không,
+# nội dung có phù hợp không, và với Bug Hunt là buggy_line có trỏ đúng dòng không.
+# Sửa trực tiếp trong file này rồi mới chạy:
+#   rake 'questions:import[db/question_banks/spec_detective/2026-08-19.yml]'
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-08-19T04:32:11Z'
+questions:
+- content:
+    requirement_text: Hệ thống cần bổ sung tính năng Flash Sale cho các sản phẩm bán
+      chạy. Khách hàng chỉ được mua tối đa một số lượng sản phẩm giảm giá nhất định
+      trong mỗi đợt. Nếu đơn hàng không được thanh toán ngay thì hệ thống sẽ tự động
+      hủy để nhường suất cho người khác. Cuối đợt Flash Sale, hệ thống sẽ gửi báo
+      cáo tổng kết cho bộ phận kinh doanh.
+  answer_key:
+    ambiguous_points:
+    - Sản phẩm bán chạy chưa có tiêu chí xác định định lượng.
+    - Số lượng sản phẩm giảm giá tối đa mỗi khách hàng được mua chưa có con số cụ
+      thể.
+    - Thời gian chờ thanh toán trước khi tự động hủy đơn chưa được xác định.
+    - Thời điểm, kênh gửi và định dạng của báo cáo tổng kết chưa rõ ràng.
+    sample_questions:
+    - Tiêu chí cụ thể để một sản phẩm được xếp vào danh mục bán chạy là gì?
+    - Mỗi tài khoản khách hàng được mua tối đa bao nhiêu sản phẩm giảm giá trong 1
+      đợt Flash Sale?
+    - Thời gian tối đa để khách hàng hoàn tất thanh toán trước khi đơn hàng tự động
+      hủy là bao nhiêu phút?
+    - Báo cáo tổng kết sẽ gửi qua email hay hiển thị trên Dashboard và gửi sau khi
+      kết thúc đợt bao lâu?
+    rubric: Điểm quan trọng nhất là làm rõ thời gian timeout thanh toán và hạn mức
+      mua của mỗi tài khoản, vì đây là logic cốt lõi ảnh hưởng tới giữ hàng trong
+      kho và giao dịch thanh toán.
+  difficulty: medium
+- content:
+    requirement_text: Ứng dụng ví điện tử cần có chương trình hoàn tiền cho người
+      dùng VIP khi thanh toán hóa đơn. Tiền hoàn sẽ được cộng tự động vào ví của người
+      dùng rất nhanh sau khi giao dịch thành công. Người dùng có thể rút số tiền này
+      hoặc dùng để mua sắm tiếp. Hệ thống phải cảnh báo nếu phát hiện người dùng có
+      hành vi gian lận hoàn tiền.
+  answer_key:
+    ambiguous_points:
+    - Chưa có tiêu chí rõ ràng để định nghĩa tài khoản người dùng VIP.
+    - Thiếu tỷ lệ % hoàn tiền và hạn mức hoàn tiền tối đa cho mỗi giao dịch hoặc mỗi
+      tháng.
+    - Cụm từ rất nhanh không có thời gian phản hồi cụ thể.
+    - Chưa định nghĩa các quy tắc để nhận diện hành vi gian lận hoàn tiền.
+    sample_questions:
+    - Điều kiện định lượng cụ thể để người dùng đạt hạng VIP là gì?
+    - Tỷ lệ hoàn tiền là bao nhiêu % và số tiền hoàn tối đa cho một giao dịch là bao
+      nhiêu VNĐ?
+    - Thời gian xử lý cộng tiền hoàn vào ví tối đa là bao nhiêu giây sau khi thanh
+      toán thành công?
+    - Quy tắc cụ thể nào để hệ thống đánh giá một giao dịch là gian lận hoàn tiền?
+    rubric: Điểm quan trọng nhất là xác định tỷ lệ, hạn mức hoàn tiền và quy tắc phát
+      hiện gian lận nhằm bảo đảm an toàn tài chính cho hệ thống.
+  difficulty: easy
+- content:
+    requirement_text: Chúng tôi muốn tính năng tự động gán đơn hàng cho tài xế gần
+      nhất để giao hàng nhanh chóng. Nếu tài xế không nhận đơn sau một khoảng thời
+      gian ngắn, hệ thống sẽ chuyển cho tài xế khác. Với các đơn hàng đắt tiền, hệ
+      thống chỉ gán cho các tài xế có uy tín cao. Tài xế bị đánh giá kém quá nhiều
+      lần sẽ bị khóa tài khoản tạm thời.
+  answer_key:
+    ambiguous_points:
+    - Khoảng cách gần nhất tính theo bán kính chim bay hay khoảng cách di chuyển thực
+      tế trên bản đồ.
+    - Khoảng thời gian ngắn để tài xế phản hồi nhận đơn chưa có số giây cụ thể.
+    - Đơn hàng đắt tiền và tài xế uy tín cao chưa có ngưỡng số định lượng.
+    - Đánh giá kém quá nhiều lần chưa quy định số lần, thang điểm và thời gian khóa
+      tạm thời là bao lâu.
+    sample_questions:
+    - Hệ thống tìm tài xế trong bán kính tối đa bao nhiêu km và tính theo đường chim
+      bay hay đường đi thực tế?
+    - Tài xế có bao nhiêu giây để bấm nhận đơn trước khi hệ thống chuyển cho tài xế
+      tiếp theo?
+    - Đơn hàng có giá trị từ bao nhiêu VNĐ thì coi là đắt tiền và tài xế cần điểm
+      đánh giá tối thiểu bao nhiêu để nhận đơn này?
+    - Bao nhiêu lượt đánh giá dưới 3 sao trong vòng 1 tuần thì tài xế bị khóa tài
+      khoản và thời hạn khóa là bao nhiêu ngày?
+    rubric: Cần ưu tiên làm rõ tiêu chuẩn tài xế uy tín/đơn đắt tiền và thuật toán/bán
+      kính gán đơn để tránh tình trạng bỏ sót đơn hoặc giao nhầm đơn giá trị cao.
+  difficulty: hard
+- content:
+    requirement_text: Hệ thống học trực tuyến cần tính năng giới hạn đăng nhập đồng
+      thời để tránh chia sẻ tài khoản. Khi phát hiện đăng nhập bất thường, hệ thống
+      phải tự động đăng xuất thiết bị cũ và thông báo cho học viên. Ngoài ra, học
+      viên hoàn thành khóa học xuất sắc sẽ nhận được chứng chỉ số ngay lập tức. Giảng
+      viên có thể xem danh sách các học viên có nguy cơ bỏ học cao.
+  answer_key:
+    ambiguous_points:
+    - Chưa rõ số lượng thiết bị tối đa được phép đăng nhập cùng một lúc.
+    - Đăng nhập bất thường chưa có tiêu chí nhận diện cụ thể.
+    - Tiêu chuẩn hoàn thành khóa học xuất sắc chưa được định nghĩa rõ.
+    - Chưa có quy tắc định lượng để gắn nhãn học viên có nguy cơ bỏ học cao.
+    sample_questions:
+    - Một tài khoản học viên được phép đăng nhập đồng thời trên tối đa bao nhiêu thiết
+      bị?
+    - Tiêu chí cụ thể nào xác định một lần đăng nhập là bất thường?
+    - Học viên cần đạt điểm số trung bình bao nhiêu và hoàn thành bao nhiêu % bài
+      tập để xếp loại xuất sắc?
+    - Học viên không truy cập hệ thống trong bao nhiêu ngày liên tục thì bị đưa vào
+      danh sách nguy cơ bỏ học cao?
+    rubric: Trọng tâm là làm rõ quy tắc phát hiện đăng nhập bất thường và tiêu chí
+      nhận diện học viên có nguy cơ bỏ học để phục vụ việc viết logic thống kê và
+      bảo mật.
+  difficulty: medium
+- content:
+    requirement_text: Bệnh nhân có thể đặt lịch khám bệnh trực tuyến và được chọn
+      bác sĩ theo yêu cầu. Nếu bệnh nhân hủy lịch quá sát giờ khám thì sẽ bị phạt
+      phí hủy lịch. Bệnh nhân đến muộn một chút vẫn được vào khám nếu bác sĩ còn trống
+      lịch. Hệ thống sẽ ưu tiên lịch khám cho các trường hợp cấp bách.
+  answer_key:
+    ambiguous_points:
+    - Cụm từ quá sát giờ khám chưa quy định mốc thời gian cụ thể.
+    - Chưa nêu rõ mức phạt phí hủy lịch là bao nhiêu tiền.
+    - Đến muộn một chút chưa có thời gian dung sai tối đa.
+    - Chưa quy định rõ tiêu chí nhận biết và quy trình xử lý trường hợp cấp bách.
+    sample_questions:
+    - Hủy lịch trước giờ hẹn dưới bao nhiêu tiếng thì bị tính là hủy sát giờ?
+    - Mức phí phạt hủy lịch sát giờ là bao nhiêu VNĐ hoặc bao nhiêu % chi phí khám?
+    - Bệnh nhân đến muộn tối đa bao nhiêu phút thì vẫn được giữ lượt khám?
+    - Trường hợp nào được xếp vào loại cấp bách và hệ thống tự động đẩy lịch lên trước
+      hay do nhân viên y tế thao tác thủ công?
+    rubric: Điểm quan trọng nhất là làm rõ khung thời gian hủy/đến muộn và mức phí
+      phạt tương ứng để thiết lập logic tính tiền và quản lý trạng thái lịch hẹn.
+  difficulty: easy
