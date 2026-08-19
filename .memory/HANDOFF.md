@@ -336,6 +336,20 @@ tưởng: leaderboard chỉ đếm lượt `finished` (BR-08) nên không ảnh 
 chứ không đếm bản ghi lượt; `GameSessions::Creator` không kiểm lượt `in_progress` đang mở nên lượt
 treo không chặn ai chơi. Mất thật sự chỉ là độ chính xác `abandoned_reason` cho thống kê.
 
+### BẪY đã làm fail deploy thật: Gemfile.lock thiếu platform Linux
+`Gemfile.lock` sinh trên Windows chỉ có `PLATFORMS: x64-mingw-ucrt`. `Dockerfile` đặt
+`BUNDLE_DEPLOYMENT="1"` nên bundler frozen, không tự thêm platform được → `bundle install` trong
+image Linux dừng với **exit code 16** = `Bundler::ProductionError`.
+
+Sửa: `ruby -S bundle lock --add-platform x86_64-linux`
+
+**CI KHÔNG bắt được**: `ruby/setup-ruby` với `bundler-cache: true` không bật deployment mode nên nó
+lặng lẽ thêm platform vào lock của runner rồi chạy tiếp — CI xanh mà Docker build đỏ. Đã thêm
+`spec/gemfile_lock_spec.rb` làm guard, và đã kiểm guard đó thật sự đỏ khi bỏ dòng platform.
+
+**Mỗi lần `bundle install`/`bundle update` trên Windows đều có thể làm mất dòng đó.** Docker build
+fail ở bước `bundle install` thì kiểm chỗ này trước tiên.
+
 ### CA của Aiven commit trong repo — KHÔNG dùng Render Secret File
 `config/aiven-ca.pem`, `render.yaml` khai `DB_SSL_CA=/rails/config/aiven-ca.pem`. File có trong
 image vì `Dockerfile` có `WORKDIR /rails` + `COPY . .` và `.dockerignore` không loại trừ nó

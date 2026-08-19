@@ -176,6 +176,40 @@ Chạy lại `db:preflight` một lần nữa sau khi deploy lên Render, **từ
 
 ---
 
+## 2.9 Gemfile.lock phải khai platform Linux
+
+Đã làm fail một lần deploy thật. `Gemfile.lock` sinh trên máy Windows chỉ ghi:
+
+```
+PLATFORMS
+  x64-mingw-ucrt
+```
+
+`Dockerfile` đặt `BUNDLE_DEPLOYMENT="1"` nên bundler ở chế độ frozen và **không được tự thêm
+platform**, khiến `bundle install` trong image Linux dừng với **exit code 16**
+(`Bundler::ProductionError`):
+
+```
+error: failed to solve: process "/bin/sh -c bundle install && ..." did not complete
+successfully: exit code: 16
+```
+
+Sửa:
+
+```powershell
+ruby -S bundle lock --add-platform x86_64-linux
+```
+
+**CI không bắt được lỗi này**: `ruby/setup-ruby` với `bundler-cache: true` không bật deployment
+mode, nên nó lặng lẽ thêm platform vào lock của runner rồi chạy tiếp — CI xanh mà Docker build vẫn
+đỏ. Vì vậy repo có `spec/gemfile_lock_spec.rb` để `rspec` bắt được, và spec đó đã được kiểm là
+thật sự đỏ khi thiếu platform.
+
+Mỗi lần chạy `bundle install`/`bundle update` trên Windows đều có thể làm mất dòng đó, nên nếu
+Docker build fail ở bước `bundle install` thì kiểm chỗ này trước tiên.
+
+---
+
 ## 3. Render — deploy bằng Blueprint
 
 Repo có `render.yaml` khai sẵn hạ tầng, nên không phải bấm tay từng service. Dashboard → **New**
