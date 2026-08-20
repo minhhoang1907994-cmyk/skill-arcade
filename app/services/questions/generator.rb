@@ -294,10 +294,15 @@ module Questions
             Mỗi đề là một task phát triển có thể ước lượng được.
             - task_description: một câu mô tả task, cụ thể đủ để ước lượng.
             - context: bối cảnh ảnh hưởng đến effort (đã có sẵn gì, ràng buộc gì).
-            - actual_hours: số giờ tham chiếu, trong khoảng 1 đến 80, phản ánh cả thời
-              gian test và xử lý dữ liệu cũ chứ không chỉ thời gian gõ code.
+            - actual_hours: số giờ làm việc của MỘT dev đã quen codebase, trong khoảng
+              #{Question::ESTIMATE_HOURS_RANGE.min} đến #{Question::ESTIMATE_HOURS_RANGE.max}.
+              Chỉ tính điều tra + gõ code + tự viết test + sửa sau review. KHÔNG cộng thêm
+              thời gian QA, họp, chờ review, deploy hay buffer rủi ro — người chơi ước lượng
+              phần việc của dev nên đáp án cộng thêm các khoản đó là chấm sai họ.
+              Task đã có sẵn hạ tầng và chỉ thêm một field/một tham số thì thuộc mức 1-2 giờ,
+              đừng đẩy lên vài ngày.
             - reasoning: giải thích phần lớn thời gian nằm ở đâu.
-            Trộn đủ các mức: task vài giờ, task một hai ngày, và task cả tuần.
+            Trộn đủ các mức: task 1-2 giờ, task nửa ngày, task một hai ngày, và task cả tuần.
           TEXT
         end,
         build: lambda do |item, _generator|

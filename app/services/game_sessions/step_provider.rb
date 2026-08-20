@@ -41,12 +41,21 @@ module GameSessions
 
     private
 
-    # content đem hiển thị: giống hệt content trong DB, trừ Bug Hunt bị rút bớt danh sách
-    # loại bug. Rút ở payload chứ không sửa content trong DB vì content đi vào checksum.
+    # content đem hiển thị: giống content trong DB, trừ hai chỗ được xử lý ở payload chứ
+    # không sửa content trong DB (content đi vào checksum):
+    # - Bug Hunt: rút bớt danh sách loại bug.
+    # - Spec Detective và game kịch bản: đảo thứ tự phương án.
     def display_content
       content = question.content
-      return content unless @session.game.slug == Game::BUG_HUNT
 
+      case @session.game.slug
+      when Game::BUG_HUNT then bug_hunt_content(content)
+      when Game::SPEC_DETECTIVE then shuffled_spec_content(content)
+      else @session.game.scenario_based? ? shuffled_scenario_content(content) : content
+      end
+    end
+
+    def bug_hunt_content(content)
       types = Array(content["bug_types"])
       return content if types.size <= BUG_HUNT_TYPE_CHOICES
 
@@ -55,11 +64,49 @@ module GameSessions
       content.merge("bug_types" => ([ correct ] + distractors).shuffle(random: choice_rng))
     end
 
+    # Đề trong ngân hàng đặt phương án tốt nhất ở vị trí đầu (khoá "a" ở Spec Detective,
+    # "s1a"/"e1a" ở game kịch bản), nên bấm ô đầu tiên là ăn điểm mà không cần đọc. Đảo thứ tự lúc hiển thị
+    # thay vì sửa lại từng đề: cách này áp cả cho đề AI sinh sau này.
+    #
+    # Chấm điểm đi theo `key` của phương án (Scoring::SpecDetective so với
+    # best_option_key, hai game kịch bản tra option_effects[key]) nên thứ tự hiển thị đổi
+    # mà điểm không đổi. UI cũng không in `key` ra cho người chơi thấy.
+    def shuffled_spec_content(content)
+      options = Array(content["clarifying_options"])
+      return content if options.size < 2
+
+      content.merge("clarifying_options" => options.shuffle(random: option_rng))
+    end
+
+    def shuffled_scenario_content(content)
+      nodes = Array(content["nodes"])
+      return content if nodes.none?
+
+      shuffled = nodes.map do |node|
+        options = Array(node["options"])
+        next node if options.size < 2
+
+        node.merge("options" => options.shuffle(random: option_rng))
+      end
+
+      content.merge("nodes" => shuffled)
+    end
+
     # Cùng khoá seed với việc bốc câu hỏi: tải lại trang giữa bước vẫn thấy đúng danh sách
     # lựa chọn cũ, không phải một tập khác.
     def choice_rng
-      @choice_rng ||= Random.new(
-        Digest::SHA256.hexdigest("types:#{@session.id}:#{next_position}").to_i(16) % (2**32)
+      @choice_rng ||= rng_for("types")
+    end
+
+    # Seed riêng cho thứ tự phương án, tách khỏi choice_rng để việc rút loại bug của Bug
+    # Hunt không phụ thuộc vào việc có đảo thứ tự hay không.
+    def option_rng
+      @option_rng ||= rng_for("options")
+    end
+
+    def rng_for(purpose)
+      Random.new(
+        Digest::SHA256.hexdigest("#{purpose}:#{@session.id}:#{next_position}").to_i(16) % (2**32)
       )
     end
 

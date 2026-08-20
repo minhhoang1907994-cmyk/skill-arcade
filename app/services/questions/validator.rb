@@ -49,6 +49,7 @@ module Questions
       case @game.slug
       when Game::BUG_HUNT then bug_hunt_error
       when Game::SPEC_DETECTIVE then spec_detective_error
+      when Game::ESTIMATE_POKER then estimate_poker_error
       end
     end
 
@@ -81,6 +82,20 @@ module Questions
       end
       unless Question::BUG_HUNT_TYPES.include?(bug_type)
         return "bug_type không hợp lệ: #{bug_type.inspect}"
+      end
+
+      nil
+    end
+
+    # Chặn ngưỡng ngay lúc import: `actual_hours` chỉ cần > 0 là đủ để chấm được, nhưng một
+    # con số ngoài Question::ESTIMATE_HOURS_RANGE nghĩa là đề đang tính theo thang khác thang
+    # người chơi được nhắc ở giao diện (BR-28) — chấm được nhưng chấm sai. Trước đây không có
+    # ngưỡng nào nên đề AI sinh trôi dần lên vài chục giờ cho task chỉ thêm một field.
+    def estimate_poker_error
+      hours = answer_key["actual_hours"]
+      return "actual_hours phải là số" unless hours.is_a?(Numeric)
+      unless Question::ESTIMATE_HOURS_RANGE.cover?(hours)
+        return "actual_hours #{hours} nằm ngoài khoảng "                "#{Question::ESTIMATE_HOURS_RANGE.min}..#{Question::ESTIMATE_HOURS_RANGE.max} giờ"
       end
 
       nil

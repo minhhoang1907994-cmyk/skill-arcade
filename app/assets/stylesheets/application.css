@@ -255,7 +255,7 @@ body {
 .site-header__brand {
   font-family: var(--logo-font);
   font-size: 14px;
-  color: var(--coin);
+  color: var(--sea);
   text-decoration: none;
   /* Viền trước, rồi bóng đổ tông nâu đậm của vữa để logo nổi khỏi mặt gạch */
   text-shadow: var(--text-outline), 2px 2px 0 var(--header-deep);

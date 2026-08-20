@@ -61,6 +61,30 @@ RSpec.describe Questions::Validator do
     end
   end
 
+  describe "estimate_poker (BR-28 — actual_hours phải cùng thang với người chơi)" do
+    let(:game) { create(:game, slug: Game::ESTIMATE_POKER, name: "Estimate Poker") }
+    let(:content) { { "task_description" => "Thêm một field vào API sẵn có" } }
+
+    it "nhận đề có actual_hours trong khoảng hợp lệ" do
+      expect(error_for(game, content: content, answer_key: { "actual_hours" => 4.0 })).to be_nil
+    end
+
+    it "loại đề vượt trần — task quá lớn phải chẻ nhỏ trước khi đem ước lượng" do
+      expect(error_for(game, content: content, answer_key: { "actual_hours" => 120 }))
+        .to include("nằm ngoài khoảng")
+    end
+
+    it "loại đề dưới sàn" do
+      expect(error_for(game, content: content, answer_key: { "actual_hours" => 0.25 }))
+        .to include("nằm ngoài khoảng")
+    end
+
+    it "loại đề có actual_hours không phải số" do
+      expect(error_for(game, content: content, answer_key: { "actual_hours" => "8 giờ" }))
+        .to include("phải là số")
+    end
+  end
+
   describe "bug_hunt" do
     let(:game) { create(:game) }
     let(:content) do

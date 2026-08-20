@@ -15,7 +15,7 @@ questions:
     context: Database đã có sẵn column 'is_vip' trong bảng 'users'. Entity User trong
       backend đã mapping sẵn field này. Đã có Unit Test cho User Controller.
   answer_key:
-    actual_hours: 3.0
+    actual_hours: 1.0
     reasoning: Thời gian chủ yếu để update DTO, bổ sung logic mapping trong Service
       layer, thêm assertion vào Unit Test hiện có và chạy lại test suite ngắn.
   difficulty: easy
@@ -25,7 +25,7 @@ questions:
     context: Đã có sẵn Order Service. Chưa có endpoint callback cho VNPAY. Cần verify
       checksum/signature bằng secret_key và cập nhật trạng thái đơn hàng trong DB.
   answer_key:
-    actual_hours: 14.0
+    actual_hours: 10.0
     reasoning: Thời gian dành cho việc nghiên cứu tài liệu checksum của VNPAY, viết
       logic verify signature, xử lý tính idempotent để tránh ghi trùng giao dịch khi
       nhận trùng webhook, và viết Integration Test giả lập request.
@@ -38,7 +38,7 @@ questions:
       map với bảng danh mục hành chính có sẵn và ghi log các record không thể tự động
       map.
   answer_key:
-    actual_hours: 28.0
+    actual_hours: 20.0
     reasoning: Phần lớn thời gian nằm ở việc xử lý các trường hợp dữ liệu cũ bị sai
       chính tả/thiếu thông tin, viết thuật toán fuzzy matching, tối ưu batch processing
       để không làm lock bảng, và kiểm thử rollback trên môi trường Staging.
@@ -50,7 +50,7 @@ questions:
       hiện tại bị timeout nếu query trực tiếp. Cần dùng Redis và Celery để xử lý queue
       và lưu file ra AWS S3.
   answer_key:
-    actual_hours: 45.0
+    actual_hours: 28.0
     reasoning: Cần thiết kế luồng background job (tạo task, polling trạng thái, gửi
       notification), tối ưu các câu truy vấn SQL phức tạp tránh full table scan, format
       file Excel nhiều sheet bằng thư viện mã nguồn mở, và test tải với lượng dữ liệu
@@ -62,7 +62,7 @@ questions:
     context: Hệ thống microservices chạy Spring Boot. Đã có sẵn Redis Cluster đang
       hoạt động cho mục đích lưu session.
   answer_key:
-    actual_hours: 6.0
+    actual_hours: 4.0
     reasoning: Thời gian dùng để viết Middleware/Interceptor truy vấn Redis theo thuật
       toán Sliding Window, trả về HTTP status 429 Too Many Requests kèm header Retry-After,
       và viết Unit/Integration test giả lập spam request.

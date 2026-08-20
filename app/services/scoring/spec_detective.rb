@@ -27,7 +27,7 @@ module Scoring
 
       Result.new(
         score: statement_score + (option_correct ? QUESTION_POINTS : 0),
-        explanation: explain(key, expected, hit, miss, option_correct),
+        explanation: explain(question, key, expected, hit, miss, option_correct),
         metadata: { "statement_hit" => hit, "statement_miss" => miss,
                     "option_correct" => option_correct }
       )
@@ -47,15 +47,25 @@ module Scoring
       raw.floor.clamp(0, STATEMENT_POINTS)
     end
 
-    def explain(key, expected, hit, miss, option_correct)
+    def explain(question, key, expected, hit, miss, option_correct)
       parts = [
         "Câu mơ hồ: #{expected.join(', ')} — bạn tìm đúng #{hit}/#{expected.size}" \
         "#{miss.positive? ? ", tick sai #{miss}" : ''}.",
         option_correct ? "Chọn đúng câu hỏi làm rõ tốt nhất." :
-                         "Câu hỏi làm rõ tốt nhất là phương án #{key['best_option_key']}."
+                         "Câu hỏi làm rõ tốt nhất: #{best_option_text(question, key)}"
       ]
       parts << key["explanation"].to_s if key["explanation"].present?
       parts.join(" ")
+    end
+
+    # Thứ tự phương án bị đảo lúc hiển thị (GameSessions::StepProvider) nên nói "phương án
+    # a" không còn chỉ được vào đâu — phản hồi phải nhắc lại nội dung phương án đúng.
+    def best_option_text(question, key)
+      best_key = key["best_option_key"].to_s
+      label = Array(question.content["clarifying_options"])
+              .find { |o| o["key"].to_s == best_key }&.dig("label")
+
+      label.presence || "phương án #{best_key}"
     end
   end
 end

@@ -4,6 +4,18 @@ class Question < ApplicationRecord
   SOURCES = %w[ai_generated manual].freeze
   DIFFICULTIES = %w[easy medium hard].freeze
 
+  # Estimate Poker: khoảng giá trị hợp lệ của `answer_key["actual_hours"]`.
+  #
+  # Đơn vị là giờ làm việc của MỘT dev đã quen codebase, gồm điều tra + gõ code + tự viết
+  # test + sửa sau review, KHÔNG gồm QA, họp, chờ review, deploy hay buffer rủi ro (BR-28).
+  # Đơn vị này phải khớp ba nơi: nhãn input ở giao diện, prompt sinh đề trong
+  # Questions::Generator, và ngưỡng chặn lúc import trong Questions::Validator. Lệch một nơi
+  # là người chơi ước lượng theo một thang mà bị chấm theo thang khác.
+  #
+  # Trần 80 giờ: quá mức đó thì task phải chẻ nhỏ trước khi ước lượng, không phải một đề
+  # Estimate Poker. Sàn 0.5 giờ vì input ở giao diện bước 0.5.
+  ESTIMATE_HOURS_RANGE = (0.5..80).freeze
+
   # Danh sách loại bug của Bug Hunt — đây là các lựa chọn hiển thị cho người chơi, nằm
   # trong `content["bug_types"]` của từng câu.
   #
