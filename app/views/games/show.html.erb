@@ -63,6 +63,7 @@
   <div class="actions actions--split">
     <div class="actions">
       <button id="submit-btn" type="button" class="btn--primary">Nộp đáp án</button>
+      <button id="next-btn" type="button" class="btn--primary" hidden>Câu tiếp theo</button>
       <button id="report-btn" type="button" class="btn">Báo câu hỏi sai</button>
     </div>
     <button id="abandon-btn" type="button" class="btn btn--danger">Bỏ lượt</button>
@@ -96,6 +97,8 @@
   let step = null;
   let questionId = null;
   let stepShownAt = null;
+  // Kết quả của câu vừa nộp, giữ lại cho tới khi người chơi bấm "Câu tiếp theo".
+  let pendingResult = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -132,7 +135,10 @@
     $("position").textContent = step;
     $("progress-bar").style.width = ((step - 1) * 100 / totalSteps) + "%";
     clearFeedback();
+    pendingResult = null;
+    $("submit-btn").hidden = false;
     $("submit-btn").disabled = false;
+    $("next-btn").hidden = true;
 
     const c = data.content;
     if (slug === "bug_hunt") {
@@ -268,6 +274,7 @@
   }
 
   function selectLine(n, li) {
+    if (pendingResult) return;
     document.querySelectorAll(".code-lines li").forEach((el) => el.classList.remove("is-selected"));
     li.classList.add("is-selected");
     const chosen = $("chosen-line");
@@ -358,11 +365,15 @@
       showFeedback("+" + data.awarded_score + " điểm. " + (data.explanation || ""),
                    data.awarded_score > 0 ? "good" : "bad");
 
-      if (data.finished) {
-        setTimeout(() => finish(data.summary), 1800);
-      } else {
-        setTimeout(() => renderStep(data.next), 1800);
-      }
+      // Giữ nguyên đáp án đã chọn và phần giải thích trên màn hình; chỉ sang câu tiếp
+      // theo khi người chơi tự bấm nút, không tự động chuyển sau vài giây.
+      pendingResult = data;
+      lockAnswers();
+      $("submit-btn").hidden = true;
+      const next = $("next-btn");
+      next.hidden = false;
+      next.textContent = data.finished ? "Xem kết quả" : "Câu tiếp theo";
+      next.focus();
     } catch (e) {
       if (e.status === 409) {
         showFeedback("Câu này đã được trả lời, đang tải lại trạng thái", "neutral");
@@ -372,6 +383,26 @@
         showFeedback(e.body?.message || "Có lỗi xảy ra", "bad");
         $("submit-btn").disabled = false;
       }
+    }
+  });
+
+  // Đáp án đã nộp thì không cho sửa nữa, nhưng vẫn hiển thị nguyên trạng để người chơi
+  // đối chiếu với phần giải thích.
+  function lockAnswers() {
+    document.querySelectorAll("#answer-area input, #question input")
+      .forEach((el) => { el.disabled = true; });
+  }
+
+  $("next-btn").addEventListener("click", () => {
+    const data = pendingResult;
+    if (!data) return;
+    if (data.finished) {
+      pendingResult = null;
+      $("next-btn").hidden = true;
+      $("submit-btn").hidden = false;
+      finish(data.summary);
+    } else {
+      renderStep(data.next);
     }
   });
 
