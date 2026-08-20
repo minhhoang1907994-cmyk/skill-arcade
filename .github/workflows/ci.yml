@@ -4,8 +4,10 @@ on:
   pull_request:
   push:
     # Phải là `main`, không phải `master`: default branch của repo là `main`, nên trigger cũ
-    # làm CI CHƯA TỪNG chạy cho commit nào. Hệ quả đã gặp thật: bin/* mất bit thực thi
-    # (repo tạo trên Windows) mà không ai thấy, tới khi workflow refill dừng với exit 126.
+    # làm CI không chạy cho BẤT KỲ push nào. Trigger `pull_request` phía trên vẫn hoạt động
+    # (đã chạy và fail trên PR của Dependabot 2026-08-19), nhưng không ai đọc kết quả đó, nên
+    # bin/* mất bit thực thi (repo tạo trên Windows) mà không ai thấy — tới khi workflow
+    # refill dừng với exit 126.
     branches: [ main ]
 
 jobs:

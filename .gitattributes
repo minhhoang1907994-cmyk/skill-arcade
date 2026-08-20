@@ -7,3 +7,16 @@ db/schema.rb linguist-generated
 vendor/* linguist-vendored
 config/credentials/*.yml.enc diff=rails_credentials
 config/credentials.yml.enc diff=rails_credentials
+
+
+# Script trong bin/ PHAI la LF, ke ca khi checkout tren Windows.
+#
+# May dev dat core.autocrlf=true nen git mac dinh ghi CRLF ra working tree. Voi script co
+# shebang thi CRLF la chet nguoi: ky tu CR bam vao cuoi ten interpreter, Linux di tim mot
+# chuong trinh khong ton tai va dung voi exit 127.
+#
+# Dockerfile co buoc sed xoa CR nen image production khong bao gio gap. Nhung GitHub Actions
+# va viec chay tay tren Linux thi khong duoc che, nen phai chot o day.
+#
+# Xem spec/bin_executable_spec.rb - guard bat ca 3 bay: bit thuc thi, shebang .exe, va CRLF.
+bin/* text eol=lf

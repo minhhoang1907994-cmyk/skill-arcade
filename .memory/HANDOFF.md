@@ -134,12 +134,23 @@ Lần chạy `gh workflow run questions-refill.yml` đầu tiên: bước "Refil
 - **Vì sao production vẫn chạy**: `Dockerfile:61` có `RUN chmod +x bin/*` nên image tự sửa lúc
   build. Chỉ runner Actions — chạy thẳng từ checkout — mới gặp
 - **Vì sao CI không bắt được**: `ci.yml` cũng gọi `bin/brakeman`, `bin/rubocop`, `bin/rails` nên
-  lẽ ra fail y hệt, nhưng trigger là `push: branches: [master]` mà default branch là `main` →
-  **CI chưa từng chạy cho commit nào**. Đã sửa thành `[ main ]`
-- Sửa mode: `git update-index --chmod=+x bin/<file>` cho cả 10 file
+  lẽ ra fail y hệt. Trigger `push: branches: [master]` mà default branch là `main` → CI không
+  chạy cho **bất kỳ push nào**. Trigger `pull_request` thì VẪN hoạt động và đã fail trên 2 PR
+  của Dependabot (2026-08-19) — nhưng không ai đọc kết quả đó. Đã sửa thành `[ main ]`
+- Sửa mode: `git update-index --chmod=+x` cho cả 10 file. **BẪY**: `core.fileMode = false` trên
+  máy này nên mode CHỈ tồn tại trong git index, không có trên filesystem Windows. Bất kỳ thao tác
+  rebuild index từ HEAD — `git reset`, `git checkout`, tạo lại commit — sẽ xoá sạch thay đổi mode
+  đã stage. Đã xảy ra thật: commit v2.1 mất mode, phải stage lại. Quy trình an toàn:
+  `update-index --chmod=+x` → kiểm `git ls-files -s bin/` ra 100755 → commit → kiểm
+  `git ls-tree HEAD bin/` ra 100755 → mới push
 - Guard `spec/bin_executable_spec.rb`, theo đúng pattern `gemfile_lock_spec.rb`. Kiểm mode trong
   **git index**, KHÔNG dùng `File.executable?` — trên Windows filesystem không mang bit +x nên
   hàm đó trả kết quả vô nghĩa. Đã verify guard thật sự đỏ khi bỏ bit của `bin/rails` rồi phục hồi
+- Lần chạy CI đầu trên `main` (run 32329728218): **cả 5 job fail** với `Permission denied` /
+  exit 126. Nên ba nghi vấn khác về `ci.yml` — `DATABASE_URL: trilogy://` trong khi Gemfile chỉ
+  có `mysql2`; `bin/rails ... test` chạy Minitest trong khi project dùng RSpec; brakeman exit 3
+  vì 1 warning `permit!` có sẵn — **chưa quan sát được**, phải kiểm lại sau khi mode đã đúng.
+  Đừng coi chúng là đã xác nhận
 - Cùng lúc sửa `Questions::Refiller`: lọc mục tiêu bị chặn TRƯỚC khi chọn (xem mục dưới)
 
 **Bẫy chung của cả v1.22 và bẫy Gemfile.lock trước đó**: `Dockerfile` âm thầm sửa hậu quả của
