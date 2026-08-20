@@ -19,7 +19,43 @@
   — không còn text người chơi nào được gửi đi.
 
 
-## Trạng thái hiện tại
+
+### ✅ Job refill hằng ngày ĐÃ CHẠY THẬT (2026-08-20, run 32332690030)
+
+`gh workflow run questions-refill.yml` → **success**. Xác nhận được 4 thứ trước đó chỉ là giả định:
+
+- **Aiven KHÔNG bật Allowed IP addresses** — runner của GitHub (IP động) kết nối được DB
+  production. Đây là điều kiện tiên quyết treo lâu nhất; **không cần chuyển sang Render Cron Job**
+- 7 secrets hoạt động: `RAILS_MASTER_KEY` giải mã được credentials, `DB_*` nối được Aiven
+- **BR-24 lần đầu có scheduler thật**: log ghi `Đã đánh dấu 0 lượt quá hạn thành abandoned`
+- `Refiller` báo đúng 6 mục tiêu `[skipped]` kèm số lượt đang mở và số đề còn thiếu; bước commit
+  file xử lý đúng trường hợp "Không có file đề mới"
+
+Sinh 0 đề là ĐÚNG, không phải lỗi: mọi mục tiêu thiếu đề đều đang có lượt `in_progress`.
+
+### Đã dọn 8 lượt in_progress chặn refill (2026-08-20, owner yêu cầu)
+
+Trước đó mọi mục tiêu thiếu đề đều bị chặn nên job sinh 0 đề. Đã đóng cả 8 lượt bằng
+`abandon!(GameSession::TIMEOUT)` trong một transaction.
+
+Vì sao chọn `TIMEOUT`:
+- `USER_QUIT` sai sự thật — người chơi không bấm "Bỏ lượt"
+- `SYSTEM_ERROR` đúng cho 4 lượt spec_detective (chúng gặp game đang lỗi) nhưng sai cho
+  bug_hunt/estimate_poker; và spec 1.19 đã ghi `system_error` không còn phát sinh, hồi sinh nó cho
+  một lần dọn là thêm mâu thuẫn phải nhớ
+- `TIMEOUT` đúng nghĩa "để dở không xong" — chính điều BR-24 làm, khác biệt duy nhất là làm sớm
+  trước mốc 24 giờ
+
+Ảnh hưởng thực tế: KHÔNG. Leaderboard chỉ đếm lượt `finished` (BR-08) nên lượt bỏ dở không vào
+bảng dù reason nào; rack_attack đếm request chứ không đếm bản ghi lượt. Chỉ nhãn thống kê khác.
+
+Xác nhận sau khi dọn: `in_progress = 0`, `finished = 2` (KHÔNG đổi), và cả 6 mục tiêu chuyển sang
+"nạp được": bug_hunt/javascript 20, bug_hunt/php 20, bug_hunt/ruby 20, bug_hunt/java 15,
+estimate_poker 13, spec_detective 9.
+
+Lần chạy refill kế tiếp sẽ nạp `bug_hunt/javascript` (thiếu nhiều nhất) — tối đa 10 đề mỗi lần,
+tiêu 2-4 request Gemini.
+
 
 ### ✅ Verify đã pass (2026-08-20, sau v1.23)
 ```
