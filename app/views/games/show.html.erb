@@ -187,6 +187,19 @@
   // dùng để chấm (đếm từ 1). Dựng bằng DOM API chứ không nối chuỗi HTML vì nội dung câu do
   // AI sinh — textContent tự escape.
   function renderSpecDetective(c) {
+    // Đề soạn TRƯỚC 1.19 chỉ có requirement_text, không có statements/clarifying_options
+    // (xem changelog 1.19). Bốc phải đề như vậy thì trước đây forEach ném TypeError và
+    // người chơi chỉ thấy màn hình trống. Báo rõ và mời báo câu sai thay vì vỡ im lặng.
+    if (!Array.isArray(c.statements) || !Array.isArray(c.clarifying_options)) {
+      $("question").innerHTML = "";
+      $("answer-area").className = "";
+      $("answer-area").innerHTML = "";
+      $("submit-btn").disabled = true;
+      showFeedback("Câu hỏi này ở định dạng cũ nên chưa chơi được. Bấm “Báo câu hỏi sai” " +
+                   "để admin ẩn nó, rồi bỏ lượt và chơi lại.", "bad");
+      return;
+    }
+
     $("question").innerHTML = "";
     const intro = document.createElement("p");
     intro.className = "muted small";
@@ -288,24 +301,33 @@
 
   $("start-btn").addEventListener("click", async () => {
     $("start-btn").disabled = true;
+
+    let data;
     try {
       const language = selectedLanguage();
-      const data = await api("/api/v1/games/" + slug + "/sessions", {
+      data = await api("/api/v1/games/" + slug + "/sessions", {
         method: "POST",
         body: language ? JSON.stringify({ language }) : undefined
       });
-      sessionId = data.session_id;
-      $("score").textContent = data.score;
-      $("intro").hidden = true;
-      $("result").hidden = true;
-      $("play").hidden = false;
-      renderStep(data.current);
     } catch (e) {
-      alert(e.body?.message || "Không bắt đầu được lượt chơi");
-    } finally {
       $("start-btn").disabled = false;
+      await appDialog.alert(e.body?.message || "Không bắt đầu được lượt chơi",
+                            { title: "Chưa vào được lượt" });
+      return;
     }
+
+    // renderStep KHÔNG nằm trong try ở trên. Lượt đã được tạo ở server rồi, nên lỗi
+    // dựng giao diện không phải "không bắt đầu được lượt chơi" — gộp hai thứ vào một
+    // catch từng làm lỗi đề sai format bị báo thành lỗi API và che mất nguyên nhân.
+    sessionId = data.session_id;
+    $("score").textContent = data.score;
+    $("intro").hidden = true;
+    $("result").hidden = true;
+    $("play").hidden = false;
+    $("start-btn").disabled = false;
+    renderStep(data.current);
   });
+
 
   $("submit-btn").addEventListener("click", async () => {
     let answer;
@@ -357,13 +379,16 @@
   }
 
   $("abandon-btn").addEventListener("click", async () => {
-    if (!confirm("Bỏ lượt này? Điểm sẽ không được tính.")) return;
+    const ok = await appDialog.confirm("Bỏ lượt này? Điểm sẽ không được tính.",
+                                      { okLabel: "Bỏ lượt", danger: true });
+    if (!ok) return;
     await api("/api/v1/sessions/" + sessionId + "/abandon", { method: "POST" });
     location.reload();
   });
 
   $("report-btn").addEventListener("click", async () => {
-    const reason = prompt("Câu hỏi này sai ở đâu?");
+    const reason = await appDialog.prompt("Câu hỏi này sai ở đâu?",
+                                         { title: "Báo câu hỏi sai" });
     if (!reason) return;
     try {
       await api("/api/v1/questions/" + questionId + "/reports", {

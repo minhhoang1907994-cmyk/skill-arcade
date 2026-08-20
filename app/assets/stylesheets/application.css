@@ -522,6 +522,82 @@ button:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow:
 
 .button_to { display: inline-block; }
 
+/* ---------- Modal dialog ---------- */
+
+/* Thay alert/confirm/prompt của trình duyệt (xem app/views/shared/_dialog.html.erb).
+   Dùng thẻ <dialog> nên trạng thái đóng/mở do trình duyệt quản lý — CSS chỉ tạo hình. */
+.dialog {
+  border: 4px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 22px 24px;
+  /* min() để trên màn hình hẹp dialog không rộng hơn viewport. */
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+/* Nền mờ sau dialog. Không dùng màu đen thuần để không phá tông ấm của giao diện. */
+.dialog::backdrop {
+  background: rgba(35, 32, 77, .55);
+}
+
+.dialog__title {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+.dialog__message {
+  font-family: var(--body-font);
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.dialog__field { margin-top: 16px; }
+
+.dialog__field label {
+  display: block;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.dialog__field textarea {
+  width: 100%;
+  font-family: var(--body-font);
+  font-size: 16px;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper-alt);
+  color: var(--ink);
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+/* row-reverse: nút Đồng ý hiện bên PHẢI nhưng vẫn đứng sau nút Huỷ trong DOM, để nút
+   submit mặc định của form (Enter) là Huỷ chứ không phải hành động phá huỷ. */
+.dialog__actions {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog[open] { animation: dialog-pop .12s steps(3); }
+}
+
+@keyframes dialog-pop {
+  from { transform: translateY(6px); }
+  to { transform: translateY(0); }
+}
+
 /* ---------- Form ---------- */
 
 .form { max-width: 470px; }

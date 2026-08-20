@@ -1,27 +1,44 @@
 # Session Handoff
 
 ## Session gần nhất
-- Ngày: 2026-08-19
-- Tóm tắt: **Phase 3 chạy thật với Gemini**, spec lên v1.6. Đã có API key, đã chấm
-  Spec Detective thật và sinh + import 19 câu đề AI. Cùng ngày: Bug Hunt phân đề theo
-  ngôn ngữ (BR-35), giao diện đồng cỏ + bảng gỗ + header gạch Mario + item JRPG.
-- **Hạn mức free chỉ 20 request/NGÀY cho mỗi model** (đo từ HTTP 429 thật, xem spec §20).
-  Spec Detective tiêu 5 request/lượt → 4 lượt/ngày cho toàn hệ thống. Owner chốt hạ
-  throttle xuống **1 lượt/ngày/user** (spec v1.7), đã áp dụng và verify trên server thật.
-- Hạn mức toàn hệ thống đã bound ở tầng ứng dụng bằng `Gemini::DailyBudget` (BR-37, spec
-  v1.8) — KHÔNG dùng throttle rack_attack discriminator hằng số. Lý do chọn cách này ghi ở
-  bảng so sánh trong §20.
-- Open Question: chỉ còn **Q6** (KPI). Q1-Q5 và Q7-Q10 đã đóng. Q9 chốt (a) chấp nhận gói free nên Q7 thành bắt buộc — đã làm.
-- Session trước (2026-08-18): dựng project từ repo trống, Phase 1 + Phase 2 xong.
+- Ngày: 2026-08-20
+- Tóm tắt: **Bỏ Gemini khỏi đường chơi** (spec v1.19) rồi sửa hai lỗi phát hiện khi chơi
+  thật trên Render (spec v1.20). Commit `v2.0` đã push lên `origin/main`.
+- **Spec Detective giờ là game CHỌN**: tick câu mơ hồ (10đ, trừ điểm tick sai) + chọn câu
+  hỏi làm rõ tốt nhất trong 4 phương án (10đ). Chấm hoàn toàn từ `answer_key`, KHÔNG gọi AI.
+- Kéo theo **xoá** `Gemini::SpecDetectiveGrader`, `Gemini::DailyBudget` (BR-37), throttle
+  `sessions/spec_detective/user`, đường `503 AI_QUOTA_EXHAUSTED`/`GRADING_UNAVAILABLE`,
+  §8.5, `Scoring::Base::GradingUnavailable`, `Game#ai_graded?`. Bảng `ai_gradings` GIỮ LẠI
+  (dữ liệu lịch sử, có FK) nhưng không còn gì ghi vào.
+- **Hết trần 4 lượt/ngày toàn hệ thống và 1 lượt/người/ngày.** Gemini giờ chỉ còn một người
+  dùng duy nhất là việc sinh đề → 20 request/ngày = tối đa 100 đề/ngày, **không cần API key
+  thứ hai** như từng tính.
+- Thêm job hằng ngày `.github/workflows/questions-refill.yml` → `rake questions:refill`.
+  BR-24 lần đầu có scheduler (task gọi `game_sessions:expire_stale` trước tiên), miễn phí.
+- Open Question: chỉ còn **Q6** (KPI). Q9 (gửi text người chơi sang Google) **hết hiệu lực**
+  — không còn text người chơi nào được gửi đi.
+
 
 ## Trạng thái hiện tại
 
-### ✅ Verify đã pass
+### ✅ Verify đã pass (2026-08-20)
 ```
-ruby -S rspec           → 133 examples, 0 failures
-ruby bin/rubocop        → 87 files, no offenses
-bin/rails zeitwerk:check → All is good!
+bundle exec rspec        → 169 examples, 0 failures
+bundle exec rubocop      → 92 files, no offenses
+bin/brakeman             → 1 warning Medium, CÓ SẴN từ trước (permit! ở
+                           session_answers_controller.rb:31), không do session này
 ```
+Recheck UI bằng Chrome trên server dev (owner yêu cầu tự động check):
+- Spec Detective format mới: 4 ô tick + 4 phương án render đúng, tick [1,3] + chọn "a" →
+  **20/20 điểm**, giải thích hiện đúng, KHÔNG có alert nào
+- Guard đề format cũ: hiện "Câu hỏi này ở định dạng cũ nên chưa chơi được", disable nút
+  Nộp, không màn hình trắng
+- Modal: prompt (báo câu sai) focus vào textarea, Esc = huỷ và KHÔNG gửi; confirm (bỏ lượt)
+  nút đỏ + Huỷ thì lượt vẫn tiếp tục; alert (hết câu hỏi) hiện message của server, nút Huỷ
+  ẩn, không rơi vào màn chơi
+- Admin xoá tài khoản: modal hiện đúng email, bấm Huỷ không xoá, bấm "Xoá tài khoản" →
+  "Đã xoá tài khoản" (đường `requestSubmit` sau khi chặn hoạt động)
+
 
 ### Số đo thật từ Gemini (không phải từ docs) — chi tiết ở spec §20
 | Điều | Kết quả |
@@ -78,6 +95,72 @@ bin/rails zeitwerk:check → All is good!
   `ruby bin/rails runner "GameSession.destroy_all"`
 
 ## Đã thực hiện
+
+### v1.19 — Spec Detective đổi sang dạng CHỌN, bỏ AI khỏi đường chơi (2026-08-20)
+
+Format đề mới:
+```
+content     statements: [...]  +  clarifying_options: [{key, label}]
+answer_key  ambiguous_statement_indexes: [...]  +  best_option_key  +  explanation
+answer      { statement_indexes: [1,3], option_key: "a" }
+```
+
+- `Scoring::SpecDetective` — chấm từ DB. Nửa tick: `floor((đúng − sai)/tổng × 10)` kẹp 0..10.
+  **Phải trừ tick sai**, không thì tick hết mọi câu là ăn đủ 10đ mà không cần đọc
+- `Questions::Validator` (MỚI) — luật validate đề tách khỏi `Importer` để `Importer` và task
+  chuyển đổi dùng CÙNG một luật. Với Spec Detective: index mơ hồ phải trỏ câu có thật, phải
+  còn ít nhất một câu KHÔNG mơ hồ, `best_option_key` phải nằm trong `clarifying_options`
+- `Questions::BankFile` (MỚI) — tách phần ghi YAML khỏi rake task để `Refiller` dùng lại.
+  Nhận `dir:` để test không ghi rác vào `db/question_banks`
+- `Questions::Refiller` (MỚI) — job hằng ngày, **ba trần bắt buộc**:
+  1. **Bỏ qua game còn lượt `in_progress`** — đề KHÔNG chốt sẵn lúc tạo lượt, mỗi lần hiển
+     thị và mỗi lần chấm đều bốc lại từ pool sống. INSERT giữa lượt làm thứ tự MD5 trong
+     `Drawer` đổi → chấm theo câu người chơi chưa thấy, phá BR-36
+  2. Chỉ sinh khi dưới `3 × questions_per_session` → ngày đủ đề tốn 0 request
+  3. Tối đa `MAX_TARGETS_PER_RUN = 1` mục tiêu mỗi lần chạy → bound số request
+  KHÔNG tự thêm ngôn ngữ mới cho Bug Hunt — chỉ refill ngôn ngữ đã có trong bank
+- `Questions::SpecDetectiveConverter` (MỚI) + `rake questions:convert_spec_detective` —
+  chuyển đề format cũ bằng Gemini, chạy MỘT LẦN sau deploy
+- `db/seeds/sample_questions.rb` — 6 đề Spec Detective viết tay theo format mới (verify:
+  0 câu không hợp lệ theo Validator). Đủ cho một lượt (`questions_per_session: 5`)
+- `.github/workflows/questions-refill.yml` — 19:00 UTC (02:00 VN). **Cố ý KHÔNG set
+  `REDIS_URL`** → runner rơi về file store nên circuit breaker của job tách khỏi web service
+- Trang `/privacy` §2 viết lại: nội dung người chơi nhập KHÔNG ra khỏi app
+
+### v1.20 — hai lỗi phát hiện khi chơi thật trên Render (2026-08-20)
+
+**Lỗi 1: "Không bắt đầu được lượt chơi" ở Spec Detective.** Thông điệp này SAI hoàn toàn so
+với nguyên nhân — server trả 200 và lượt đã được tạo. Đo được trên dev DB dựng giống
+production (11 đề format cũ + 6 mới): **6/8 lượt bốc phải đề format cũ**, rồi
+`renderSpecDetective` ném `TypeError` ở `c.statements.forEach`. Lỗi đó bị chính `try` của
+lời gọi API bắt nên hiện ra như lỗi tạo lượt.
+
+Ba thay đổi:
+- `renderStep` chuyển ra NGOÀI `try` của API. Lượt đã tạo ở server thì lỗi dựng giao diện
+  không phải lỗi tạo lượt — gộp hai thứ vào một `catch` là cách bug này ẩn được lâu
+- Guard trong `renderSpecDetective`: thiếu `statements`/`clarifying_options` → báo "câu hỏi ở
+  định dạng cũ", disable nút Nộp, mời báo câu sai. Không còn màn hình trắng
+- `rake questions:hide_invalid` (MỚI) — ẩn mọi đề không qua `Questions::Validator`. **Ẩn chứ
+  không xoá**: `session_answers` trỏ tới câu đó (`restrict_with_error`) và BR-16 yêu cầu lượt
+  cũ giữ nguyên điểm. Chạy trên dev: ẩn 11 đề, còn 6 đề hợp lệ
+
+**Lỗi 2: nút xoá tài khoản ở trang admin CHƯA BAO GIỜ hỏi xác nhận.** Nó khai
+`data-turbo-confirm`, nhưng **Turbo không hề được nạp ở app này** — không có
+`config/importmap.rb`, không có `app/javascript`, layout không gọi
+`javascript_importmap_tags`. Nút xoá tài khoản (kèm CASCADE toàn bộ lượt chơi) chạy ngay khi
+bấm.
+
+- `app/views/shared/_dialog.html.erb` (MỚI) — modal dùng chung, nạp ở layout.
+  `window.appDialog.alert/confirm/prompt`, cả ba trả Promise. Dựng trên thẻ `<dialog>` +
+  `showModal()` để có focus trap + Esc + inert phần còn lại của trang mà không tự cài
+- Nút đồng ý của hành động phá huỷ dùng `.btn--danger` và đứng **SAU** nút huỷ trong DOM
+  (CSS `flex-direction: row-reverse` đưa nó sang phải), nên Enter trong form không kích hoạt
+  hành động phá huỷ
+- Handler `submit` đọc `data-confirm` trên form → dùng cho nút phá huỷ dạng `button_to`
+  (xoá tài khoản, ẩn câu hỏi). `spec/requests/dialog_spec.rb` chặn việc `data-turbo-confirm`
+  quay lại
+- Thay hết `alert`/`confirm`/`prompt` của trình duyệt trong `games/show.html.erb`
+
 
 ### Tài liệu
 - `CLAUDE.md`, `docs/clarify/clarify_skill-arcade.md`
@@ -201,7 +284,10 @@ Sửa: `Questions::Drawer` nhận `seed:`, thứ tự bốc là `MD5(CONCAT(ques
 - `.env` (gitignored qua `/.env*`) chứa `GEMINI_API_KEY` + `GEMINI_MODEL`
 - **Key hiện tại đã bị dán vào chat log → nên rotate ở AI Studio**
 
-### Ngân hàng đề hiện có
+### Ngân hàng đề hiện có (số liệu TRƯỚC v1.19 — Spec Detective đã đổi format)
+
+> Từ v1.19, đề Spec Detective format cũ đã bị `rake questions:hide_invalid` ẩn. Số câu khả
+> dụng thật của game đó = số đề format mới. Các game khác không đổi.
 | Game | Tổng | manual | ai_generated |
 |---|---|---|---|
 | bug_hunt | 45 | 40 | 5 (java) |
@@ -283,7 +369,11 @@ thì chỉ cần đổi biến môi trường.
 - Spec `privacy_spec.rb` dùng `body_text` (nén khoảng trắng) vì ERB ngắt dòng làm chuỗi bị
   tách — assert trên `response.body` thô rất giòn, đã gặp thật
 
-### Trần hạn mức Gemini toàn hệ thống — BR-37 (spec v1.8)
+### ⛔ ĐÃ XOÁ Ở v1.19 — Trần hạn mức Gemini toàn hệ thống, BR-37 (spec v1.8)
+
+> `Gemini::DailyBudget`, BR-37, `503 AI_QUOTA_EXHAUSTED` và cổng chặn trong `Creator` đều đã
+> bị xoá: Spec Detective không còn gọi AI lúc chơi nên không còn gì để bound. Giữ mục dưới
+> đây làm lịch sử quyết định — **đừng hồi sinh** trừ khi đưa AI trở lại đường chơi.
 - `app/services/gemini/daily_budget.rb`: giới hạn 20 request trong **cửa sổ TRƯỢT 24 giờ**,
   đếm số dòng `ai_gradings` (BR-19 bảo đảm mọi lời gọi có 1 dòng, **kể cả lời gọi thất bại** —
   mà lần thất bại vẫn tiêu hạn mức Google). Một lượt tiêu `steps_per_session` request, làm
@@ -304,7 +394,11 @@ thì chỉ cần đổi biến môi trường.
   KHÔNG được tính vào budget. Task tự in phần đã dùng cho chấm điểm và cảnh báo nếu lô sắp
   vượt, nhưng không trừ được. Cố ý không abort
 
-### Rate limit Spec Detective (spec v1.7)
+### ⛔ ĐÃ XOÁ Ở v1.19 — Rate limit Spec Detective 1 lượt/ngày/user (spec v1.7)
+
+> Throttle `sessions/spec_detective/user` đã bị xoá khỏi `rack_attack.rb`. Con số 1 lượt/ngày
+> do hạn mức Gemini quyết định, không do thiết kế gameplay — hết lời gọi AI thì hết lý do.
+> Giữ mục dưới đây làm lịch sử quyết định.
 - `config/initializers/rack_attack.rb`: `sessions/spec_detective/user` từ 5 lượt/giờ →
   **1 lượt/ngày**. Verify thật: lần 1 → 201, lần 2 và 3 → 429, bug_hunt không bị ảnh hưởng
 - Thông điệp 429 giờ tra theo `rack.attack.matched` (hằng `THROTTLE_MESSAGES`) thay vì dùng
@@ -532,14 +626,43 @@ dev           -> van dung 12345678 (da tra lai sau khi test)
 ## Việc tiếp theo
 **Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác.**
 
-1. Owner làm theo `docs/deploy/render-aiven.md`: Aiven → Key Value → Web Service → Cron Job.
-   **Nhớ set `ADMIN_PASSWORD` TRƯỚC lần deploy đầu** — `db:prepare` chỉ seed một lần duy nhất
-3. **Rotate `GEMINI_API_KEY`** — key hiện tại nằm trong chat log của session này
-4. Sinh tiếp ngân hàng đề cho đủ §6 (Bug Hunt 50/ngôn ngữ = 200 câu, Spec Detective 25,
-   Estimate Poker 50, Escape Room 20, PROD Roulette 20). Cần ~60-70 request = **3-4 ngày**
-   ở hạn mức 20/ngày. prod_roulette chưa sinh được lần nào (gặp 503 rồi 429)
-5. Cân nhắc sửa prompt Bug Hunt: nói rõ với bug "thiếu transaction" thì `buggy_line` trỏ
-   vào dòng ghi DB đầu tiên, để khớp quy ước của bộ đề viết tay
+### 🔴 Gấp — production đang lỗi sau khi deploy v2.0
+`render.yaml` không khai `autoDeploy` nên Render mặc định tự deploy khi push `main`. Code mới
+đã lên nhưng đề Spec Detective trong DB Aiven vẫn format cũ → người chơi nhận "Không bắt đầu
+được lượt chơi" (đã reproduce trên dev: 6/8 lượt).
+
+Chạy từ máy dev với biến `DB_*` trỏ Aiven (dùng `script/aiven.ps1`), theo thứ tự:
+```
+bin/rails questions:hide_invalid              # ẩn ngay đề format cũ — production hết lỗi
+bin/rails questions:convert_spec_detective    # chuyển đề cũ sang format mới (cần GEMINI_API_KEY)
+bin/rails runner db/seeds/sample_questions.rb # nếu sau khi ẩn còn < 5 đề khả dụng
+```
+`hide_invalid` in cảnh báo nếu game nào còn dưới `questions_per_session` đề.
+
+### 🟡 Job hằng ngày chưa chạy được
+1. **Kiểm Aiven allowlist TRƯỚC** — Aiven console → service → Allowed IP addresses. IP của
+   GitHub runner là động: có allowlist thì workflow không nối được DB, phải chuyển sang Render
+   Cron Job (cách làm ở `docs/deploy/render-aiven.md` mục 5)
+2. Set 7 secrets ở GitHub → Settings → Secrets and variables → Actions:
+   `RAILS_MASTER_KEY`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`,
+   `GEMINI_API_KEY`
+3. Chạy thử bằng `workflow_dispatch` trước, đừng để lần chạy đầu là lần theo lịch lúc 2h sáng
+4. Quyết định về bước cuối của workflow: nó `git push` file YAML về `main` (cần
+   `permissions: contents: write`). Không muốn job tự push thì xoá step đó và hạ xuống
+   `contents: read` — chỉ mất git history của đề
+
+### 🟡 CI không chạy cho commit nào trên `main`
+`.github/workflows/ci.yml` trigger `push: branches: [master]` nhưng default branch là `main`.
+Commit `v2.0` **không có CI gate nào**. Sửa 1 dòng thành `[ main ]`. Lỗi có sẵn từ trước, nhưng
+giờ nó che mất đúng lúc cần nhất.
+
+### Việc còn lại từ session trước
+- **Rotate `GEMINI_API_KEY`** — key hiện tại nằm trong chat log của session 2026-08-19
+- Sinh tiếp ngân hàng đề cho đủ §6. Từ v1.19 cả 20 request/ngày dùng được cho sinh đề (không
+  còn tranh với người chơi), và `questions:refill` tự làm dần mỗi ngày khi job chạy được
+- Cân nhắc sửa prompt Bug Hunt: nói rõ với bug "thiếu transaction" thì `buggy_line` trỏ vào
+  dòng ghi DB đầu tiên, để khớp quy ước của bộ đề viết tay
+
 
 ## Ghi chú quan trọng
 
@@ -555,6 +678,17 @@ toàn bộ 10 câu (BR-32 buộc phải fallback sang câu đã trả lời đú
 lượt sau thì cần thêm ít nhất 2-3 câu mỗi ngôn ngữ.
 
 ### Bẫy môi trường đã gặp — nhớ để khỏi mất thời gian lại
+- **Turbo/Stimulus KHÔNG được nạp** dù có gem trong `Gemfile`: không có `config/importmap.rb`,
+  không có `app/javascript`, layout không gọi `javascript_importmap_tags`. Nên MỌI thứ dựa vào
+  Turbo là code chết — `data-turbo-confirm`, `data-turbo-method`, turbo frame/stream. Đã làm nút
+  xoá tài khoản không hỏi xác nhận suốt nhiều version mà không ai thấy, vì nó "trông đúng"
+- **Đừng gộp lời gọi API và việc dựng giao diện vào cùng một `try`.** Lỗi render sẽ hiện ra dưới
+  thông điệp lỗi API và che mất nguyên nhân thật — mất khá lâu mới tìm ra vì mọi dấu hiệu đều
+  trỏ về server, trong khi server trả 200
+- **Script verify chạy bằng `bin/rails runner` với `RAILS_ENV=test` làm BẨN test DB.** Bản ghi
+  không nằm trong transaction của rspec nên còn lại và làm fail các test đếm bản ghi
+  (`Question.count` ra 65). Dọn bằng `RAILS_ENV=test bin/rails db:test:prepare`
+
 - **Tạo thư mục mới dưới `app/` phải RESTART server.** Rails chốt autoload paths lúc
   boot; code reload không nạp thư mục mới. Đã mất thời gian debug vì `app/services`
   tạo sau khi server đã chạy → `uninitialized constant Scoring`

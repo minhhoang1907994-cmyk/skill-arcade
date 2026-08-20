@@ -28,8 +28,15 @@
           <% if user == current_user %>
             <span class="muted small">tài khoản của bạn</span>
           <% else %>
+            <%# data-confirm (không phải turbo_confirm): Turbo KHÔNG được nạp ở app này —
+                không có config/importmap.rb và layout không gọi javascript_importmap_tags —
+                nên turbo_confirm chưa bao giờ chạy và nút này từng xoá tài khoản ngay khi
+                bấm. Handler trong shared/_dialog.html.erb đọc data-confirm. %>
             <%= button_to "Xoá", admin_user_path(user), method: :delete, class: "btn--danger",
-                  data: { turbo_confirm: "Xoá tài khoản #{user.email}? Không hoàn tác được." } %>
+                  form: { data: { confirm: "Xoá tài khoản #{user.email}? Không hoàn tác được. " \
+                                           "Toàn bộ lượt chơi và câu trả lời của tài khoản này " \
+                                           "cũng bị xoá theo.",
+                                  confirm_ok: "Xoá tài khoản" } } %>
           <% end %>
         </td>
       </tr>

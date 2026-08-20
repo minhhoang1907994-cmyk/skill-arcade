@@ -70,6 +70,38 @@ namespace :questions do
     abort("refill thất bại") if outcomes.any? { |outcome| outcome.status == :failed }
   end
 
+  desc "Ẩn mọi đề không còn hợp lệ theo Questions::Validator (vd: đề Spec Detective format cũ)"
+  task hide_invalid: :environment do
+    hidden = 0
+
+    Game.find_each do |game|
+      Question.playable.where(game: game).find_each do |question|
+        record = { "content" => question.content, "answer_key" => question.answer_key }
+        error = Questions::Validator.error_for(game, record)
+        next if error.nil?
+
+        # hidden thay vì destroy: session_answers trỏ tới câu này (has_many
+        # dependent: :restrict_with_error), và BR-16 yêu cầu lượt cũ giữ nguyên điểm.
+        question.update!(hidden: true)
+        hidden += 1
+        puts "  ẩn ##{question.id} (#{game.slug}): #{error}"
+      end
+    end
+
+    puts "Đã ẩn #{hidden} đề không hợp lệ."
+    # next chứ không phải return: trong block của rake task, return ném LocalJumpError.
+    next if hidden.zero?
+
+    Game.find_each do |game|
+      next if game.language_scoped?
+
+      playable = Question.playable.where(game: game).count
+      next if playable >= game.questions_per_session
+
+      puts "CẢNH BÁO: #{game.slug} chỉ còn #{playable} đề, cần #{game.questions_per_session} "            "cho một lượt — người chơi sẽ nhận NO_QUESTIONS_AVAILABLE."
+    end
+  end
+
   desc "MỘT LẦN sau 1.19: chuyển đề Spec Detective format cũ sang dạng chọn"
   task convert_spec_detective: :environment do
     unless Gemini::Client.configured?

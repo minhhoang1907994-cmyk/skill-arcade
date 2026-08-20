@@ -1,0 +1,122 @@
+<%# Modal dialog dùng chung, thay alert() / confirm() / prompt() của trình duyệt.
+
+    Vì sao dùng thẻ <dialog> chứ không tự dựng overlay bằng div: showModal() cho sẵn
+    focus trap, đóng bằng Esc, và inert phần còn lại của trang — đúng những thứ spec §15
+    yêu cầu về a11y mà tự làm bằng div rất dễ làm thiếu.
+
+    Vì sao form method="dialog": nút submit tự đóng dialog và đặt returnValue = value của
+    nút, nên không cần JS để đóng.
+
+    Đặt trong layout để mọi trang dùng được. API: window.appDialog.alert/confirm/prompt,
+    cả ba trả về Promise. %>
+<dialog id="app-dialog" class="dialog" aria-labelledby="app-dialog-title">
+  <form method="dialog" class="dialog__form">
+    <h2 class="dialog__title" id="app-dialog-title"></h2>
+    <p class="dialog__message" id="app-dialog-message"></p>
+
+    <div class="dialog__field" id="app-dialog-field" hidden>
+      <label for="app-dialog-input" id="app-dialog-label"></label>
+      <textarea id="app-dialog-input" rows="3"></textarea>
+    </div>
+
+    <div class="dialog__actions">
+      <%# Nút huỷ đứng TRƯỚC trong DOM để Tab đi từ huỷ sang đồng ý, và để Enter trong
+          form không kích hoạt nó (nút submit đầu tiên là nút mặc định của form). %>
+      <button type="submit" value="cancel" id="app-dialog-cancel" class="btn">Huỷ</button>
+      <button type="submit" value="ok" id="app-dialog-ok" class="btn--primary">Đồng ý</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  (function () {
+    const dialog = document.getElementById("app-dialog");
+    if (!dialog) return;
+
+    const titleEl = document.getElementById("app-dialog-title");
+    const messageEl = document.getElementById("app-dialog-message");
+    const fieldEl = document.getElementById("app-dialog-field");
+    const labelEl = document.getElementById("app-dialog-label");
+    const inputEl = document.getElementById("app-dialog-input");
+    const cancelBtn = document.getElementById("app-dialog-cancel");
+    const okBtn = document.getElementById("app-dialog-ok");
+
+    // Một dialog dùng chung cho mọi lời gọi, nên phải chặn hai lời gọi lồng nhau —
+    // lời gọi sau sẽ ghi đè nội dung của lời gọi trước và promise đầu không bao giờ
+    // resolve. Xếp hàng thay vì bỏ qua.
+    let pending = Promise.resolve();
+
+    function open({ title, message, okLabel, cancelLabel, danger, input }) {
+      const run = () => new Promise((resolve) => {
+        titleEl.textContent = title;
+        messageEl.textContent = message || "";
+        messageEl.hidden = !message;
+        okBtn.textContent = okLabel;
+        okBtn.className = danger ? "btn--danger" : "btn--primary";
+        cancelBtn.hidden = !cancelLabel;
+        if (cancelLabel) cancelBtn.textContent = cancelLabel;
+
+        fieldEl.hidden = !input;
+        if (input) {
+          labelEl.textContent = input.label;
+          inputEl.value = "";
+          inputEl.required = true;
+        } else {
+          inputEl.required = false;
+        }
+
+        dialog.addEventListener("close", function onClose() {
+          dialog.removeEventListener("close", onClose);
+          // Esc đóng dialog với returnValue rỗng — coi như huỷ.
+          const confirmed = dialog.returnValue === "ok";
+          resolve(input ? (confirmed ? inputEl.value.trim() : null) : confirmed);
+        });
+
+        dialog.returnValue = "";
+        dialog.showModal();
+        (input ? inputEl : okBtn).focus();
+      });
+
+      pending = pending.then(run, run);
+      return pending;
+    }
+
+    window.appDialog = {
+      alert(message, { title = "Thông báo", okLabel = "Đã hiểu" } = {}) {
+        return open({ title, message, okLabel });
+      },
+
+      confirm(message, { title = "Xác nhận", okLabel = "Đồng ý",
+                         cancelLabel = "Huỷ", danger = false } = {}) {
+        return open({ title, message, okLabel, cancelLabel, danger });
+      },
+
+      // Trả về chuỗi đã trim, hoặc null khi người dùng huỷ. Chuỗi rỗng cũng trả null để
+      // người gọi không phải kiểm tra hai trường hợp.
+      prompt(label, { title = "Nhập nội dung", message = null, okLabel = "Gửi",
+                      cancelLabel = "Huỷ" } = {}) {
+        return open({ title, message, okLabel, cancelLabel, input: { label } })
+          .then((value) => (value ? value : null));
+      }
+    };
+
+    // Nút xoá/huỷ dạng form thường (admin) dùng data-confirm thay cho data-turbo-confirm:
+    // Turbo KHÔNG được nạp trên trang nào của app (không có importmap, không có
+    // javascript_importmap_tags trong layout), nên data-turbo-confirm không bao giờ chạy
+    // và nút xoá tài khoản trước đây không hề có bước xác nhận.
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      const message = form.dataset.confirm;
+      if (!message || form.dataset.confirmed === "true") return;
+
+      event.preventDefault();
+      window.appDialog
+        .confirm(message, { okLabel: form.dataset.confirmOk || "Đồng ý", danger: true })
+        .then((ok) => {
+          if (!ok) return;
+          form.dataset.confirmed = "true";
+          form.requestSubmit();
+        });
+    });
+  })();
+</script>

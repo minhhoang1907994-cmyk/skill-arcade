@@ -72,6 +72,10 @@
       <%= yield %>
     </main>
 
+    <%# Modal dialog dùng chung — thay alert/confirm/prompt của trình duyệt. Nạp ở layout
+        để cả trang game và trang admin dùng cùng một hộp thoại. %>
+    <%= render "shared/dialog" %>
+
     <%# Chính sách riêng tư phải có đường vào từ mọi trang, kể cả khi chưa đăng nhập (Q7). %>
     <footer class="site-footer">
       <%= link_to "Chính sách riêng tư", privacy_path %>

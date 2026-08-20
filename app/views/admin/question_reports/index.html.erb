@@ -37,8 +37,12 @@
         <td>
           <% if report.status == QuestionReport::OPEN %>
             <div class="actions">
+              <%# Ẩn câu hỏi ảnh hưởng mọi lượt sau đó (BR-16) nên xác nhận trước. %>
               <%= button_to "Chấp nhận, ẩn câu", admin_question_report_path(report),
-                    method: :patch, params: { decision: "accept" }, class: "btn--primary" %>
+                    method: :patch, params: { decision: "accept" }, class: "btn--primary",
+                    form: { data: { confirm: "Ẩn câu hỏi này khỏi mọi lượt chơi mới? " \
+                                             "Lượt đã chơi giữ nguyên điểm đã chấm.",
+                                    confirm_ok: "Ẩn câu hỏi" } } %>
               <%= button_to "Bỏ qua", admin_question_report_path(report),
                     method: :patch, params: { decision: "reject" } %>
             </div>
