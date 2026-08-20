@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_000008) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_20_000001) do
   create_table "ai_gradings", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "error"
@@ -108,6 +108,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_000008) do
 
   create_table "users", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
+    t.string "avatar", limit: 20, default: "hero", null: false
     t.datetime "created_at", null: false
     t.string "display_name", limit: 50, null: false
     t.string "email", null: false

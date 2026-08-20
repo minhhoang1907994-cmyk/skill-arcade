@@ -32,6 +32,25 @@ RSpec.describe User do
     end
   end
 
+  describe "avatar (BR-40)" do
+    it "mặc định là hình hero" do
+      expect(create(:user).avatar).to eq(Avatar::DEFAULT)
+    end
+
+    it "chấp nhận mọi hình trong Avatar::CHOICES" do
+      Avatar::CHOICES.each do |name|
+        expect(build(:user, avatar: name)).to be_valid, "#{name} phải chọn được"
+      end
+    end
+
+    it "từ chối tên hình không có trong app" do
+      user = build(:user, avatar: "khong_ton_tai")
+
+      expect(user).not_to be_valid
+      expect(user.errors.of_kind?(:avatar, :inclusion)).to be true
+    end
+  end
+
   describe "password" do
     it "yêu cầu tối thiểu 8 ký tự" do
       user = build(:user, password: "1234567", password_confirmation: "1234567")

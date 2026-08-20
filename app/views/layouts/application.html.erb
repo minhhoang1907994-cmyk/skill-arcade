@@ -39,6 +39,7 @@
         <nav>
           <% if logged_in? %>
             <%= link_to "Game", games_path %>
+            <%= link_to "Cài đặt", settings_path %>
           <% end %>
           <%= link_to "Bảng xếp hạng", leaderboards_path %>
           <% if current_user&.admin? %>
@@ -50,7 +51,10 @@
         <div class="site-header__spacer"></div>
 
         <% if logged_in? %>
-          <span class="site-header__user"><%= current_user.display_name %></span>
+          <%= link_to settings_path, class: "site-header__user" do %>
+            <%= avatar_sprite(current_user.avatar, size: 26) %>
+            <span><%= current_user.display_name %></span>
+          <% end %>
           <%= button_to "Đăng xuất", session_path, method: :delete %>
         <% else %>
           <nav>

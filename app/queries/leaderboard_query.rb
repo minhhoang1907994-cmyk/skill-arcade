@@ -14,8 +14,17 @@ class LeaderboardQuery
   TIME_ZONE = "Asia/Ho_Chi_Minh".freeze
   CACHE_TTL = 60.seconds
 
-  Entry = Struct.new(:rank, :user_id, :display_name, :score, :attempts_to_best,
+  Entry = Struct.new(:rank, :user_id, :display_name, :avatar, :score, :attempts_to_best,
                      :achieved_at, keyword_init: true)
+
+  # Cache lưu chính object Entry, nên ĐỔI danh sách thành viên của Entry là đổi định dạng
+  # payload: code mới đọc payload cũ sẽ ném `TypeError: struct size differs` và cả trang
+  # xếp hạng 500 cho tới khi cache hết hạn. Đã gặp thật khi thêm `avatar`.
+  #
+  # Ghim chữ ký của Entry vào cache key để bản mới không bao giờ đọc payload của bản cũ.
+  # Tính từ Entry.members thay vì hằng số đếm tay, vì hằng số đếm tay chỉ đúng khi có người
+  # nhớ tăng nó — mà chính lần quên đó mới là lần gây sự cố.
+  ENTRY_VERSION = ActiveSupport::Digest.hexdigest(Entry.members.join(",")).first(8).freeze
 
   class InvalidScope < ArgumentError; end
 
@@ -59,7 +68,7 @@ class LeaderboardQuery
   def cache_key
     game_key = total? ? TOTAL : @game.slug
     period_key = period ? "#{period.first.to_i}-#{period.last.to_i}" : ALL_TIME
-    "leaderboard/#{@scope}/#{game_key}/#{period_key}/#{@limit}"
+    "leaderboard/#{ENTRY_VERSION}/#{@scope}/#{game_key}/#{period_key}/#{@limit}"
   end
 
   def sessions
@@ -81,6 +90,7 @@ class LeaderboardQuery
         {
           user_id: user_id,
           display_name: per_game.first[:display_name],
+          avatar: per_game.first[:avatar],
           score: per_game.sum { |r| r[:score] },
           # Game chưa từng hoàn thành đóng góp 0 vào tổng (BR-11a).
           attempts_to_best: per_game.sum { |r| r[:attempts_to_best] },
@@ -109,6 +119,7 @@ class LeaderboardQuery
         {
           user_id: earliest_best.user_id,
           display_name: earliest_best.user.display_name,
+          avatar: earliest_best.user.avatar,
           score: earliest_best.score,
           attempts_to_best: user_sessions.index(earliest_best) + 1,
           achieved_at: earliest_best.finished_at

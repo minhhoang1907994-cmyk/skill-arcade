@@ -13,6 +13,11 @@ Rails.application.routes.draw do
   get "games", to: "games#index", as: :games
   get "games/:slug", to: "games#show", as: :game
 
+  # Cài đặt tài khoản: hiện chỉ có chọn hình đại diện (BR-40). Route số nhiều, không dùng
+  # `resource :setting` vì URL /setting số ít đọc lạ mà trang này còn nhận thêm mục sau này.
+  get "settings", to: "settings#edit", as: :settings
+  patch "settings", to: "settings#update"
+
   # Leaderboard (guest xem được)
   get "leaderboards", to: "leaderboards#show", as: :leaderboards
 

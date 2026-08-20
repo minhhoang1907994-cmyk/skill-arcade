@@ -1,7 +1,7 @@
 <h1>Chọn màn chơi</h1>
 
 <div class="hero-row">
-  <%= pixel_sprite(:hero, size: 64, css_class: "sprite--bounce") %>
+  <%= avatar_sprite(current_user.avatar, size: 64, css_class: "sprite--bounce") %>
   <div class="hero-row__bubble">
     <% if @total_score.zero? %>
       Chào <%= current_user.display_name %>! Chọn một màn để bắt đầu hành trình.
@@ -55,4 +55,14 @@
       </div>
     </div>
   <% end %>
+</div>
+
+<%# Dải trận đánh trang trí cuối trang: đội hình ba nhân vật đối đầu rồng boss. Thuần
+    thẩm mỹ nên aria-hidden, không thêm gì vào nội dung đọc lên cho screen reader. %>
+<div class="party" aria-hidden="true">
+  <div class="party__side"><%= party_sprites %></div>
+  <span class="party__vs">VS</span>
+  <div class="party__side">
+    <%= pixel_sprite(:dragon, size: 72, css_class: "party__boss sprite--bounce sprite--flip") %>
+  </div>
 </div>

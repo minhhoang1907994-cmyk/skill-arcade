@@ -163,7 +163,7 @@ body {
   filter: drop-shadow(2px 3px 0 rgba(28, 107, 54, .45));
 }
 
-/* Lề chỉ đủ chỗ từ 1140px trở lên: item xa nhất cách tâm 548px, cộng bề rộng sprite
+/* Lề chỉ đủ chỗ từ 1140px trở lên: item xa nhất cách tâm 556px, cộng bề rộng sprite
    vẫn nằm gọn trong lề 70px của mốc này. Dưới ngưỡng đó ẩn hẳn cho khỏi bị cắt. */
 @media (max-width: 1139px) {
   .scenery { display: none; }
@@ -172,27 +172,37 @@ body {
 /* Khoảng lệch tính từ tâm trang, PHỤ THUỘC bề rộng sprite của đúng slot đó — bề rộng
    khai ở PixelArtHelper::SCENERY. Điều kiện cho mỗi slot, với N là số px dưới đây và W
    là bề rộng sprite: N - W >= 506 (chừa 6px không đè lên main rộng 1000px) và
-   N <= 560 (chừa 10px với mép màn hình ở mốc 1140px). Đổi size sprite thì phải tính lại. */
-.scenery__item--l1 { left: calc(50% - 556px); top: 16%; }    /* bush 46 */
-.scenery__item--l2 { left: calc(50% - 548px); top: 34%; }    /* flower 34 */
-.scenery__item--l3 { left: calc(50% - 544px); top: 52%; }    /* coin 30 */
-.scenery__item--l4 { left: calc(50% - 550px); top: 70%; }    /* slime 40 */
-.scenery__item--l5 { left: calc(50% - 548px); bottom: 6%; }  /* mushroom 34 */
+   N <= 560 (chừa 10px với mép màn hình ở mốc 1140px). Đổi size sprite thì phải tính lại.
 
-.scenery__item--r1 { right: calc(50% - 546px); top: 12%; }   /* flower 32 */
-.scenery__item--r2 { right: calc(50% - 548px); top: 30%; }   /* potion 34 */
-.scenery__item--r3 { right: calc(50% - 550px); top: 48%; }   /* sword 38 */
-.scenery__item--r4 { right: calc(50% - 552px); top: 66%; }   /* chest 42 */
-.scenery__item--r5 { right: calc(50% - 542px); bottom: 8%; } /* coin 28 */
+   Theo chiều dọc: slot trên cùng phải cách đỉnh đủ để không chui sau thanh header cao ~50px
+   (10% của khung nhìn 600px là 60px — đã là mức thấp nhất còn an toàn). */
+.scenery__item--l1 { left: calc(50% - 556px); top: 12%; }    /* bush 46 */
+.scenery__item--l2 { left: calc(50% - 552px); top: 27%; }    /* knight 42 */
+.scenery__item--l3 { left: calc(50% - 544px); top: 42%; }    /* coin 30 */
+.scenery__item--l4 { left: calc(50% - 550px); top: 57%; }    /* slime 40 */
+.scenery__item--l5 { left: calc(50% - 548px); top: 72%; }    /* bat 36 */
+.scenery__item--l6 { left: calc(50% - 546px); bottom: 5%; }  /* mushroom 34 */
 
-/* Ba kiểu chuyển động, lệch pha bằng animation-delay để không đập cùng nhịp */
+.scenery__item--r1 { right: calc(50% - 546px); top: 10%; }   /* flower 32 */
+.scenery__item--r2 { right: calc(50% - 552px); top: 25%; }   /* archer 42 */
+.scenery__item--r3 { right: calc(50% - 550px); top: 40%; }   /* sword 38 */
+.scenery__item--r4 { right: calc(50% - 556px); top: 55%; }   /* dragon 46 */
+.scenery__item--r5 { right: calc(50% - 548px); top: 70%; }   /* ghost 36 */
+.scenery__item--r6 { right: calc(50% - 546px); bottom: 5%; } /* potion 34 */
+
+/* Bốn kiểu chuyển động, lệch pha bằng animation-delay để không đập cùng nhịp.
+   float dành cho hai con bay (dơi, hồn ma): lượn cả hai trục thay vì chỉ nhấp lên xuống. */
 .scenery__item--sway { animation: scenery-sway 3.6s ease-in-out infinite; }
 .scenery__item--bob { animation: scenery-bob 2.4s ease-in-out infinite; }
 .scenery__item--flip { animation: scenery-flip 2.8s steps(4, end) infinite; }
+.scenery__item--float { animation: scenery-float 5s ease-in-out infinite; }
 
 .scenery__item--l2, .scenery__item--r3 { animation-delay: -.9s; }
 .scenery__item--l4, .scenery__item--r1 { animation-delay: -1.8s; }
 .scenery__item--l5, .scenery__item--r5 { animation-delay: -2.7s; }
+.scenery__item--l6, .scenery__item--r2 { animation-delay: -1.3s; }
+.scenery__item--l3, .scenery__item--r4 { animation-delay: -2.2s; }
+.scenery__item--r6 { animation-delay: -.5s; }
 
 @keyframes scenery-sway {
   0%, 100% { transform: rotate(-3deg); }
@@ -208,6 +218,14 @@ body {
 @keyframes scenery-flip {
   0%, 100% { transform: scaleX(1); }
   50% { transform: scaleX(.2); }
+}
+
+/* Con bay lượn theo đường số 8 dẹt, biên độ nhỏ để không hút mắt khỏi nội dung */
+@keyframes scenery-float {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(5px, -8px); }
+  50% { transform: translate(0, -3px); }
+  75% { transform: translate(-5px, 4px); }
 }
 
 /* ---------- Header ---------- */
@@ -281,12 +299,18 @@ body {
 .site-header__spacer { margin-left: auto; }
 
 .site-header__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--ui-font);
   font-weight: 600;
   font-size: 15px;
   color: #fff;
+  text-decoration: none;
   text-shadow: var(--text-outline);
 }
+.site-header__user:hover { color: var(--coin); }
+.site-header__user .sprite { filter: drop-shadow(2px 2px 0 rgba(35, 32, 77, .45)); }
 
 main {
   max-width: 1000px;
@@ -380,6 +404,56 @@ a { color: var(--grass-deep); font-weight: 700; }
 @keyframes sprite-bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+/* Lật ngang để nhân vật nhìn về phía đối diện (rồng nhìn về đội hình).
+   Không gộp transform với .sprite--bounce được vì hai khai báo transform ghi đè nhau,
+   nên bản vừa lật vừa nhún dùng keyframe riêng đã gộp cả hai phép biến hình. */
+.sprite--flip { transform: scaleX(-1); }
+.sprite--flip.sprite--bounce { animation-name: sprite-bounce-flip; }
+
+@keyframes sprite-bounce-flip {
+  0%, 100% { transform: scaleX(-1) translateY(0); }
+  50% { transform: scaleX(-1) translateY(-4px); }
+}
+
+/* ---------- Dải trận đánh (cuối trang chọn màn) ----------
+
+   Ba nhân vật của người chơi đối diện con rồng, cùng đứng trên một vạch cỏ đậm làm mặt
+   đất. Thuần trang trí: view bọc trong aria-hidden nên không thêm gì vào nội dung đọc lên. */
+.party {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 18px;
+  margin: 26px 0 0;
+  padding: 12px 16px 6px;
+  border-bottom: 6px solid var(--grass-deep);
+}
+
+.party__side {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.party__vs {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-size: 20px;
+  color: #fff;
+  text-shadow: var(--text-outline);
+  padding-bottom: 14px;
+}
+
+/* Dưới 560px, bốn sprite cỡ mặc định (56 + 54 + 56 + rồng 72) rộng hơn khung main nên hạ
+   kích thước chứ không ẩn cả dải — điện thoại vẫn thấy đủ đội hình. */
+@media (max-width: 559px) {
+  .party { gap: 10px; padding: 10px 4px 6px; }
+  .party__side { gap: 5px; }
+  .party__member { width: 42px; height: 42px; }
+  .party__boss { width: 54px; height: 54px; }
+  .party__vs { font-size: 16px; padding-bottom: 10px; }
 }
 
 .hero-row {
@@ -661,6 +735,10 @@ th {
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:nth-child(even) { background: rgba(255, 201, 60, .14); }
 
+/* Hình đại diện đứng cạnh tên trong ô "Người chơi". Dùng flex thay vì để sprite trôi theo
+   dòng chữ vì sprite là block (.sprite) — inline-block sẽ lệch baseline theo cỡ chữ. */
+.player { display: flex; align-items: center; gap: 9px; }
+
 .rank-1 td { background: var(--coin) !important; font-weight: 700; }
 .rank-1 td:first-child::before { content: "★ "; }
 
@@ -797,6 +875,70 @@ tbody tr:nth-child(even) { background: rgba(255, 201, 60, .14); }
 }
 
 .chips label:has(input:focus-visible) {
+  outline: 3px solid var(--coin);
+  outline-offset: 3px;
+}
+
+/* ---------- Lưới chọn hình đại diện (trang Cài đặt) ----------
+
+   Cùng cơ chế với .chips: radio thật vẫn nằm trong DOM để giữ ngữ nghĩa nhóm và điều hướng
+   bàn phím, chỉ ẩn khỏi tầm nhìn; trạng thái chọn vẽ bằng :has(input:checked). Khác .chips
+   ở chỗ nội dung là sprite + tên nên phải là ô vuông trong grid, không phải chip một dòng. */
+.avatar-picker {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.avatar-picker legend { padding: 0; }
+.avatar-picker .score-label { margin: 14px 0 0; }
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.avatar-grid label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+  background: var(--paper-alt);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  padding: 10px 6px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .05s steps(1), box-shadow .05s steps(1);
+  user-select: none;
+}
+
+.avatar-grid label:hover { background: #fff; }
+
+.avatar-grid input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.avatar-grid label:has(input:checked) {
+  background: var(--grass);
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--grass-dark);
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+.avatar-grid label:has(input:focus-visible) {
   outline: 3px solid var(--coin);
   outline-offset: 3px;
 }

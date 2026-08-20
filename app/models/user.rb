@@ -19,6 +19,9 @@ class User < ApplicationRecord
             format: { with: EMAIL_FORMAT }
   validates :display_name, presence: true, uniqueness: true, length: { in: 2..50 }
   validates :password, length: { minimum: 8 }, allow_nil: true
+  # Hình đại diện chỉ được là một trong các sprite app có sẵn (BR-40) — cột lưu tên sprite
+  # nên giá trị lạ sẽ làm mọi trang có hiển thị avatar nổ KeyError.
+  validates :avatar, inclusion: { in: Avatar::CHOICES }
 
   normalizes :email, with: ->(email) { email.strip.downcase }
 

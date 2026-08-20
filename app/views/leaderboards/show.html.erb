@@ -1,7 +1,7 @@
 <h1>Bảng xếp hạng</h1>
 
 <div class="hero-row">
-  <%= pixel_sprite(:slime, size: 60, css_class: "sprite--bounce") %>
+  <%= pixel_sprite(:knight, size: 60, css_class: "sprite--bounce") %>
   <div class="hero-row__bubble">
     Bằng điểm thì ai đạt bằng ít lượt hơn xếp trên. Chỉ tính lượt đã chơi xong.
   </div>
@@ -50,7 +50,12 @@
     <% @entries.each do |entry| %>
       <tr class="<%= "rank-1" if entry.rank == 1 %>">
         <td><%= entry.rank %></td>
-        <td><%= entry.display_name %></td>
+        <td>
+          <span class="player">
+            <%= avatar_sprite(entry.avatar, size: 26) %>
+            <span><%= entry.display_name %></span>
+          </span>
+        </td>
         <td><%= entry.score %></td>
         <td><%= entry.attempts_to_best %></td>
         <td class="muted small"><%= l entry.achieved_at, format: :short if entry.achieved_at %></td>

@@ -26,6 +26,49 @@ RSpec.describe LeaderboardQuery do
     end
   end
 
+  describe "cache" do
+    # Cache giữ chính object Entry: khi thêm thành viên `avatar` vào Struct, code mới đọc
+    # payload cũ đã ném `TypeError: struct size differs` và trang xếp hạng 500. Khoá cache
+    # giờ mang chữ ký của Entry nên payload của bản cũ (khoá không có chữ ký) không đọc tới.
+    it "không đọc payload nằm ở khoá của phiên bản Entry cũ" do
+      finished_session(alice, score: 60, attempt: 1, at: 1.day.ago)
+      Rails.cache.write("leaderboard/all_time/#{game.slug}/all_time/50", [ :payload_cu ])
+
+      entries = described_class.new(scope: "all_time", game: game).call
+
+      expect(entries.map(&:display_name)).to eq([ "Alice" ])
+    end
+
+    it "khoá cache đổi khi cấu trúc Entry đổi" do
+      key = described_class.new(scope: "all_time", game: game).send(:cache_key)
+
+      expect(key).to include(described_class::ENTRY_VERSION)
+    end
+  end
+
+  describe "hình đại diện (BR-40)" do
+    it "mang avatar của người chơi ra Entry ở bảng một game" do
+      alice.update!(avatar: "mimic")
+      finished_session(alice, score: 60, attempt: 1, at: 1.day.ago)
+
+      entries = described_class.new(scope: "all_time", game: game).call
+
+      expect(entries.first.avatar).to eq("mimic")
+    end
+
+    it "mang cả ở bảng tổng, nơi mỗi người gộp nhiều game" do
+      other = create(:game, :scenario_based)
+      alice.update!(avatar: "dragon")
+      finished_session(alice, score: 60, attempt: 1, at: 2.days.ago)
+      finished_session(alice, score: 30, attempt: 1, at: 1.day.ago, on_game: other)
+
+      entries = described_class.new(scope: "all_time", game: LeaderboardQuery::TOTAL).call
+
+      expect(entries.first.score).to eq(90)
+      expect(entries.first.avatar).to eq("dragon")
+    end
+  end
+
   describe "tie-break theo số lượt (BR-10, BR-11)" do
     it "người đạt bằng ít lượt hơn xếp trên khi bằng điểm" do
       finished_session(alice, score: 50, attempt: 1, at: 5.days.ago)

@@ -2,6 +2,8 @@
 
 ## Session gần nhất
 - Ngày: 2026-08-20
+- Việc mới nhất: **hình đại diện tài khoản (BR-40, spec 1.25)** + dàn nhân vật JRPG cho
+  giao diện — chi tiết ở hai mục đầu "Đã thực hiện". **Chưa commit.**
 - Tóm tắt: **Bỏ Gemini khỏi đường chơi** (spec v1.19) rồi sửa hai lỗi phát hiện khi chơi
   thật trên Render (spec v1.20). Commit `v2.0` đã push lên `origin/main`.
 - **Spec Detective giờ là game CHỌN**: tick câu mơ hồ (10đ, trừ điểm tick sai) + chọn câu
@@ -131,6 +133,106 @@ Recheck UI bằng Chrome trên server dev (owner yêu cầu tự động check):
   `ruby bin/rails runner "GameSession.destroy_all"`
 
 ## Đã thực hiện
+
+### BR-40 — hình đại diện tài khoản + 5 màn chơi đổi sang toàn quái vật (2026-08-20, chưa commit)
+
+**Hình đại diện người chơi**
+- Migration `20260820000001_add_avatar_to_users` — `users.avatar` varchar(20) NOT NULL default
+  `hero`. Đã chạy trên DB development; **production/Aiven CHƯA chạy**
+- `Avatar` (`app/models/avatar.rb`) là nguồn DUY NHẤT của danh sách hình hợp lệ: `CHOICES`
+  (18 sprite, gom theo 3 nhóm chỉ để xếp lưới), `DEFAULT`, `valid?`, `resolve`
+- `SettingsController` + `/settings` (GET, PATCH). Chỉ sửa `current_user` — không có đường
+  sửa avatar người khác, kể cả admin
+- Hiển thị: header (kèm link vào trang cài đặt), hero-row trang chọn màn, và cột "Người chơi"
+  của bảng xếp hạng. Mọi chỗ đi qua `avatar_sprite` → `Avatar.resolve`, nên bản ghi trỏ
+  sprite đã đổi tên chỉ rơi về `hero` chứ không làm sập trang
+- Trang `/settings` cố ý **không** dùng class `.form`: class đó cap 470px cho ô nhập text,
+  lưới hình cần cả bề rộng panel (đã sửa sau khi xem thật — lần đầu chỉ xếp được 4 ô/hàng)
+
+**Sửa hai chỗ chữ đã sai sự thật** (owner yêu cầu sau khi tôi báo)
+- `users/new.html.erb` vẫn viết "Spec Detective gửi nội dung bạn gõ sang Google Gemini để chấm
+  điểm" — sai từ spec 1.19. Viết lại: không nội dung nào ra khỏi app, cả 5 game chấm tại server
+- `pages/privacy.html.erb` mục "Cái gì công khai" giờ liệt kê thêm **hình đại diện**, vì bảng
+  xếp hạng công khai đang hiện nó (BR-38 buộc trang này chỉ nói đúng cái code làm)
+
+**Quái vật cho 5 màn chơi** (yêu cầu: mỗi game hình đại diện là 1 quái)
+- Thêm sprite `eye` (quái mắt) và `mimic` (rương quái) → `GAME_SPRITES` giờ toàn quái:
+  slime / eye / dragon / mimic / skull. `mage` và `archer` vẫn dùng ở dải trận đánh và lề trang
+
+### 🔴 Migration production CHƯA chạy — host Aiven trong .env.aiven không phân giải được
+
+Owner yêu cầu chạy `db:migrate` lên Aiven. **Không chạy được**, và đây là fact đo được chứ
+không phải suy đoán:
+
+```
+Đích  = avnadmin@skill-arcade-skill-arcade.k.aivencloud.com:11695/defaultdb   (từ .env.aiven)
+rails db:migrate:status -> Mysql2::Error::ConnectionError: Unknown server host (11001)
+Resolve-DnsName skill-arcade-skill-arcade.k.aivencloud.com -> DNS name does not exist
+Resolve-DnsName aivencloud.com                             -> phân giải bình thường
+```
+
+DNS của máy hoạt động, chỉ riêng host đó không tồn tại. **Chưa xác nhận** nguyên nhân — cần
+mở console Aiven xem service còn không / hostname có đổi không, rồi cập nhật `.env.aiven`.
+Đáng chú ý: job `questions-refill` chạy thành công **cùng ngày** bằng secrets `DB_*` của
+GitHub, nên khả năng `.env.aiven` local đã cũ hơn secrets — nhưng không đọc được secrets để
+đối chiếu.
+
+**Nhưng production KHÔNG cần migrate tay**: `bin/docker-entrypoint` chạy `db:prepare` khi
+lệnh kết thúc bằng `./bin/rails server`, và đó đúng là `CMD` của `Dockerfile`. Nên migration
+tự áp lúc container boot ở lần deploy tới, TRƯỚC khi server nhận request. Ghi chú cũ của tôi
+("phải chạy tay trước khi deploy") là thừa.
+
+Đã verify migration đảo được trên DB development: `db:rollback STEP=1` -> cột mất,
+`db:migrate` -> cột về. Rollback trên production là an toàn về schema (mất giá trị avatar đã
+chọn, không mất gì khác).
+
+### ⚠️ Lỗi tự gây, đã sửa — cache của LeaderboardQuery giữ chính object Entry
+
+Thêm thành viên `avatar` vào `Entry = Struct.new(...)` làm code mới đọc payload cũ trong cache
+và ném `TypeError: struct size differs` → **cả trang xếp hạng 500** cho tới khi cache hết hạn
+(`CACHE_TTL` 60s). Toàn bộ 268 test vẫn xanh vì spec luôn `Rails.cache.clear`; chỉ mở trang
+thật mới thấy.
+
+Sửa: ghim chữ ký `Entry.members` vào cache key qua `ENTRY_VERSION` (tính bằng
+`ActiveSupport::Digest`), thay vì hằng số phiên bản đếm tay — hằng số đếm tay chỉ đúng khi có
+người nhớ tăng nó, mà chính lần quên đó mới gây sự cố. Guard: 2 test mới ở
+`spec/queries/leaderboard_query_spec.rb`, trong đó một test ghi payload rác vào **khoá của
+bản cũ** rồi khẳng định query không đọc tới.
+
+**Việc này còn nghĩa cho lần deploy tới**: mọi thay đổi thành viên `Entry` về sau đã tự an
+toàn, nhưng nếu sửa cấu trúc object khác cũng đang được cache thì phải nghĩ lại đúng bài này.
+
+
+### Giao diện — dàn nhân vật JRPG (2026-08-20, chưa commit)
+
+Thêm 5 sprite 16x16 vào `PixelArtHelper`: `knight`, `archer`, `dragon`, `bat`, `ghost`
+(trước đó có hero, slime, mage, chest, skull + 6 item cây cỏ).
+
+- **Nhân vật gắn với màn chơi** (`GAME_SPRITES`): `incident_escape_room` hero → **rồng**,
+  `estimate_poker` chest → **cung thủ**. Bảng xếp hạng slime → **hiệp sĩ**. `chest` vẫn dùng
+  ở panel kết thúc lượt (`games/show`), `hero` vẫn dùng ở header + trang đăng nhập
+- **Lề trang** (`SCENERY`): 10 → 12 item, 6 mỗi bên. Có hiệp sĩ đứng canh bên trái, cung thủ
+  và rồng bên phải, thêm dơi + hồn ma bay bằng kiểu chuyển động mới `float` (lượn 2 trục)
+- **Dải trận đánh mới** cuối `games/index`: hiệp sĩ + pháp sư + cung thủ VS rồng, đứng trên
+  vạch cỏ đậm làm mặt đất. `.party` / `.party__side` / `.party__vs` / `.party__member` /
+  `.party__boss` trong `application.css`
+- `spec/helpers/pixel_art_helper_spec.rb` (MỚI) chốt 2 ràng buộc dễ vỡ: mọi sprite phải là
+  lưới 16x16 với palette khớp ĐÚNG tập ký tự đã dùng (không thiếu, không thừa), và mọi
+  slot/motion khai trong `SCENERY` phải có rule tương ứng trong `application.css`
+
+Hai điểm đã phải sửa sau khi xem thật trên Chrome, không phát hiện được bằng test:
+- **Slot trên cùng bị thanh header che.** Ban đầu đặt `l1: top 6%` / `r1: top 5%`; header cao
+  ~50px nên trên khung nhìn thấp thì sprite chui sau header. Đã dời xuống `12%` / `10%` và
+  ghi ràng buộc dọc này vào chú thích CSS (trước đó chỉ có ràng buộc ngang)
+- **Hiệp sĩ và rồng vẽ lần đầu không đọc ra hình.** Giáp `#c9d6e8` quá gần lưỡi kiếm `#eef4ff`
+  nên kiếm biến mất vào thân; cánh rồng cùng họ đỏ với thân nên thành một cục lồi. Đã vẽ lại:
+  giáp có đường viền tối `D` bao quanh, khiên tròn có viền `sea-dark`, cánh rồng thêm gân
+  màu `--flame`
+
+Cách xem sprite phóng to khi cần chỉnh tiếp (không cần trang riêng): clone node `.scenery__item`
+trong console, bỏ `class` (vì class mang `position: absolute` của slot) rồi đặt `width/height`
+lớn.
+
 
 ### v1.19 — Spec Detective đổi sang dạng CHỌN, bỏ AI khỏi đường chơi (2026-08-20)
 

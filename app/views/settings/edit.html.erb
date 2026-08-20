@@ -1,0 +1,49 @@
+<h1>Cài đặt</h1>
+
+<div class="hero-row">
+  <%= avatar_sprite(current_user.avatar, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">
+    Đây là hình đại diện của <%= current_user.display_name %>. Nó hiện ở đầu trang,
+    ở trang chọn màn và cạnh tên bạn trên bảng xếp hạng.
+  </div>
+</div>
+
+<div class="panel">
+  <%# KHÔNG dùng class "form": nó cắt bề rộng còn 470px cho hợp ô nhập text, còn lưới hình
+      cần cả bề rộng panel mới xếp được nhiều ô mỗi hàng. %>
+  <%= form_with model: current_user, url: settings_path, method: :patch do |f| %>
+    <% if current_user.errors.any? %>
+      <ul class="errors">
+        <% current_user.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <%# Một fieldset duy nhất: mọi radio dùng cùng name user[avatar] nên chúng là MỘT nhóm
+        lựa chọn, mũi tên bàn phím đi xuyên cả ba khối. Chia khối chỉ để mắt dễ tìm, vì vậy
+        không đặt role="radiogroup" cho từng khối — làm vậy là khai sai cấu trúc cho
+        screen reader. %>
+    <fieldset class="avatar-picker">
+      <legend class="panel__title">Chọn hình đại diện</legend>
+
+      <% Avatar::GROUPS.each do |group_label, names| %>
+        <p class="score-label"><%= group_label %></p>
+        <div class="avatar-grid">
+          <% names.each do |name| %>
+            <label>
+              <%= f.radio_button :avatar, name %>
+              <%= pixel_sprite(name, size: 44) %>
+              <span><%= sprite_label(name) %></span>
+            </label>
+          <% end %>
+        </div>
+      <% end %>
+    </fieldset>
+
+    <div class="actions">
+      <%= f.submit "Lưu", class: "btn--primary" %>
+      <%= link_to "Về danh sách game", games_path, class: "btn" %>
+    </div>
+  <% end %>
+</div>
