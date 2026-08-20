@@ -21,12 +21,10 @@
 
 ## Trạng thái hiện tại
 
-### ✅ Verify đã pass (2026-08-20, sau v1.21)
+### ✅ Verify đã pass (2026-08-20, sau v1.22)
 ```
-bundle exec rspec        -> 174 examples, 0 failures
-bundle exec rubocop      -> 92 files, no offenses
-bin/brakeman             -> 1 warning Medium, CO SAN tu truoc (permit! o
-                            session_answers_controller.rb), khong do session nay
+bundle exec rspec        -> 177 examples, 0 failures
+bundle exec rubocop      -> 93 files, no offenses
 ```
 Recheck UI bằng Chrome trên server dev (owner yêu cầu tự động check):
 - Spec Detective format mới: 4 ô tick + 4 phương án render đúng, tick [1,3] + chọn "a" →
@@ -126,6 +124,38 @@ answer      { statement_indexes: [1,3], option_key: "a" }
 - `.github/workflows/questions-refill.yml` — 19:00 UTC (02:00 VN). **Cố ý KHÔNG set
   `REDIS_URL`** → runner rơi về file store nên circuit breaker của job tách khỏi web service
 - Trang `/privacy` §2 viết lại: nội dung người chơi nhập KHÔNG ra khỏi app
+
+### v1.22 — job refill fail exit 126: bin/* thiếu bit thực thi (2026-08-20)
+
+Lần chạy `gh workflow run questions-refill.yml` đầu tiên: bước "Refill question bank" dừng với
+**exit code 126** = tìm thấy file nhưng không thực thi được. Không phải lỗi Rails, lỗi file mode.
+
+- Repo tạo trên Windows → **cả 10 file `bin/*` vào git với mode `100644`**, thiếu bit +x
+- **Vì sao production vẫn chạy**: `Dockerfile:61` có `RUN chmod +x bin/*` nên image tự sửa lúc
+  build. Chỉ runner Actions — chạy thẳng từ checkout — mới gặp
+- **Vì sao CI không bắt được**: `ci.yml` cũng gọi `bin/brakeman`, `bin/rubocop`, `bin/rails` nên
+  lẽ ra fail y hệt, nhưng trigger là `push: branches: [master]` mà default branch là `main` →
+  **CI chưa từng chạy cho commit nào**. Đã sửa thành `[ main ]`
+- Sửa mode: `git update-index --chmod=+x bin/<file>` cho cả 10 file
+- Guard `spec/bin_executable_spec.rb`, theo đúng pattern `gemfile_lock_spec.rb`. Kiểm mode trong
+  **git index**, KHÔNG dùng `File.executable?` — trên Windows filesystem không mang bit +x nên
+  hàm đó trả kết quả vô nghĩa. Đã verify guard thật sự đỏ khi bỏ bit của `bin/rails` rồi phục hồi
+- Cùng lúc sửa `Questions::Refiller`: lọc mục tiêu bị chặn TRƯỚC khi chọn (xem mục dưới)
+
+**Bẫy chung của cả v1.22 và bẫy Gemfile.lock trước đó**: `Dockerfile` âm thầm sửa hậu quả của
+việc phát triển trên Windows (`chmod +x`, `bundle lock --add-platform`), nên mọi đường KHÔNG đi
+qua Docker — GitHub Actions, chạy tay trên máy Linux — đều có thể vỡ mà production vẫn xanh.
+
+### Sửa Refiller: mục tiêu bị chặn chiếm suất của mục tiêu nạp được (2026-08-20)
+
+Đo trên production: cả 6 mục tiêu thiếu đề đều có lượt `in_progress`, và `expire_stale` dọn 0
+lượt (cũ nhất 17.5 giờ, ngưỡng 24 giờ). Code cũ chọn 1 mục tiêu thiếu nhất RỒI mới kiểm lượt
+đang mở → lần chạy sinh 0 đề mà `outcomes.any?(failed)` là false nên **báo xanh**.
+
+Sửa: `partition` mục tiêu bị chặn TRƯỚC khi `sort_by(-shortfall).first(max_targets)`. Mục tiêu
+bị chặn vẫn được in ra dạng `:skipped` kèm số lượt đang mở — im lặng thì không phân biệt được
+"hôm nay đủ đề rồi" với "lúc nào cũng có người đang chơi nên không bao giờ nạp được".
+
 
 ### v1.21 — vá lỗ 500 khi ngân hàng câu hỏi hụt giữa lượt (2026-08-20)
 
