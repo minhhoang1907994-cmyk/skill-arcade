@@ -24,11 +24,27 @@ module Api
 
       private
 
-      # Cấu trúc answer khác nhau theo game nên nhận nguyên hash, nhưng vẫn qua
-      # permit! có kiểm soát: chỉ lấy nhánh :answer, và mọi giá trị điểm client
-      # gửi kèm đều bị bỏ qua vì server tự chấm (BR-02).
+      # Mỗi game một shape answer, nhưng hợp lại là một tập ĐÓNG 6 khoá. Liệt kê tường minh
+      # thay vì `permit!`: đúng quy tắc strong parameters của project, và bỏ được cảnh báo
+      # Mass Assignment của brakeman (trước đây làm job scan_ruby của CI đỏ với exit 3).
+      #
+      # Khoá client gửi thêm đều bị loại vì không nằm trong danh sách — gồm cả `score` (server
+      # tự chấm, BR-02) và `_meta` (server tự gắn, xem AnswerSubmitter#persist). Trước đây hai
+      # khoá đó phải loại bằng `.except`, giờ không cần nữa.
+      #
+      # THÊM GAME MỚI thì phải bổ sung khoá của nó vào đây, không thì scorer nhận nil và trả
+      # 400 VALIDATION_ERROR. Nguồn sự thật là các lời gọi `fetch_answer` trong
+      # app/services/scoring/ — hiện đúng 6 khoá dưới đây.
+      ANSWER_KEYS = [
+        :line, :bug_type,   # Bug Hunt (BR-25)
+        :hours,             # Estimate Poker (BR-28)
+        :option_key,        # Spec Detective (BR-26) + hai game kịch bản
+        :node_key           # Incident Escape Room (BR-27), PROD Roulette (BR-29)
+      ].freeze
+
       def answer_params
-        params.require(:answer).permit!.to_h.except("score", "_meta")
+        # statement_indexes là MẢNG số (Spec Detective) nên phải khai riêng dạng `key: []`.
+        params.require(:answer).permit(*ANSWER_KEYS, statement_indexes: []).to_h
       end
 
       def response_payload(outcome)

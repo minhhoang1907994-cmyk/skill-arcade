@@ -29,20 +29,11 @@ jobs:
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
       
-  scan_js:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-
-      - name: Scan for security vulnerabilities in JavaScript dependencies
-        run: bin/importmap audit
+  # Job `scan_js` da bi xoa (2026-08-20): no chay `bin/importmap audit`, nhung file do KHONG
+  # ton tai. Project co gem importmap-rails/turbo/stimulus trong Gemfile nhung chua he wire
+  # (khong co config/importmap.rb, khong co app/javascript, layout khong goi
+  # javascript_importmap_tags) nen khong co dependency JS nao de audit. Job chi bao exit 127.
+  # Dung lai job nay khi nao thuc su dung importmap.
 
   lint:
     runs-on: ubuntu-latest
@@ -73,6 +64,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # Env o cap job de ca hai step dung chung, KHONG dung YAML anchor: GitHub Actions khong
+    # ho tro anchor/alias trong workflow file.
+    env:
+      RAILS_ENV: test
+      # KHONG dung DATABASE_URL: scheme quyet dinh adapter, va `trilogy://` (mac dinh cua
+      # template Rails) lam Rails di tim adapter `trilogy` khong co trong bundle -> LoadError.
+      # Project dung mysql2 (xem Gemfile). Dat DB_* dung nhu config/database.yml doc.
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      # Service mysql duoi day dat MYSQL_ALLOW_EMPTY_PASSWORD nen root khong co mat khau.
+      DB_PASSWORD: ""
+
     services:
       mysql:
         image: mysql
@@ -99,57 +103,14 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
+
+      - name: Prepare test database
+        run: bin/rails db:test:prepare
 
       - name: Run tests
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: trilogy://127.0.0.1:3306
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test
+        # RSpec, khong phai `bin/rails test`: project dung rspec-rails (xem .rspec va Gemfile),
+        # nen lenh Minitest cua template chay 0 test va khong bao gi.
+        run: bundle exec rspec
 
-  system-test:
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql
-        env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: true
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
-      # redis:
-      #   image: valkey/valkey:8
-      #   ports:
-      #     - 6379:6379
-      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
-
-    steps:
-      - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
-
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-
-      - name: Run System Tests
-        env:
-          RAILS_ENV: test
-          DATABASE_URL: trilogy://127.0.0.1:3306
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test:system
-
-      - name: Keep screenshots from failed system tests
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: screenshots
-          path: ${{ github.workspace }}/tmp/screenshots
-          if-no-files-found: ignore
+  # Job `system-test` da bi xoa (2026-08-20): no chay `bin/rails test:system` (Minitest) nhung
+  # project dung RSpec va KHONG co spec/system nao. Dung lai khi nao viet system spec that.

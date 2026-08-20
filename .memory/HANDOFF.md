@@ -21,10 +21,12 @@
 
 ## Trạng thái hiện tại
 
-### ✅ Verify đã pass (2026-08-20, sau v1.22)
+### ✅ Verify đã pass (2026-08-20, sau v1.23)
 ```
-bundle exec rspec        -> 177 examples, 0 failures
+bundle exec rspec        -> 179 examples, 0 failures
 bundle exec rubocop      -> 93 files, no offenses
+bin/brakeman             -> No warnings found      (truoc: exit 3)
+bin/bundler-audit        -> No vulnerabilities found
 ```
 Recheck UI bằng Chrome trên server dev (owner yêu cầu tự động check):
 - Spec Detective format mới: 4 ô tick + 4 phương án render đúng, tick [1,3] + chọn "a" →
@@ -124,6 +126,42 @@ answer      { statement_indexes: [1,3], option_key: "a" }
 - `.github/workflows/questions-refill.yml` — 19:00 UTC (02:00 VN). **Cố ý KHÔNG set
   `REDIS_URL`** → runner rơi về file store nên circuit breaker của job tách khỏi web service
 - Trang `/privacy` §2 viết lại: nội dung người chơi nhập KHÔNG ra khỏi app
+
+### v1.23 — ci.yml chỉnh cho khớp project (2026-08-20)
+
+`ci.yml` là file mẫu Rails chưa từng được sửa cho project này. Trigger sai branch nên không ai
+thấy. Sau khi `bin/*` chạy được, CI mới bóc ra 4 lỗi thật:
+
+| Lỗi | Sửa |
+|---|---|
+| `DATABASE_URL: trilogy://` → `LoadError: trilogy is not part of the bundle` | Bỏ `DATABASE_URL`, đặt `DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD` ở **cấp job**. Scheme của URL quyết định adapter nên không thể chỉ đổi host |
+| `bin/rails db:test:prepare test` = Minitest, project dùng RSpec | `bin/rails db:test:prepare` + `bundle exec rspec`. Trước đó **179 spec không hề chạy trên CI** |
+| job `scan_js` gọi `bin/importmap audit`, file không tồn tại | Xoá job. Gem importmap-rails/turbo/stimulus có trong Gemfile nhưng chưa wire (không có `config/importmap.rb`, `app/javascript`, layout không gọi `javascript_importmap_tags`) |
+| job `system-test` chạy `test:system`, không có `spec/system` nào | Xoá job |
+
+**KHÔNG dùng YAML anchor** (`&test_env` / `*test_env`) để chia sẻ env giữa 2 step — GitHub Actions
+không hỗ trợ anchor/alias trong workflow file. Đặt `env` ở cấp job thay thế.
+
+CI còn 3 job: `scan_ruby` (brakeman + bundler-audit), `lint` (rubocop), `test` (rspec).
+
+### Brakeman: sửa thật thay vì ignore (2026-08-20)
+
+`answer_params` dùng `params.require(:answer).permit!` → brakeman Mass Assignment, exit 3.
+
+Không thêm `config/brakeman.ignore`: `CLAUDE.md` của project ghi strong parameters là **bắt buộc**,
+nên `permit!` là vi phạm quy tắc của chính project chứ không phải false positive. Tập khoá lại là
+tập ĐÓNG — đã liệt kê hết bằng cách grep `fetch_answer` trong `app/services/scoring/`:
+
+    :line, :bug_type   (Bug Hunt)      :hours       (Estimate Poker)
+    :option_key        (Spec Detective + 2 game kịch bản)
+    :node_key          (Escape Room, PROD Roulette)
+    statement_indexes: []              (Spec Detective — MẢNG nên khai dạng `key: []`)
+
+`.except("score", "_meta")` bỏ được vì hai khoá đó giờ tự bị loại. Brakeman: `No warnings found`.
+
+**Thêm game mới phải bổ sung khoá vào `ANSWER_KEYS`**, không thì scorer nhận nil → 400
+VALIDATION_ERROR.
+
 
 ### v1.22 — job refill fail exit 126: bin/* thiếu bit thực thi (2026-08-20)
 
