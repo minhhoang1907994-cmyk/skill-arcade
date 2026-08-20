@@ -9,6 +9,12 @@ class PagesController < ApplicationController
   # Scale/Enterprise 30 ngày. Đang dùng gói Hobby. ĐỔI GÓI THÌ PHẢI SỬA SỐ NÀY.
   LOG_RETENTION_DAYS = 7
 
+  # Luật chơi lấy từ DB (số bước, trần điểm) cộng phần cơ chế viết trong view. Chỉ lấy game
+  # đang bật: game đã tắt thì người chơi không vào được nên đọc luật của nó chỉ gây hiểu sai.
+  def guide
+    @games = Game.active.order(:id).index_by(&:slug)
+  end
+
   def privacy
     @effective_on = PRIVACY_EFFECTIVE_ON
     # Q8 chưa chốt kênh liên hệ để yêu cầu xoá tài khoản. Đọc từ ENV để owner cấu hình được

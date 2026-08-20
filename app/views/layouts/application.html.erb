@@ -42,6 +42,8 @@
             <%= link_to "Cài đặt", settings_path %>
           <% end %>
           <%= link_to "Bảng xếp hạng", leaderboards_path %>
+          <%# Hướng dẫn để ngoài nhánh logged_in?: guest cần đọc được luật trước khi đăng ký. %>
+          <%= link_to "Hướng dẫn", guide_path %>
           <% if current_user&.admin? %>
             <%= link_to "Tài khoản", admin_users_path %>
             <%= link_to "Báo cáo câu hỏi", admin_question_reports_path %>

@@ -10,9 +10,10 @@ module Api
           user: current_user, game: game, language: params[:language]
         ).call
 
-        render json: session_payload(session).merge(
-          current: ::GameSessions::StepProvider.new(session).payload
-        ), status: :created
+        payload = ::GameSessions::StepProvider.new(session).payload
+        session.mark_step_served!
+
+        render json: session_payload(session).merge(current: payload), status: :created
       rescue ::GameSessions::Creator::InvalidLanguage => e
         render_error(:unprocessable_entity, "INVALID_LANGUAGE", e.message)
       rescue ::GameSessions::Creator::ConcurrentCreate => e
@@ -20,15 +21,22 @@ module Api
       end
 
       # GET /api/v1/sessions/:id/current
-      # Dùng khi người chơi tải lại trang giữa lượt — server là nguồn sự thật (spec §13).
+      # Dùng khi người chơi tải lại trang giữa lượt — server là nguồn sự thật (spec §13) —
+      # và khi người chơi bấm "Câu tiếp theo": response của endpoint nộp đáp án KHÔNG kèm
+      # bước sau nữa (xem AnswerSubmitter#call), nên đây là chỗ duy nhất phát đề ra.
+      #
+      # `mark_step_served!` ghi mốc BR-21 và chỉ ghi cho lần phát đầu tiên của mỗi câu, nên
+      # đường tải lại trang dùng chung endpoint mà không reset được đồng hồ tốc độ. Ghi SAU
+      # khi payload dựng xong: bốc đề lỗi (NO_QUESTIONS_AVAILABLE) thì không tính là đã phát.
       def current
         unless @game_session.in_progress?
           return render_error(:conflict, "SESSION_FINISHED", "Lượt chơi đã kết thúc")
         end
 
-        render json: session_payload(@game_session).merge(
-          current: ::GameSessions::StepProvider.new(@game_session).payload
-        )
+        payload = ::GameSessions::StepProvider.new(@game_session).payload
+        @game_session.mark_step_served!
+
+        render json: session_payload(@game_session).merge(current: payload)
       end
 
       # POST /api/v1/sessions/:id/abandon

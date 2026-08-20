@@ -7,7 +7,7 @@ module GameSessions
     class PositionConflict < StandardError; end
     class SessionFinished < StandardError; end
 
-    Outcome = Struct.new(:session_answer, :result, :finished, :next_step, keyword_init: true)
+    Outcome = Struct.new(:session_answer, :result, :finished, keyword_init: true)
 
     def initialize(session:, position:, answer:, elapsed_ms: nil)
       @session = session
@@ -27,11 +27,13 @@ module GameSessions
       persist(question, result)
       finish_if_needed(result)
 
+      # KHÔNG kèm bước tiếp theo vào response: client chỉ hiện câu mới khi người chơi bấm
+      # "Câu tiếp theo", nên phát đề ở đây làm mốc `step_served_at` sớm hơn lúc hiển thị và
+      # elapsed_ms của BR-21 gánh luôn thời gian đọc giải thích. Client tự gọi `GET current`.
       Outcome.new(
         session_answer: @session_answer,
         result: result,
-        finished: @session.finished?,
-        next_step: @session.finished? ? nil : StepProvider.new(@session.reload).payload
+        finished: @session.finished?
       )
     end
 
@@ -53,15 +55,25 @@ module GameSessions
     # BR-21: thời gian do server đo là con số có thẩm quyền. Giá trị client gửi lên
     # chỉ được dùng khi nó KHÔNG nhỏ hơn thời gian server đo — nghĩa là client không
     # thể khai thấp đi để ăn hệ số tốc độ cao hơn.
+    #
+    # Memo hoá vì `persist` xoá `step_served_at`: gọi lại sau đó sẽ đo từ mốc khác và ghi
+    # vào DB con số không phải con số đã dùng để chấm.
     def elapsed_ms
-      server_measured = ((Time.current - last_activity_at) * 1000).to_i
-      client_value = @client_elapsed_ms.to_i
+      @elapsed_ms ||= begin
+        server_measured = ((Time.current - step_started_at) * 1000).to_i
+        client_value = @client_elapsed_ms.to_i
 
-      client_value > server_measured ? client_value : server_measured
+        client_value > server_measured ? client_value : server_measured
+      end
     end
 
-    def last_activity_at
-      @session.session_answers.maximum(:answered_at) || @session.started_at
+    # Mốc câu hỏi này được phát ra cho client. Lượt đang chơi dở từ trước khi có cột
+    # `step_served_at` chưa có mốc — rơi về cách đo cũ (câu trả lời trước, rồi `started_at`)
+    # để lượt đó vẫn chấm được thay vì tính elapsed từ epoch.
+    def step_started_at
+      @session.step_served_at ||
+        @session.session_answers.maximum(:answered_at) ||
+        @session.started_at
     end
 
     def persist(question, result)
@@ -76,9 +88,12 @@ module GameSessions
           answered_at: Time.current
         )
 
+        # Xoá mốc phát đề: câu tiếp theo chưa được hiển thị, `GET current` sẽ ghi mốc mới
+        # đúng lúc client hỏi để hiện nó (GameSession#mark_step_served!).
         @session.update!(
           current_position: @position,
-          score: capped_score(@session.score + result.score)
+          score: capped_score(@session.score + result.score),
+          step_served_at: nil
         )
       end
     end

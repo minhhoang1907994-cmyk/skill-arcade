@@ -139,6 +139,7 @@
     $("submit-btn").hidden = false;
     $("submit-btn").disabled = false;
     $("next-btn").hidden = true;
+    $("next-btn").disabled = false;
 
     const c = data.content;
     if (slug === "bug_hunt") {
@@ -396,7 +397,10 @@
       .forEach((el) => { el.disabled = true; });
   }
 
-  $("next-btn").addEventListener("click", () => {
+  // Câu tiếp theo được XIN Ở ĐÂY chứ không đi kèm response nộp đáp án. Server ghi mốc phát
+  // đề đúng lúc này để hệ số tốc độ (BR-21) không tính cả thời gian đọc phần giải thích của
+  // câu trước — trước đây cùng một đáp án đúng nhận 10đ hay 8đ tuỳ người chơi đọc nhanh chậm.
+  $("next-btn").addEventListener("click", async () => {
     const data = pendingResult;
     if (!data) return;
     if (data.finished) {
@@ -404,8 +408,17 @@
       $("next-btn").hidden = true;
       $("submit-btn").hidden = false;
       finish(data.summary);
-    } else {
-      renderStep(data.next);
+      return;
+    }
+
+    const next = $("next-btn");
+    next.disabled = true;
+    try {
+      const state = await api("/api/v1/sessions/" + sessionId + "/current");
+      renderStep(state.current);
+    } catch (e) {
+      showFeedback(e.body?.message || "Không tải được câu tiếp theo", "bad");
+      next.disabled = false;
     }
   });
 

@@ -53,8 +53,7 @@ module Api
           awarded_score: outcome.session_answer.score,
           total_score: @game_session.reload.score,
           explanation: outcome.result.explanation,
-          finished: outcome.finished,
-          next: outcome.next_step
+          finished: outcome.finished
         }
 
         payload[:summary] = summary if outcome.finished

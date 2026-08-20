@@ -21,6 +21,9 @@ Rails.application.routes.draw do
   # Leaderboard (guest xem được)
   get "leaderboards", to: "leaderboards#show", as: :leaderboards
 
+  # Hướng dẫn cách chơi — guest xem được để đọc luật trước khi đăng ký.
+  get "guide", to: "pages#guide", as: :guide
+
   # Chính sách riêng tư — phải đọc được trước khi đăng ký nên để guest xem (Q7, spec §14).
   get "privacy", to: "pages#privacy", as: :privacy
 

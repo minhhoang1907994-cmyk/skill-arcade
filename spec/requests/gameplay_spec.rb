@@ -101,7 +101,8 @@ RSpec.describe "Gameplay API" do
       post api_v1_session_answers_path(id: sid),
            params: { position: 1, answer: { line: 1, bug_type: "sql_injection" } }, as: :json
 
-      expect(response.parsed_body["next"]["content"]["language"]).to eq("java")
+      get api_v1_session_current_path(id: sid), as: :json
+      expect(response.parsed_body["current"]["content"]["language"]).to eq("java")
       expect(GameSession.find(sid).language).to eq("java")
     end
 
@@ -198,7 +199,6 @@ RSpec.describe "Gameplay API" do
       expect(body["awarded_score"]).to eq(10)
       expect(body["total_score"]).to eq(10)
       expect(body["finished"]).to be false
-      expect(body["next"]["position"]).to eq(2)
     end
 
     it "bỏ qua điểm client tự gửi lên (BR-02)" do
@@ -229,7 +229,6 @@ RSpec.describe "Gameplay API" do
 
       body = response.parsed_body
       expect(body["finished"]).to be true
-      expect(body["next"]).to be_nil
       expect(body["summary"]["score"]).to eq(20)
       expect(body["summary"]["is_new_best"]).to be true
 
@@ -261,7 +260,7 @@ RSpec.describe "Gameplay API" do
       create_bug_hunt_questions
       start_session
       sid = response.parsed_body["session_id"]
-      GameSession.find(sid).update!(started_at: 90.seconds.ago)
+      GameSession.find(sid).update!(step_served_at: 90.seconds.ago)
 
       post api_v1_session_answers_path(id: sid),
            params: { position: 1, answer: { line: 1, bug_type: "sql_injection" },
@@ -269,6 +268,59 @@ RSpec.describe "Gameplay API" do
 
       # 90 giây > 60 giây nên hệ số 0.5 → floor(10 * 0.5) = 5
       expect(response.parsed_body["awarded_score"]).to eq(5)
+    end
+
+    it "không tính thời gian đọc giải thích của câu trước vào câu sau (BR-21)" do
+      # Trước cột `step_served_at`, elapsed_ms phía server được đo từ `answered_at` của câu
+      # TRƯỚC. Client giữ phần giải thích trên màn hình tới khi người chơi bấm "Câu tiếp
+      # theo", nên đọc giải thích 90 giây rồi trả lời câu sau trong 1 giây vẫn bị hệ số 0.5.
+      create_bug_hunt_questions
+      start_session
+      sid = response.parsed_body["session_id"]
+      submit_to(sid, position: 1)
+
+      # Người chơi ngồi đọc giải thích 90 giây rồi mới bấm "Câu tiếp theo".
+      SessionAnswer.sole.update!(answered_at: 90.seconds.ago)
+      GameSession.find(sid).update!(started_at: 120.seconds.ago)
+      get api_v1_session_current_path(id: sid), as: :json
+
+      submit_to(sid, position: 2)
+
+      expect(response.parsed_body["awarded_score"]).to eq(10)
+    end
+
+    it "tải lại trang không reset đồng hồ tốc độ (BR-21)" do
+      create_bug_hunt_questions
+      start_session
+      sid = response.parsed_body["session_id"]
+      GameSession.find(sid).update!(step_served_at: 90.seconds.ago)
+
+      # F5 giữa bước gọi lại `GET current` — mốc phát đề phải giữ nguyên.
+      get api_v1_session_current_path(id: sid), as: :json
+      expect(GameSession.find(sid).step_served_at).to be_within(1.second).of(90.seconds.ago)
+
+      submit_to(sid, position: 1, elapsed_ms: 0)
+
+      expect(response.parsed_body["awarded_score"]).to eq(5)
+    end
+
+    it "response nộp đáp án KHÔNG kèm bước sau — client phải xin qua GET current" do
+      create_bug_hunt_questions
+      start_session
+      sid = response.parsed_body["session_id"]
+
+      submit_to(sid, position: 1)
+
+      expect(response.parsed_body).not_to have_key("next")
+
+      get api_v1_session_current_path(id: sid), as: :json
+      expect(response.parsed_body["current"]["position"]).to eq(2)
+    end
+
+    def submit_to(sid, position:, answer: { line: 1, bug_type: "sql_injection" },
+                  elapsed_ms: 1_000)
+      post api_v1_session_answers_path(id: sid),
+           params: { position: position, answer: answer, elapsed_ms: elapsed_ms }, as: :json
     end
   end
 

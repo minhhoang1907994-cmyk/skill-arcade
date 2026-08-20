@@ -51,6 +51,13 @@ class GameSession < ApplicationRecord
     score >= game.max_score
   end
 
+  # BR-21: ghi mốc câu hỏi đang chờ được phát ra cho client, và CHỈ cho lần phát đầu tiên.
+  # Tải lại trang giữa lượt gọi lại `GET current` — ghi lại mốc ở đó thì người chơi reset
+  # được đồng hồ tốc độ bằng cách F5 trước khi trả lời.
+  def mark_step_served!
+    update!(step_served_at: Time.current) if step_served_at.nil?
+  end
+
   def finish!
     update!(state: FINISHED, finished_at: Time.current)
   end

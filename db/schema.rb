@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_20_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_20_000002) do
   create_table "ai_gradings", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "error"
@@ -34,6 +34,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_20_000001) do
     t.integer "score", default: 0, null: false, unsigned: true
     t.datetime "started_at", null: false
     t.string "state", limit: 20, default: "in_progress", null: false
+    t.datetime "step_served_at"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["game_id", "finished_at", "score"], name: "index_game_sessions_on_game_finished_score"

@@ -378,6 +378,17 @@ h2, .panel__title {
   color: var(--ink);
 }
 
+/* Tiêu đề mục con trong panel (trang Hướng dẫn). Nhỏ hơn h2 và màu nhạt hơn để phân
+   tầng nhìn thấy được, thay vì để h3 rơi về font mặc định của trình duyệt. */
+h3 {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.4;
+  margin: 18px 0 6px;
+  color: var(--ink-soft);
+}
+
 a { color: var(--grass-deep); font-weight: 700; }
 .muted { color: var(--ink-soft); }
 .small { font-size: 14px; }

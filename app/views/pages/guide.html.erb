@@ -1,0 +1,265 @@
+<% content_for :title, "Hướng dẫn — Skill Arcade" %>
+
+<%# Số bước và trần điểm đọc từ DB, KHÔNG viết cứng vào văn bản: admin đổi
+    `steps_per_session` hay `max_score` thì trang này lệch với luật thật ngay.
+
+    Phần cơ chế và cách chia điểm phải viết tay ở đây vì nó nằm trong code chấm
+    (app/services/scoring/), không có trong DB. Đổi scorer thì sửa cả trang này —
+    mỗi mục ghi rõ con số để đối chiếu với file scorer tương ứng. %>
+
+<h1>Hướng dẫn</h1>
+
+<div class="hero-row">
+  <%= pixel_sprite(:mage, size: 64, css_class: "sprite--bounce") %>
+  <div class="hero-row__bubble">
+    Skill Arcade là 5 mini-game luyện kỹ năng làm việc thật: đọc code, đọc spec, xử lý sự cố,
+    ước lượng và thao tác trên production. Mỗi màn có cơ chế và cách tính điểm riêng.
+  </div>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">Luật chung cho cả 5 màn</h2>
+  <ul>
+    <li><strong>Điểm do server tính.</strong> Điểm client gửi lên bị bỏ qua hoàn toàn.</li>
+    <li><strong>Điểm chỉ cộng thêm, không bao giờ trừ.</strong> Sai một bước thì bước đó 0 điểm,
+      điểm các bước trước giữ nguyên.</li>
+    <li><strong>Mỗi màn tối đa 100 điểm</strong>, tổng cả 5 màn là 500.</li>
+    <li><strong>Bỏ lượt giữa đường thì lượt đó không tính điểm</strong> — chỉ lượt đi hết các bước
+      mới vào bảng xếp hạng.</li>
+    <li><strong>Chơi lại được, và chỉ điểm cao nhất được giữ.</strong> Lượt sau thấp hơn không làm
+      mất điểm cũ.</li>
+    <li><strong>Đề ưu tiên câu bạn chưa từng trả lời đúng.</strong> Chỉ khi hết câu mới, app mới
+      dùng lại câu cũ — và lấy câu bạn gặp lâu nhất trước.</li>
+    <li><strong>Thấy đề sai thì bấm "Báo câu hỏi sai" ngay trong lượt.</strong> Admin xem lại và ẩn
+      câu đó khỏi mọi lượt mới. Tối đa 10 báo cáo mỗi ngày.</li>
+    <li><strong>Hạn mức chơi</strong>: 20 lượt mỗi giờ và 60 lượt mỗi ngày cho một tài khoản.</li>
+  </ul>
+</div>
+
+<div class="panel">
+  <h2 class="panel__title">Bảng xếp hạng tính thế nào</h2>
+  <p>
+    Điểm xếp hạng của một màn là <strong>lượt cao điểm nhất</strong> của bạn ở màn đó. Bảng tổng
+    cộng điểm cao nhất của cả 5 màn.
+  </p>
+  <p>
+    Bằng điểm thì <strong>người cần ít lượt hơn để đạt mức điểm đó xếp trên</strong>. Số lượt này
+    đếm trong đúng chu kỳ đang xem, nên bảng tuần không bất lợi cho người mới.
+  </p>
+  <p class="muted small">
+    Ba chu kỳ: tất cả thời gian, tuần (thứ Hai đến Chủ nhật) và tháng, theo giờ Việt Nam. Không chu
+    kỳ nào reset dữ liệu — tuần và tháng chỉ là bộ lọc theo thời điểm bạn hoàn thành lượt.
+  </p>
+</div>
+
+<h2>Từng màn chơi</h2>
+
+<div class="game-grid">
+  <% if (g = @games[Game::BUG_HUNT]) %>
+    <div class="panel game-card game-card--bug_hunt">
+      <%= game_sprite(g, size: 72, css_class: "sprite--card") %>
+      <h2 class="panel__title"><%= g.name %></h2>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước · tối đa <%= g.max_score %> điểm · có tính thời gian
+      </p>
+
+      <h3>Cơ chế</h3>
+      <p>
+        Mỗi bước hiện một đoạn code có đúng một bug. Bạn chọn <strong>dòng có bug</strong> và
+        <strong>loại bug</strong>. Danh sách loại bug chỉ hiện 4 lựa chọn, và đáp án đúng luôn nằm
+        trong đó.
+      </p>
+      <p>Chọn ngôn ngữ lập trình trước khi bắt đầu — cả lượt chỉ gồm câu của ngôn ngữ đó.</p>
+
+      <h3>Điểm</h3>
+      <table>
+        <tbody>
+          <tr><td>Đúng dòng</td><td><strong>6 điểm</strong></td></tr>
+          <tr><td>Đúng loại bug</td><td><strong>4 điểm</strong></td></tr>
+        </tbody>
+      </table>
+      <p>Tổng điểm của câu rồi <strong>nhân hệ số tốc độ</strong> và làm tròn xuống:</p>
+      <table>
+        <tbody>
+          <tr><td>Dưới 30 giây</td><td><strong>×1.0</strong></td></tr>
+          <tr><td>30–60 giây</td><td><strong>×0.8</strong></td></tr>
+          <tr><td>Từ 60 giây</td><td><strong>×0.5</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        Ví dụ: đúng cả dòng và loại bug ở giây thứ 45 được <code>floor((6 + 4) × 0.8) = 8</code>
+        điểm — hệ số nhân vào tổng của câu, không nhân riêng từng phần.
+      </p>
+      <p class="muted small">
+        Đồng hồ chạy từ lúc câu hỏi <strong>hiện ra</strong> đến lúc bạn nộp. Thời gian bạn đọc phần
+        giải thích của câu trước không bị tính vào câu sau, và tải lại trang không reset đồng hồ.
+        Đây là màn <strong>duy nhất</strong> có hệ số tốc độ.
+      </p>
+
+      <h3>Mẹo</h3>
+      <p>Nhìn dòng trước rồi mới chọn loại bug — dòng đáng 6 điểm, loại bug chỉ đáng 4.</p>
+    </div>
+  <% end %>
+
+  <% if (g = @games[Game::SPEC_DETECTIVE]) %>
+    <div class="panel game-card game-card--spec_detective">
+      <%= game_sprite(g, size: 72, css_class: "sprite--card") %>
+      <h2 class="panel__title"><%= g.name %></h2>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước · tối đa <%= g.max_score %> điểm · không tính thời gian
+      </p>
+
+      <h3>Cơ chế</h3>
+      <p>
+        Mỗi bước hiện một đoạn requirement gồm nhiều câu. Bạn làm hai việc:
+        <strong>tick những câu còn mơ hồ</strong>, và <strong>chọn câu hỏi làm rõ tốt nhất</strong>
+        trong 4 phương án.
+      </p>
+
+      <h3>Điểm</h3>
+      <table>
+        <tbody>
+          <tr><td>Tick đúng câu mơ hồ</td><td><strong>tối đa 10 điểm</strong></td></tr>
+          <tr><td>Chọn đúng câu hỏi làm rõ</td><td><strong>10 điểm</strong></td></tr>
+        </tbody>
+      </table>
+      <p>
+        Phần tick <strong>trừ những câu tick sai</strong>:
+        <code>floor((tick đúng − tick sai) × 10 / tổng số câu mơ hồ)</code>, thấp nhất là 0. Tick hết
+        mọi câu để chắc ăn sẽ về 0 điểm.
+      </p>
+      <p class="muted small">
+        Thứ tự 4 phương án bị đảo mỗi lần hiển thị, nên không có "đáp án luôn ở ô đầu". Màn này
+        không có hệ số tốc độ: bạn cần đọc hiểu đoạn spec, thưởng tốc độ chỉ khuyến khích tick bừa.
+      </p>
+
+      <h3>Mẹo</h3>
+      <p>Tick ít mà chắc hơn tick nhiều, vì mỗi câu tick sai trừ vào phần điểm tick.</p>
+    </div>
+  <% end %>
+
+  <% if (g = @games[Game::INCIDENT_ESCAPE_ROOM]) %>
+    <div class="panel game-card game-card--incident_escape_room">
+      <%= game_sprite(g, size: 72, css_class: "sprite--card") %>
+      <h2 class="panel__title"><%= g.name %></h2>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước · tối đa <%= g.max_score %> điểm · có đồng hồ giả lập
+      </p>
+
+      <h3>Cơ chế</h3>
+      <p>
+        Cả lượt là <strong>một sự cố duy nhất</strong>. Mỗi bước bạn chọn hành động tiếp theo, và mỗi
+        hành động <strong>tốn một số phút giả lập</strong> — không phải thời gian thật của bạn. Mục
+        tiêu là khôi phục hệ thống trong <strong>15 phút giả lập</strong>.
+      </p>
+
+      <h3>Điểm mỗi bước</h3>
+      <table>
+        <tbody>
+          <tr><td>Hành động đúng</td><td><strong>10 điểm</strong></td></tr>
+          <tr><td>Vô hại nhưng tốn thời gian</td><td><strong>5 điểm</strong></td></tr>
+          <tr><td>Hành động sai</td><td><strong>0 điểm</strong>, và cộng thêm phút giả lập</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Thưởng thời gian (cộng khi kết thúc)</h3>
+      <table>
+        <tbody>
+          <tr><td>Xong trong 15 phút giả lập</td><td><strong>+20 điểm</strong></td></tr>
+          <tr><td>Xong trong 30 phút giả lập</td><td><strong>+10 điểm</strong></td></tr>
+          <tr><td>Quá 30 phút giả lập</td><td><strong>không thưởng</strong>, lượt dừng ngay</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước × 10 điểm cộng thưởng tối đa 20 điểm là
+        <%= g.max_score %> điểm. Đến được bước khôi phục thì lượt kết thúc sớm — sự cố đã xử lý
+        xong, không cần đi hết các bước.
+      </p>
+
+      <h3>Mẹo</h3>
+      <p>
+        Hành động "vô hại" vẫn ăn phút giả lập, và tiêu quá 15 phút là mất trọn 20 điểm thưởng.
+      </p>
+    </div>
+  <% end %>
+
+  <% if (g = @games[Game::ESTIMATE_POKER]) %>
+    <div class="panel game-card game-card--estimate_poker">
+      <%= game_sprite(g, size: 72, css_class: "sprite--card") %>
+      <h2 class="panel__title"><%= g.name %></h2>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước · tối đa <%= g.max_score %> điểm · không tính thời gian
+      </p>
+
+      <h3>Cơ chế</h3>
+      <p>
+        Mỗi bước hiện một task kèm ngữ cảnh. Bạn nhập <strong>số giờ</strong> bạn cho là cần để làm
+        task đó. Không có đúng/sai tuyệt đối — điểm tính theo <strong>độ lệch</strong> so với con số
+        tham chiếu của đề.
+      </p>
+
+      <h3>Điểm</h3>
+      <table>
+        <tbody>
+          <tr><td>Lệch tối đa 10%</td><td><strong>10 điểm</strong></td></tr>
+          <tr><td>Lệch tối đa 25%</td><td><strong>7 điểm</strong></td></tr>
+          <tr><td>Lệch tối đa 50%</td><td><strong>4 điểm</strong></td></tr>
+          <tr><td>Lệch hơn 50%</td><td><strong>0 điểm</strong></td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        Con số tham chiếu được chốt sẵn trong đề từ lúc sinh câu hỏi, nên mọi người chơi cùng một
+        task đều được chấm theo cùng một mốc. Đây là <strong>số do AI sinh khi tạo đề</strong>, không
+        phải velocity thật của team — dùng để luyện cảm giác ước lượng, không dùng để đo năng suất.
+      </p>
+
+      <h3>Mẹo</h3>
+      <p>Bám mốc 10% thay vì đoán tròn số — khoảng cách giữa 10 điểm và 7 điểm chỉ vài phần trăm.</p>
+    </div>
+  <% end %>
+
+  <% if (g = @games[Game::PROD_ROULETTE]) %>
+    <div class="panel game-card game-card--prod_roulette">
+      <%= game_sprite(g, size: 72, css_class: "sprite--card") %>
+      <h2 class="panel__title"><%= g.name %></h2>
+      <p class="muted small">
+        <%= g.steps_per_session %> bước · tối đa <%= g.max_score %> điểm · sai một bước là hết lượt
+      </p>
+
+      <h3>Cơ chế</h3>
+      <p>
+        Cả lượt là <strong>một kịch bản thao tác trên production</strong>. Mỗi bước bạn chọn hành
+        động, và chọn phải <strong>hành động không thể thu hồi</strong> thì lượt
+        <strong>kết thúc ngay tại đó</strong> — gửi email/SMS thật, tạo giao dịch thật, gọi API bên
+        thứ ba thật thì không có "dọn dẹp sau".
+      </p>
+
+      <h3>Điểm mỗi bước</h3>
+      <table>
+        <tbody>
+          <tr><td>Chọn an toàn</td><td><strong>10 điểm</strong></td></tr>
+          <tr><td>Rủi ro nhưng khôi phục được</td><td><strong>3 điểm</strong></td></tr>
+          <tr><td>Không thể thu hồi</td><td><strong>0 điểm</strong>, lượt kết thúc</td></tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        Dừng lượt <strong>không xoá điểm đã cộng</strong> ở các bước trước — dừng là bài học, không
+        phải hình phạt. Muốn đạt trần <%= g.max_score %> điểm thì phải đi hết
+        <%= g.steps_per_session %> bước mà không chạm hành động nào không thể thu hồi.
+      </p>
+
+      <h3>Mẹo</h3>
+      <p>Đọc kỹ xem hành động có gửi gì ra ngoài hệ thống hay không trước khi chọn.</p>
+    </div>
+  <% end %>
+</div>
+
+<div class="actions">
+  <% if logged_in? %>
+    <%= link_to "Chọn màn chơi", games_path, class: "btn btn--primary" %>
+  <% else %>
+    <%= link_to "Đăng ký để chơi", signup_path, class: "btn btn--primary" %>
+    <%= link_to "Đăng nhập", login_path, class: "btn" %>
+  <% end %>
+  <%= link_to "Bảng xếp hạng", leaderboards_path, class: "btn" %>
+</div>
