@@ -48,10 +48,20 @@ module Questions
       return [ Outcome.new(label: "-", status: :nothing_to_do, detail: "mọi game đã đủ đề") ] if
         shortfalls.empty?
 
+      # Lọc mục tiêu bị chặn TRƯỚC khi chọn, không phải sau. Chọn trước rồi mới kiểm thì một
+      # mục tiêu bị chặn làm cả lần chạy thành vô ích, dù còn mục tiêu khác nạp được ngay —
+      # gặp thật trên production: cả 6 mục tiêu thiếu đề đều có lượt đang mở nên lần chạy
+      # đầu tiên sinh 0 đề mà vẫn báo xanh.
+      blocked, eligible = shortfalls.partition { |target| sessions_open?(target.game) }
+
       # Thiếu nhiều nhất được ưu tiên: game nào sắp không chơi được thì bù trước.
-      shortfalls.sort_by { |target| -target.shortfall }
-                .first(@max_targets)
-                .map { |target| refill(target) }
+      refilled = eligible.sort_by { |target| -target.shortfall }
+                         .first(@max_targets)
+                         .map { |target| refill(target) }
+
+      # Vẫn báo ra mục tiêu bị chặn: im lặng thì không phân biệt được "hôm nay đủ đề rồi" với
+      # "hôm nay không nạp được vì lúc nào cũng có người đang chơi".
+      refilled + blocked.map { |target| skipped(target) }
     end
 
     # Mục tiêu = một (game, ngôn ngữ). Game không phân ngôn ngữ thì language = nil.
@@ -71,12 +81,14 @@ module Questions
                  goal: game.questions_per_session * TARGET_MULTIPLIER)
     end
 
-    def refill(target)
-      if sessions_open?(target.game)
-        return Outcome.new(label: target.label, status: :skipped,
-                           detail: "còn lượt đang chơi — nạp đề giữa lượt sẽ chấm sai câu")
-      end
+    def skipped(target)
+      open_count = GameSession.where(game: target.game, state: GameSession::IN_PROGRESS).count
 
+      Outcome.new(label: target.label, status: :skipped,
+                  detail: "còn #{open_count} lượt đang chơi — nạp đề giữa lượt sẽ chấm sai câu "                           "(thiếu #{target.shortfall} đề)")
+    end
+
+    def refill(target)
       count = [ target.shortfall, @per_run ].min
       batch = @generator_builder.call(target.game, target.language).call(count: count)
 

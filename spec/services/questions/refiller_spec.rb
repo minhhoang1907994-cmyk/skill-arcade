@@ -74,8 +74,33 @@ RSpec.describe Questions::Refiller do
 
       expect(generated).to be_empty
       expect(outcomes.first.status).to eq(:skipped)
-      expect(outcomes.first.detail).to include("còn lượt đang chơi")
+      expect(outcomes.first.detail).to include("1 lượt đang chơi")
       expect(Question.where(game: game).count).to eq(1)
+    end
+
+    # Gặp thật trên production: cả 6 mục tiêu thiếu đề đều có lượt đang mở, và vì mục tiêu
+    # được CHỌN trước rồi mới kiểm nên lần chạy sinh 0 đề dù còn mục tiêu khác nạp được.
+    it "mục tiêu bị chặn KHÔNG chiếm suất của mục tiêu nạp được" do
+      other = create(:game, slug: Game::PROD_ROULETTE, name: "PROD Roulette",
+                     questions_per_session: 1, steps_per_session: 10)
+      # estimate_poker thiếu nhiều hơn nhưng đang có người chơi; prod_roulette nạp được.
+      create_questions(1)
+      create(:game_session, game: game, user: create(:user), state: GameSession::IN_PROGRESS)
+
+      scenario_record = {
+        "content" => { "scenario" => "sự cố #{SecureRandom.hex(3)}",
+                       "nodes" => [ { "key" => "n1", "prompt" => "làm gì?",
+                                      "options" => [ { "key" => "a", "label" => "rollback" } ] } ] },
+        "answer_key" => { "option_effects" => { "a" => { "points" => 10 } } }
+      }
+      service, generated = refiller(records: [ scenario_record ])
+
+      outcomes = service.call
+
+      expect(generated.size).to eq(1)
+      expect(outcomes.map(&:status)).to contain_exactly(:done, :skipped)
+      expect(outcomes.find { |o| o.status == :done }.label).to eq(other.slug)
+      expect(outcomes.find { |o| o.status == :skipped }.label).to eq(game.slug)
     end
 
     it "vẫn chạy khi lượt duy nhất đã kết thúc" do
