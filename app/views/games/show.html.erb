@@ -85,6 +85,9 @@
 
 <script type="module">
   const slug = <%= @game.slug.to_json.html_safe %>;
+  // Nhãn loại bug lấy từ Question::BUG_HUNT_TYPE_LABELS — một nguồn duy nhất cho cả UI và
+  // phần giải thích do server sinh, không khai lại danh sách ở JS.
+  const bugTypeLabels = <%= Question::BUG_HUNT_TYPE_LABELS.to_json.html_safe %>;
   const totalSteps = <%= @game.steps_per_session %>;
   const maxScore = <%= @game.max_score %>;
   const csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -169,17 +172,21 @@
     });
     $("question").appendChild(ol);
 
-    // Loại bug hiển thị hết ra ngoài dạng chip bấm chọn — không dùng dropdown,
-    // để người chơi thấy toàn bộ lựa chọn và không vô tình nộp giá trị mặc định.
+    // Loại bug hiện hết ra ngoài dạng thẻ bấm chọn — không dùng dropdown, để người chơi
+    // thấy toàn bộ lựa chọn và không vô tình nộp giá trị mặc định. Mỗi thẻ có tên tiếng
+    // Việt kèm một dòng gợi ý dấu hiệu nhận biết; slug tiếng Anh không hiện ra vì tự nó
+    // không nói lên loại bug là gì.
     $("answer-area").className = "";
     $("answer-area").innerHTML =
       '<p class="score-label">Dòng đã chọn: <span id="chosen-line">chưa chọn</span></p>' +
       '<p class="score-label" style="margin-top:14px">Loại bug</p>' +
-      '<div class="chips" role="radiogroup" aria-label="Loại bug">' +
-      c.bug_types.map((t) =>
-        '<label><input type="radio" name="bug-type" value="' + escapeHtml(t) + '">' +
-        "<span>" + escapeHtml(t) + "</span></label>"
-      ).join("") +
+      '<div class="bug-types" role="radiogroup" aria-label="Loại bug">' +
+      c.bug_types.map((t) => {
+        const label = bugTypeLabels[t] || { name: t, hint: "" };
+        return '<label><input type="radio" name="bug-type" value="' + escapeHtml(t) + '">' +
+          '<span class="bug-type__name">' + escapeHtml(label.name) + "</span>" +
+          '<span class="bug-type__hint">' + escapeHtml(label.hint) + "</span></label>";
+      }).join("") +
       "</div>";
   }
 

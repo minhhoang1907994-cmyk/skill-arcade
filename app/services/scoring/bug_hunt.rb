@@ -45,7 +45,8 @@ module Scoring
       else
         "Bug nằm ở dòng #{key['buggy_line']}."
       end
-      parts << "Loại bug: #{key['bug_type']}#{type_correct ? ' (bạn chọn đúng)' : ''}."
+      label = Question.bug_hunt_label(key["bug_type"])
+      parts << "Loại bug: #{label['name']}#{type_correct ? ' (bạn chọn đúng)' : ''}."
       parts << key["explanation"] if key["explanation"].present?
       parts << "Hệ số tốc độ: ×#{multiplier}." if multiplier < 1.0
       parts.join(" ")

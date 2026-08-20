@@ -18,6 +18,18 @@ RSpec.describe "Gameplay API" do
     end
   end
 
+  # Đề mang trọn danh sách 12 loại bug như đề thật, để kiểm tra phần rút bớt lựa chọn.
+  def create_full_bug_hunt_questions(count = 3, language: "ruby")
+    count.times do |i|
+      create(:question, game: game,
+             content: { "language" => language, "code_lines" => [ "full#{i}" ],
+                        "bug_types" => Question::BUG_HUNT_TYPES },
+             answer_key: { "buggy_line" => 1,
+                           "bug_type" => Question::BUG_HUNT_TYPES[i % Question::BUG_HUNT_TYPES.size],
+                           "explanation" => "..." })
+    end
+  end
+
   # Bug Hunt phân đề theo ngôn ngữ nên tạo lượt phải kèm language.
   def start_session(language: "ruby")
     post api_v1_game_sessions_path(slug: game.slug),
@@ -104,6 +116,31 @@ RSpec.describe "Gameplay API" do
            params: { position: 1, answer: { line: 1, bug_type: "sql_injection" } }, as: :json
 
       expect(SessionAnswer.sole.question_id).to eq(shown_id)
+    end
+
+    it "chỉ hiện 4 loại bug và luôn có đáp án đúng trong đó" do
+      create_full_bug_hunt_questions
+
+      start_session
+
+      types = response.parsed_body["current"]["content"]["bug_types"]
+      expect(types.size).to eq(GameSessions::StepProvider::BUG_HUNT_TYPE_CHOICES)
+      expect(types - Question::BUG_HUNT_TYPES).to be_empty
+      shown_key = Question.find(response.parsed_body["current"]["question_id"])
+                          .answer_key["bug_type"]
+      expect(types).to include(shown_key)
+    end
+
+    it "tải lại giữa bước vẫn thấy đúng danh sách loại bug đó" do
+      create_full_bug_hunt_questions
+
+      start_session
+      sid = response.parsed_body["session_id"]
+      shown_types = response.parsed_body["current"]["content"]["bug_types"]
+
+      get api_v1_session_current_path(id: sid), as: :json
+
+      expect(response.parsed_body["current"]["content"]["bug_types"]).to eq(shown_types)
     end
 
     it "tải lại giữa bước vẫn thấy đúng câu đó (spec §13)" do

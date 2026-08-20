@@ -1,3 +1,5 @@
+require "digest"
+
 module GameSessions
   # Trả về bước hiện tại của lượt: vị trí và câu hỏi tương ứng.
   #
@@ -8,6 +10,12 @@ module GameSessions
   #   mỗi bước là một node quyết định trong kịch bản đó.
   class StepProvider
     class NoQuestionAvailable < StandardError; end
+
+    # Bug Hunt hiện bao nhiêu loại bug cho người chơi chọn. Ngân hàng câu hỏi lưu cả 12
+    # loại trong `content["bug_types"]`, hiện hết ra thì đoán loại bug khó hơn hẳn tìm
+    # đúng dòng. Rút xuống còn 4 lựa chọn (luôn kèm đáp án đúng) để hai phần của câu hỏi
+    # cân nhau hơn.
+    BUG_HUNT_TYPE_CHOICES = 4
 
     def initialize(session)
       @session = session
@@ -27,11 +35,33 @@ module GameSessions
       {
         position: next_position,
         question_id: question.id,
-        content: question.content
+        content: display_content
       }
     end
 
     private
+
+    # content đem hiển thị: giống hệt content trong DB, trừ Bug Hunt bị rút bớt danh sách
+    # loại bug. Rút ở payload chứ không sửa content trong DB vì content đi vào checksum.
+    def display_content
+      content = question.content
+      return content unless @session.game.slug == Game::BUG_HUNT
+
+      types = Array(content["bug_types"])
+      return content if types.size <= BUG_HUNT_TYPE_CHOICES
+
+      correct = question.answer_key["bug_type"].to_s
+      distractors = (types - [ correct ]).sample(BUG_HUNT_TYPE_CHOICES - 1, random: choice_rng)
+      content.merge("bug_types" => ([ correct ] + distractors).shuffle(random: choice_rng))
+    end
+
+    # Cùng khoá seed với việc bốc câu hỏi: tải lại trang giữa bước vẫn thấy đúng danh sách
+    # lựa chọn cũ, không phải một tập khác.
+    def choice_rng
+      @choice_rng ||= Random.new(
+        Digest::SHA256.hexdigest("types:#{@session.id}:#{next_position}").to_i(16) % (2**32)
+      )
+    end
 
     # Kịch bản đã bốc ở bước đầu thì giữ nguyên cho các bước sau.
     def scenario_question

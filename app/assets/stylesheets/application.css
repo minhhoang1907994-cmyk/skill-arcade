@@ -819,6 +819,63 @@ tbody tr:nth-child(even) { background: rgba(255, 201, 60, .14); }
 .options label:has(input:checked) { background: var(--coin); transform: translate(3px, 3px); box-shadow: none; }
 .options input { margin-right: 10px; transform: scale(1.3); accent-color: var(--brick-dark); }
 
+/* Loại bug của Bug Hunt: mỗi lựa chọn là một thẻ có tên ngắn + dòng gợi ý, thay cho chip
+   chỉ hiện slug tiếng Anh. Chip một dòng không đủ chỗ cho gợi ý. */
+.bug-types {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.bug-types label {
+  display: block;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--paper-alt);
+  padding: 11px 14px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .05s steps(1), box-shadow .05s steps(1);
+}
+.bug-types label:hover { background: #fff; }
+
+/* Radio thật vẫn tồn tại để giữ điều hướng bàn phím và ngữ nghĩa nhóm lựa chọn. */
+.bug-types input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bug-types label:has(input:checked) {
+  background: var(--coin);
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+.bug-types label:has(input:focus-visible) {
+  outline: 3px solid var(--sea);
+  outline-offset: 3px;
+}
+
+.bug-type__name {
+  display: block;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.bug-type__hint {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--body-font);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.bug-types label:has(input:checked) .bug-type__hint { color: var(--ink); }
+
 .feedback {
   border: 3px solid var(--ink);
   border-radius: 6px;
