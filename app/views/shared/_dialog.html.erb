@@ -21,8 +21,11 @@
 
     <div class="dialog__actions">
       <%# Nút huỷ đứng TRƯỚC trong DOM để Tab đi từ huỷ sang đồng ý, và để Enter trong
-          form không kích hoạt nó (nút submit đầu tiên là nút mặc định của form). %>
-      <button type="submit" value="cancel" id="app-dialog-cancel" class="btn">Huỷ</button>
+          form không kích hoạt nó (nút submit đầu tiên là nút mặc định của form).
+
+          formnovalidate: dialog dạng prompt đặt required lên textarea, nếu không có thuộc
+          tính này thì bấm Huỷ sẽ bị constraint validation chặn lại và dialog không đóng. %>
+      <button type="submit" value="cancel" id="app-dialog-cancel" class="btn" formnovalidate>Huỷ</button>
       <button type="submit" value="ok" id="app-dialog-ok" class="btn--primary">Đồng ý</button>
     </div>
   </form>

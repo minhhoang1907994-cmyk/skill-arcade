@@ -30,6 +30,13 @@ RSpec.describe "Modal dialog dùng chung" do
     expect(response.body).to include('id="app-dialog"')
   end
 
+  it "nút Huỷ mang formnovalidate — prompt đặt required nên không có nó thì Huỷ bị chặn" do
+    get privacy_path
+
+    cancel_button = response.body[/<button[^>]*id="app-dialog-cancel"[^>]*>/]
+    expect(cancel_button).to include("formnovalidate")
+  end
+
   describe "nút phá huỷ ở trang admin" do
     it "nút xoá tài khoản mang data-confirm để handler chặn được" do
       victim = create(:user)
