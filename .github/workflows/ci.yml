@@ -79,7 +79,15 @@ jobs:
 
     services:
       mysql:
-        image: mysql
+        # PHAI ghim version, KHONG de `mysql` (= tag latest).
+        #
+        # 8.4 de khop voi ca hai noi that su chay: docker-compose.yml o local va Aiven for MySQL
+        # 8.4.8 tren production (spec section 19). Tag latest keo MySQL 9.x, va da fail that:
+        # `Questions::Drawer#shuffle_order` dung MD5(CONCAT(...)) de khoa thu tu boc de theo
+        # (session_id, position) — BR-36 — nhung tren 9.x query do tra
+        # `Mysql2::Error: FUNCTION skill_arcade_test.MD5 does not exist`. Cung bo spec do pass
+        # tren 8.4. CI test phien ban khong ai chay thi bat loi khong co that va bo loi co that.
+        image: mysql:8.4
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: true
         ports:

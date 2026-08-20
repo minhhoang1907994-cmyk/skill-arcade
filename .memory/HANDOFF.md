@@ -127,6 +127,28 @@ answer      { statement_indexes: [1,3], option_key: "a" }
   `REDIS_URL`** → runner rơi về file store nên circuit breaker của job tách khỏi web service
 - Trang `/privacy` §2 viết lại: nội dung người chơi nhập KHÔNG ra khỏi app
 
+### CI: phải ghim version MySQL, không dùng tag latest (2026-08-20)
+
+Sau khi sửa `ci.yml`, job `test` vẫn đỏ: `Mysql2::Error: FUNCTION skill_arcade_test.MD5 does not
+exist`. Cùng bộ spec đó pass ở local.
+
+Nguyên nhân: `image: mysql` = tag **`latest`** → MySQL 9.x. Log runner ghi rõ
+`latest: Pulling from library/mysql`. `Questions::Drawer#shuffle_order` dùng
+`MD5(CONCAT(questions.id, seed))` để khoá thứ tự bốc đề theo `(session_id, position)` — đây là
+cơ chế thực thi BR-36 — và trên 9.x query đó không giải được hàm MD5.
+
+Đã ghim `image: mysql:8.4`, khớp cả hai nơi thật sự chạy: `docker-compose.yml` ở local và Aiven
+for MySQL **8.4.8** trên production (spec section 19). CI test phiên bản không ai chạy thì vừa bắt
+lỗi không có thật, vừa bỏ lỡ lỗi có thật.
+
+**RỦI RO CÒN LẠI, chưa xử lý**: nếu sau này nâng MySQL production lên 9.x thì `Drawer` sẽ vỡ và
+BR-36 mất bảo đảm — người chơi bị chấm theo câu chưa từng thấy. Chưa verify được MySQL 9.x thay
+MD5 bằng gì. Phương án nếu cần bỏ phụ thuộc hàm hash của DB: sắp thứ tự trong Ruby
+(`Digest::MD5.hexdigest("#{q.id}#{seed}")`), đánh đổi là phải nạp cả pool vào memory thay vì
+`LIMIT` ở tầng DB. Pool hiện lớn nhất 45 câu nên khả thi, nhưng là thay đổi thiết kế cần cân nhắc
+riêng — **verify trước khi nâng version, đừng nâng rồi mới biết**.
+
+
 ### v1.23 — ci.yml chỉnh cho khớp project (2026-08-20)
 
 `ci.yml` là file mẫu Rails chưa từng được sửa cho project này. Trigger sai branch nên không ai
