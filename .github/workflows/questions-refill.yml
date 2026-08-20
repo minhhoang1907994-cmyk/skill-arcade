@@ -1,0 +1,80 @@
+# Job hằng ngày sinh đề bằng Gemini rồi nạp vào DB production (spec §6, §20).
+#
+# Vì sao GitHub Actions chứ không phải Render Cron Job: Render tính phí cron theo phút và
+# không có gói free, nên `render.yaml` cố ý không có cron (xem docs/deploy/render-aiven.md
+# mục 5). Actions theo lịch là miễn phí.
+#
+# Vì sao KHÔNG set REDIS_URL ở đây: thiếu biến đó thì production rơi về file store trong
+# container của runner (config/environments/production.rb). Nhờ vậy Gemini::CircuitBreaker
+# và rack_attack của job này KHÔNG dùng chung trạng thái với web service — job lỗi liên tiếp
+# không mở breaker của production.
+#
+# ĐIỀU KIỆN TIÊN QUYẾT: IP của runner là động, nên service Aiven phải cho phép kết nối từ
+# mọi IP. Nếu Aiven đang bật Allowed IP addresses thì job này KHÔNG kết nối được DB và phải
+# chuyển sang Render Cron Job (`type: cron`, ~1 USD/tháng).
+name: Refill question bank
+
+on:
+  schedule:
+    # 19:00 UTC = 02:00 giờ Việt Nam. Chọn giờ thấp điểm vì Questions::Refiller BỎ QUA game
+    # còn lượt đang chơi — nạp đề giữa lượt sẽ làm người chơi bị chấm theo câu họ chưa thấy
+    # (BR-36). Giờ này gần như luôn không có lượt nào đang mở.
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+# Hai lần chạy đè nhau sẽ cùng gọi Gemini và cùng INSERT — chặn ở đây thay vì xử lý trùng.
+concurrency:
+  group: questions-refill
+  cancel-in-progress: false
+
+jobs:
+  refill:
+    runs-on: ubuntu-latest
+
+    # contents: write chỉ cần cho bước commit file YAML ở cuối. Bỏ bước đó thì hạ xuống
+    # `contents: read` — job vẫn nạp đề vào DB bình thường, chỉ mất git history của đề.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Refill question bank
+        env:
+          RAILS_ENV: production
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          # CA của Aiven commit sẵn trong repo nên có ngay sau checkout. Thiếu file thì
+          # database.yml tự hạ xuống ssl_mode: required và Aiven sẽ từ chối vì CA riêng của
+          # họ không nằm trong trust store — lỗi sẽ rõ ràng, không âm thầm.
+          DB_SSL_CA: config/aiven-ca.pem
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-3.6-flash
+        # KHÔNG chạy db:prepare hay db:migrate ở đây: job này chỉ được ghi bảng questions,
+        # không được đụng schema của production.
+        run: bin/rails questions:refill
+
+      # File YAML là bản ghi duy nhất cho biết đúng nội dung gì đã vào DB trong lần chạy này.
+      # Commit lại để có git history soát hậu kiểm — Q4 đã bỏ bước người soát TRƯỚC khi
+      # import, nên đây là chỗ duy nhất còn xem lại được.
+      - name: Commit generated bank files
+        run: |
+          if [ -z "$(git status --porcelain db/question_banks)" ]; then
+            echo "Không có file đề mới."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add db/question_banks
+          git commit -m "chore: refill question bank $(date -u +%F)"
+          git push

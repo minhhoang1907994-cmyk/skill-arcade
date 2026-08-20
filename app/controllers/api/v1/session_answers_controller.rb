@@ -20,8 +20,6 @@ module Api
       rescue ActiveRecord::RecordNotUnique
         # Hai request cùng nộp một position — unique index chặn ở tầng DB (§9).
         render_error(:conflict, "POSITION_CONFLICT", "Câu này đã được trả lời")
-      rescue ::Scoring::Base::GradingUnavailable => e
-        handle_grading_unavailable(e)
       end
 
       private
@@ -56,16 +54,6 @@ module Api
           is_new_best: @game_session.score >= best,
           attempt_number: @game_session.attempt_number
         }
-      end
-
-      # §8.5: lỗi hệ thống không phải lỗi người chơi — lượt không tính điểm và
-      # không bị trừ vào hạn mức (BR-33).
-      def handle_grading_unavailable(error)
-        @game_session.abandon!(::GameSession::SYSTEM_ERROR)
-        Rails.logger.warn("[grading] unavailable session_id=#{@game_session.id} #{error.message}")
-
-        render_error(:service_unavailable, "GRADING_UNAVAILABLE",
-                     "Hệ thống chấm điểm tạm thời bận, lượt chơi đã được lưu")
       end
     end
   end

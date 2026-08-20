@@ -136,6 +136,74 @@ RSpec.describe Questions::Generator do
     end
   end
 
+  describe "spec_detective (BR-26 — dạng chọn từ 1.19)" do
+    let(:game) { create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective") }
+
+    let(:item) do
+      {
+        difficulty: "medium",
+        statements: [ "Xử lý đơn nhanh.", "Lưu vào bảng orders.", "Thông báo nếu cần." ],
+        ambiguous_statement_indexes: [ 3, 1, 1 ],
+        clarifying_options: [ { key: "a", label: "Nhanh là mấy giây?" },
+                              { key: "b", label: "Lưu ở bảng nào?" },
+                              { key: "c", label: "Có cần nhanh hơn đối thủ?" },
+                              { key: "d", label: "Email gửi bằng gì?" } ],
+        best_option_key: "a",
+        explanation: "a đo được bằng con số."
+      }
+    end
+
+    def generate(payload)
+      described_class.new(game: game, client: fake_client(payload), breaker: breaker)
+                     .call(count: 1).records
+    end
+
+    it "dựng content/answer_key đúng format chọn, index đã uniq và sort" do
+      record = generate({ questions: [ item ] }).first
+
+      expect(record["content"]).to eq(
+        "statements" => [ "Xử lý đơn nhanh.", "Lưu vào bảng orders.", "Thông báo nếu cần." ],
+        "clarifying_options" => [ { "key" => "a", "label" => "Nhanh là mấy giây?" },
+                                  { "key" => "b", "label" => "Lưu ở bảng nào?" },
+                                  { "key" => "c", "label" => "Có cần nhanh hơn đối thủ?" },
+                                  { "key" => "d", "label" => "Email gửi bằng gì?" } ]
+      )
+      expect(record["answer_key"]).to eq(
+        "ambiguous_statement_indexes" => [ 1, 3 ],
+        "best_option_key" => "a",
+        "explanation" => "a đo được bằng con số."
+      )
+    end
+
+    it "loại đề có index trỏ ra ngoài danh sách câu" do
+      expect(generate({ questions: [ item.merge(ambiguous_statement_indexes: [ 9 ]) ] })).to be_empty
+    end
+
+    it "loại đề đánh dấu mọi câu là mơ hồ" do
+      payload = { questions: [ item.merge(ambiguous_statement_indexes: [ 1, 2, 3 ]) ] }
+
+      expect(generate(payload)).to be_empty
+    end
+
+    it "loại đề có best_option_key không thuộc danh sách phương án" do
+      expect(generate({ questions: [ item.merge(best_option_key: "z") ] })).to be_empty
+    end
+
+    it "đề sinh ra được scorer thật chấm đúng" do
+      record = generate({ questions: [ item ] }).first
+      question = create(:question, game: game, content: record["content"],
+                        answer_key: record["answer_key"])
+
+      result = Scoring::SpecDetective.new.call(
+        session: create(:game_session, game: game), question: question,
+        answer: { "statement_indexes" => [ 1, 3 ], "option_key" => "a" }, elapsed_ms: nil
+      )
+
+      expect(result.score).to eq(20)
+    end
+  end
+
+
   it "báo lỗi với game chưa có blueprint" do
     game = create(:game)
     allow(game).to receive(:slug).and_return("unknown_game")

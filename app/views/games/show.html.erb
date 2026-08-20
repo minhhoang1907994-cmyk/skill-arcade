@@ -11,29 +11,6 @@
     tối đa <strong><%= @game.max_score %> điểm</strong>.
     Điểm cao nhất của bạn: <strong><%= current_user.best_score_for(@game) %></strong>.
   </p>
-  <%# Game chấm bằng AI bị hạn mức của dịch vụ bên ngoài giới hạn, nên nói rõ số lượt còn
-      lại ở đây. Không nói thì người chơi bấm Bắt đầu rồi mới nhận 503 và không hiểu vì sao. %>
-  <% if @game.ai_graded? %>
-    <% sessions_left = @ai_budget.sessions_left(@game) %>
-    <% if sessions_left.positive? %>
-      <p class="muted small">
-        Game này chấm điểm bằng AI nên có hạn mức: mỗi người <strong>1 lượt/ngày</strong>, và
-        toàn hệ thống hôm nay còn <strong><%= sessions_left %> lượt</strong>.
-      </p>
-      <p class="feedback feedback--bad">
-        Nội dung bạn gõ ở game này được gửi sang Google Gemini (gói miễn phí) để chấm điểm, và
-        theo điều khoản của Google thì người thật của Google có thể đọc.
-        <strong>Đừng dán nội dung nội bộ hoặc của khách hàng vào ô trả lời.</strong>
-        <%= link_to "Chi tiết ở chính sách riêng tư", privacy_path %>.
-      </p>
-    <% else %>
-      <p class="feedback feedback--neutral">
-        Hôm nay hệ thống đã dùng hết hạn mức của dịch vụ chấm điểm AI
-        (<%= @ai_budget.used %>/<%= Gemini::DailyBudget::DAILY_REQUEST_LIMIT %> lượt gọi trong
-        24 giờ qua). Mời bạn quay lại ngày mai, hoặc chơi 4 game còn lại.
-      </p>
-    <% end %>
-  <% end %>
 
   <% if @game.language_scoped? %>
     <p class="score-label" style="margin-top:8px">Chọn ngôn ngữ lập trình</p>
@@ -57,10 +34,8 @@
     <% end %>
   <% end %>
 
-  <%# Hai lý do không chơi được, cả hai đều biết trước ở server: chưa đủ câu cho ngôn ngữ
-      nào, hoặc hết hạn mức chấm điểm AI của ngày. %>
-  <% cannot_start = (@game.language_scoped? && @languages.empty?) ||
-                    (@game.ai_graded? && !@ai_budget.enough_for_session?(@game)) %>
+  <%# Lý do duy nhất không chơi được, biết trước ở server: chưa đủ câu cho ngôn ngữ nào. %>
+  <% cannot_start = @game.language_scoped? && @languages.empty? %>
   <div class="actions">
     <button id="start-btn" type="button" class="btn--primary"
             <%= "disabled" if cannot_start %>>
@@ -166,16 +141,7 @@
         '<div class="form"><div class="field"><label for="hours">Ước lượng (giờ)</label>' +
         '<input id="hours" type="number" min="0.5" step="0.5" autofocus></div></div>';
     } else if (slug === "spec_detective") {
-      $("question").innerHTML = '<div class="scenario-log">' + escapeHtml(c.requirement_text) + "</div>";
-      $("answer-area").innerHTML =
-        '<div class="form">' +
-        // Nhắc lại ngay tại ô gõ, không chỉ ở panel intro: người chơi đã cuộn qua panel đó.
-        '<p class="muted small">Nội dung dưới đây được gửi sang Google Gemini để chấm. ' +
-        'Không dán nội dung nội bộ hoặc của khách hàng.</p>' +
-        '<div class="field"><label for="points">Các điểm mơ hồ (mỗi dòng một điểm)</label>' +
-        '<textarea id="points" rows="4"></textarea></div>' +
-        '<div class="field"><label for="questions">Câu hỏi làm rõ</label>' +
-        '<textarea id="questions" rows="4"></textarea></div></div>';
+      renderSpecDetective(c);
     } else {
       renderScenario(c);
     }
@@ -215,6 +181,43 @@
         "<span>" + escapeHtml(t) + "</span></label>"
       ).join("") +
       "</div>";
+  }
+
+  // Từng câu của đoạn yêu cầu là một ô tick, số thứ tự trên UI khớp đúng index mà server
+  // dùng để chấm (đếm từ 1). Dựng bằng DOM API chứ không nối chuỗi HTML vì nội dung câu do
+  // AI sinh — textContent tự escape.
+  function renderSpecDetective(c) {
+    $("question").innerHTML = "";
+    const intro = document.createElement("p");
+    intro.className = "muted small";
+    intro.textContent = "Tick những câu bạn cho là còn mơ hồ. Tick sai bị trừ điểm.";
+    $("question").appendChild(intro);
+
+    const ol = document.createElement("ol");
+    ol.className = "statements";
+    c.statements.forEach((text, i) => {
+      const li = document.createElement("li");
+      const label = document.createElement("label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.name = "stmt";
+      box.value = i + 1;
+      const span = document.createElement("span");
+      span.textContent = text;
+      label.appendChild(box);
+      label.appendChild(span);
+      li.appendChild(label);
+      ol.appendChild(li);
+    });
+    $("question").appendChild(ol);
+
+    $("answer-area").className = "options";
+    $("answer-area").innerHTML =
+      '<p class="score-label">Câu hỏi làm rõ nào tốt nhất?</p>' +
+      c.clarifying_options.map((o) =>
+        '<label><input type="radio" name="opt" value="' + escapeHtml(o.key) + '"> ' +
+        escapeHtml(o.label) + "</label>"
+      ).join("");
   }
 
   function renderScenario(c) {
@@ -266,10 +269,12 @@
       return { hours };
     }
     if (slug === "spec_detective") {
-      return {
-        ambiguous_points: $("points").value.split("\n").filter((s) => s.trim()),
-        questions: $("questions").value
-      };
+      const picked = Array.from(document.querySelectorAll('input[name="stmt"]:checked'))
+        .map((el) => Number(el.value));
+      if (!picked.length) throw new Error("Tick ít nhất một câu bạn cho là mơ hồ");
+      const opt = document.querySelector('input[name="opt"]:checked');
+      if (!opt) throw new Error("Chọn một câu hỏi làm rõ");
+      return { statement_indexes: picked, option_key: opt.value };
     }
     const chosen = document.querySelector('input[name="opt"]:checked');
     if (!chosen) throw new Error("Chọn một phương án");

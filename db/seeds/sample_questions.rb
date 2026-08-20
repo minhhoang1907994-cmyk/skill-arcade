@@ -605,29 +605,125 @@ end
 # --- Spec Detective: 6 đoạn requirement (chấm bằng AI ở Phase 3) ---
 spec_detective = Game.find_by!(slug: Game::SPEC_DETECTIVE)
 
+# Từ 1.19 Spec Detective chấm từ answer_key thay vì gọi Gemini, nên đề phải mang sẵn thang
+# điểm: câu nào mơ hồ (số thứ tự, đếm từ 1 theo statements) và phương án nào là tốt nhất.
+# Mỗi đề phải còn ít nhất một câu KHÔNG mơ hồ, không thì tick hết là đủ điểm.
 SPEC_SAMPLES = [
-  [ "Hệ thống phải xử lý đơn hàng nhanh chóng. Khi có đơn mới, gửi thông báo cho bộ phận liên quan nếu cần thiết.",
-    [ "nhanh chóng", "bộ phận liên quan", "nếu cần thiết" ] ],
-  [ "Người dùng có thể tải file lên. File quá lớn sẽ bị từ chối với thông báo phù hợp.",
-    [ "quá lớn", "thông báo phù hợp", "loại file được phép" ] ],
-  [ "Báo cáo doanh thu hiển thị dữ liệu của kỳ hiện tại và cho phép xuất ra file.",
-    [ "kỳ hiện tại", "định dạng file xuất", "phạm vi dữ liệu theo quyền" ] ],
-  [ "Khi khách hàng huỷ đơn, hoàn tiền theo chính sách của công ty.",
-    [ "chính sách của công ty", "hoàn toàn phần hay toàn bộ", "thời hạn được huỷ" ] ],
-  [ "Admin có thể chỉnh sửa thông tin người dùng. Một số trường không được phép sửa.",
-    [ "một số trường", "admin cấp nào", "có ghi log thay đổi không" ] ],
-  [ "Hệ thống tự động đồng bộ dữ liệu với hệ thống kế toán định kỳ.",
-    [ "định kỳ", "dữ liệu nào", "xử lý khi đồng bộ thất bại" ] ]
+  {
+    statements: [
+      "Hệ thống phải xử lý đơn hàng nhanh chóng sau khi khách bấm đặt hàng.",
+      "Đơn hàng được lưu vào bảng orders với trạng thái pending.",
+      "Khi có đơn mới, gửi thông báo cho bộ phận liên quan nếu cần thiết.",
+      "Thông báo gửi qua email tới địa chỉ đã cấu hình trong phần cài đặt."
+    ],
+    ambiguous: [ 1, 3 ],
+    options: [
+      { key: "a", label: "\"Nhanh chóng\" là trong bao nhiêu giây, và đo từ lúc nào tới lúc nào?" },
+      { key: "b", label: "Đơn hàng được lưu vào bảng nào?" },
+      { key: "c", label: "Hệ thống có cần chạy nhanh hơn đối thủ không?" },
+      { key: "d", label: "Email gửi bằng SMTP hay dịch vụ bên thứ ba?" }
+    ],
+    best: "a",
+    explanation: "Phương án a đóng được điểm mơ hồ nặng nhất và trả lời được bằng một con số. "                  "b hỏi thứ câu 2 đã nói rõ, c ngoài phạm vi yêu cầu, d là chuyện kỹ thuật "                  "chưa cần chốt ở bước làm rõ nghiệp vụ."
+  },
+  {
+    statements: [
+      "Người dùng có thể tải file lên trong phần hồ sơ cá nhân.",
+      "File quá lớn sẽ bị từ chối với thông báo phù hợp.",
+      "Chỉ chấp nhận file định dạng PDF và PNG.",
+      "File tải lên được lưu 90 ngày rồi tự xoá."
+    ],
+    ambiguous: [ 2 ],
+    options: [
+      { key: "a", label: "Ngưỡng \"quá lớn\" là bao nhiêu MB, và thông báo hiển thị đúng câu gì?" },
+      { key: "b", label: "Những định dạng file nào được phép tải lên?" },
+      { key: "c", label: "File lưu trên server hay trên dịch vụ lưu trữ ngoài?" },
+      { key: "d", label: "Người dùng có thích tính năng này không?" }
+    ],
+    best: "a",
+    explanation: "Chỉ câu 2 còn mơ hồ và phương án a đóng đúng nó. b đã có ở câu 3, c là "                  "quyết định kỹ thuật, d không phải câu hỏi làm rõ yêu cầu."
+  },
+  {
+    statements: [
+      "Báo cáo doanh thu hiển thị dữ liệu của kỳ hiện tại.",
+      "Người dùng có thể xuất báo cáo ra file.",
+      "Báo cáo chỉ hiện dữ liệu của chi nhánh mà người dùng được phân quyền.",
+      "Trang báo cáo có bộ lọc theo ngày bắt đầu và ngày kết thúc."
+    ],
+    ambiguous: [ 1, 2 ],
+    options: [
+      { key: "a", label: "\"Kỳ hiện tại\" là tháng, quý hay năm, và file xuất ở định dạng nào?" },
+      { key: "b", label: "Người dùng thấy được dữ liệu của chi nhánh nào?" },
+      { key: "c", label: "Báo cáo có cần đẹp không?" },
+      { key: "d", label: "Có nên thêm biểu đồ vào báo cáo không?" }
+    ],
+    best: "a",
+    explanation: "a đóng cả hai điểm mơ hồ còn lại bằng câu trả lời cụ thể được. b đã rõ ở "                  "câu 3, c không đo được, d là đề xuất tính năng mới chứ không làm rõ yêu cầu."
+  },
+  {
+    statements: [
+      "Khi khách hàng huỷ đơn, hệ thống hoàn tiền theo chính sách của công ty.",
+      "Đơn đã giao thành công thì không cho huỷ.",
+      "Yêu cầu huỷ được ghi log kèm thời điểm và người thực hiện.",
+      "Tiền hoàn về đúng phương thức thanh toán ban đầu."
+    ],
+    ambiguous: [ 1 ],
+    options: [
+      { key: "a", label: "Chính sách hoàn tiền cụ thể là gì: hoàn toàn bộ hay trừ phí, "                          "và trong bao nhiêu ngày kể từ khi huỷ?" },
+      { key: "b", label: "Đơn ở trạng thái nào thì không cho huỷ?" },
+      { key: "c", label: "Tiền hoàn về đâu?" },
+      { key: "d", label: "Khách hàng có hay huỷ đơn không?" }
+    ],
+    best: "a",
+    explanation: "Chỉ câu 1 mơ hồ. b và c đã được câu 2 và câu 4 trả lời, d là câu hỏi "                  "thống kê chứ không làm rõ quy tắc."
+  },
+  {
+    statements: [
+      "Admin có thể chỉnh sửa thông tin người dùng trong trang quản trị.",
+      "Một số trường không được phép sửa.",
+      "Mọi thay đổi được ghi vào bảng audit_logs.",
+      "Chỉ admin có quyền user_manage mới vào được trang này."
+    ],
+    ambiguous: [ 2 ],
+    options: [
+      { key: "a", label: "\"Một số trường\" là những trường nào, và ai được sửa ngoại lệ?" },
+      { key: "b", label: "Thay đổi có được ghi log không?" },
+      { key: "c", label: "Admin cấp nào vào được trang quản trị?" },
+      { key: "d", label: "Trang quản trị dùng framework gì?" }
+    ],
+    best: "a",
+    explanation: "a đóng đúng điểm mơ hồ duy nhất bằng một danh sách cụ thể. b và c đã rõ ở "                  "câu 3 và câu 4, d là chuyện kỹ thuật."
+  },
+  {
+    statements: [
+      "Hệ thống tự động đồng bộ dữ liệu với hệ thống kế toán định kỳ.",
+      "Đồng bộ chỉ đẩy dữ liệu hoá đơn đã được duyệt.",
+      "Khi đồng bộ thất bại, hệ thống xử lý phù hợp.",
+      "Kết quả mỗi lần đồng bộ được ghi vào bảng sync_logs."
+    ],
+    ambiguous: [ 1, 3 ],
+    options: [
+      { key: "a", label: "\"Định kỳ\" là mỗi bao lâu, và khi thất bại thì retry mấy lần "                          "rồi báo cho ai?" },
+      { key: "b", label: "Dữ liệu nào được đồng bộ sang hệ thống kế toán?" },
+      { key: "c", label: "Hệ thống kế toán đang dùng là phần mềm nào?" },
+      { key: "d", label: "Đồng bộ có nhanh không?" }
+    ],
+    best: "a",
+    explanation: "a đóng cả hai điểm mơ hồ bằng con số và quy tắc. b đã rõ ở câu 2, c hữu "                  "ích nhưng không đóng điểm mơ hồ nào, d không đo được."
+  }
 ].freeze
 
-SPEC_SAMPLES.each do |text, points|
+SPEC_SAMPLES.each do |sample|
   upsert_question(
     spec_detective,
-    { "requirement_text" => text },
     {
-      "ambiguous_points" => points,
-      "sample_questions" => points.map { |p| "\"#{p}\" cụ thể là gì? Đo bằng tiêu chí nào?" },
-      "rubric" => "Tối đa 10 điểm cho việc tìm đủ điểm mơ hồ, 10 điểm cho chất lượng câu hỏi làm rõ."
+      "statements" => sample[:statements],
+      "clarifying_options" => sample[:options].map { |o| { "key" => o[:key], "label" => o[:label] } }
+    },
+    {
+      "ambiguous_statement_indexes" => sample[:ambiguous],
+      "best_option_key" => sample[:best],
+      "explanation" => sample[:explanation]
     }
   )
 end

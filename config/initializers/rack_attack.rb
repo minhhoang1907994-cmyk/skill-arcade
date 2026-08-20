@@ -29,21 +29,6 @@ class Rack::Attack
     game_session_user_id(req)
   end
 
-  ### Spec Detective gọi Gemini real-time: 1 lượt/NGÀY/user (5 API call/ngày/user).
-  #
-  # Con số này bị hạn mức Gemini quyết định, không phải bởi thiết kế gameplay: gói free
-  # đo được 20 request/ngày cho mỗi model (spec §20), mỗi lượt 5 đoạn = 5 request, nên cả
-  # hệ thống chỉ đủ 4 lượt/ngày. Mức cũ 5 lượt/GIỜ/user cho một người tiêu 25 request
-  # trong một giờ — vượt hạn mức cả ngày và đẩy mọi người còn lại vào 503.
-  #
-  # CHÚ Ý: đây là hạn mức THEO USER nên vẫn không chặn được tổng hệ thống — 20 user khác
-  # nhau mỗi người 1 lượt vẫn là 100 request. Muốn chặn cứng phải thêm một throttle dùng
-  # discriminator hằng số (xem spec §20).
-  throttle("sessions/spec_detective/user", limit: 1, period: 1.day) do |req|
-    user_id = game_session_user_id(req)
-    "#{user_id}/spec_detective" if user_id && req.path.include?("/games/spec_detective/")
-  end
-
   ### Báo câu hỏi sai: 10 lần/ngày/user
   throttle("reports/user", limit: 10, period: 1.day) do |req|
     if req.post? && req.path.match?(%r{\A/api/v1/questions/\d+/reports\z})
@@ -55,11 +40,9 @@ class Rack::Attack
   throttle("req/ip", limit: 100, period: 1.minute, &:ip)
 
   # Thông điệp phải khớp loại hạn mức. "Thao tác quá nhanh" đúng với các rule tính theo
-  # phút/giờ, nhưng SAI với hạn mức 1 lượt/ngày của Spec Detective: người chơi đâu có nhanh,
-  # họ đã dùng hết lượt của ngày. Không phân biệt thì họ retry cả ngày vô ích.
+  # phút/giờ, nhưng SAI với hạn mức theo ngày: người chơi đâu có nhanh, họ đã dùng hết lượt
+  # của ngày. Không phân biệt thì họ retry cả ngày vô ích.
   THROTTLE_MESSAGES = {
-    "sessions/spec_detective/user" =>
-      "Spec Detective giới hạn 1 lượt mỗi ngày cho mỗi người, do hạn mức của dịch vụ chấm "       "điểm AI. Mời bạn quay lại ngày mai, hoặc chơi 4 game còn lại.",
     "sessions/user/daily" => "Bạn đã dùng hết số lượt chơi trong ngày, thử lại ngày mai.",
     "reports/user" => "Bạn đã gửi hết số lượt báo lỗi trong ngày, thử lại ngày mai."
   }.freeze

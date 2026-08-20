@@ -1,9 +1,9 @@
 module Questions
   # Nạp file YAML do `rake questions:generate` xuất ra vào bảng questions.
   #
-  # Open Question Q4: không có admin panel duyệt đề, nên bước người soạn đề đọc lại file
-  # YAML là lưới an toàn duy nhất trước khi câu hỏi đến tay người chơi. Importer vì vậy
-  # chỉ nhận file trên đĩa, không tự gọi Gemini.
+  # Open Question Q4 (owner chốt 2026-08-19): KHÔNG cần người soát tay, đề do AI sinh được
+  # import trực tiếp. Lưới an toàn còn lại là luật cấu trúc trong Questions::Validator cộng
+  # luồng người chơi báo câu sai rồi admin ẩn (BR-16, BR-18).
   #
   # Idempotent theo checksum: chạy lại cùng một file không tạo bản ghi trùng.
   class Importer
@@ -14,24 +14,6 @@ module Questions
         created + updated
       end
     end
-
-    REQUIRED_KEYS = {
-      Game::BUG_HUNT => {
-        content: %w[language code_lines bug_types], answer_key: %w[buggy_line bug_type]
-      },
-      Game::SPEC_DETECTIVE => {
-        content: %w[requirement_text], answer_key: %w[ambiguous_points]
-      },
-      Game::ESTIMATE_POKER => {
-        content: %w[task_description], answer_key: %w[actual_hours]
-      },
-      Game::INCIDENT_ESCAPE_ROOM => {
-        content: %w[scenario nodes], answer_key: %w[option_effects recovery_node]
-      },
-      Game::PROD_ROULETTE => {
-        content: %w[scenario nodes], answer_key: %w[option_effects]
-      }
-    }.freeze
 
     def initialize(path:)
       @path = Pathname.new(path)
@@ -90,40 +72,8 @@ module Questions
       report.rejected << "câu ##{index + 1}: #{e.record.errors.full_messages.join(', ')}"
     end
 
-    # Kiểm tra ở tầng import, không phải tầng chơi: đề thiếu khoá mà lọt vào DB thì lỗi
-    # chỉ lộ ra lúc người chơi đang chơi giữa lượt.
     def validation_error(game, record)
-      return "không phải mapping" unless record.is_a?(Hash)
-      return "thiếu content hoặc answer_key" unless record["content"].is_a?(Hash) &&
-                                                    record["answer_key"].is_a?(Hash)
-
-      required = REQUIRED_KEYS.fetch(game.slug, { content: [], answer_key: [] })
-      missing = required[:content].reject { |key| record["content"][key].present? }
-                                  .map { |key| "content.#{key}" } +
-                required[:answer_key].reject { |key| record["answer_key"][key].present? }
-                                     .map { |key| "answer_key.#{key}" }
-
-      return "thiếu khoá: #{missing.join(', ')}" if missing.any?
-
-      bug_hunt_error(game, record)
-    end
-
-    def bug_hunt_error(game, record)
-      return nil unless game.slug == Game::BUG_HUNT
-
-      lines = record["content"]["code_lines"]
-      buggy_line = record["answer_key"]["buggy_line"].to_i
-      bug_type = record["answer_key"]["bug_type"].to_s
-
-      return "code_lines phải là mảng chuỗi" unless lines.is_a?(Array) && lines.any?
-      unless (1..lines.size).cover?(buggy_line)
-        return "buggy_line #{buggy_line} nằm ngoài #{lines.size} dòng code"
-      end
-      unless Question::BUG_HUNT_TYPES.include?(bug_type)
-        return "bug_type không hợp lệ: #{bug_type.inspect}"
-      end
-
-      nil
+      Validator.error_for(game, record)
     end
 
     def parse_time(value)

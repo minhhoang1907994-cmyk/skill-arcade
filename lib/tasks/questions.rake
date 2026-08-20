@@ -17,7 +17,7 @@ namespace :questions do
     end
 
     puts "Đang sinh #{count} đề cho #{slug}#{language ? " (#{language})" : ''}..."
-    report_budget(game, count)
+    report_request_estimate(game, count)
 
     batch = Questions::Generator.new(game: game, language: language).call(count: count)
 
@@ -25,12 +25,12 @@ namespace :questions do
       abort("Gemini không trả đề nào dùng được. Chạy lại hoặc giảm count.")
     end
 
-    path = write_bank_file(game, language, batch)
+    path = Questions::BankFile.write(game: game, language: language, batch: batch)
 
     puts "Đã ghi #{batch.records.size}/#{count} đề vào #{path}"
     puts "Model: #{batch.model} — #{batch.prompts.size} request"
     puts ""
-    puts "BƯỚC BẮT BUỘC TIẾP THEO: đọc lại file trên trước khi import (Open Question Q4)."
+    puts "Nạp vào DB bằng:"
     puts "  rake 'questions:import[#{path.relative_path_from(Rails.root)}]'"
   rescue Questions::Generator::UnsupportedGame, Gemini::Error => e
     abort("Sinh đề thất bại: #{e.class}: #{e.message}")
@@ -52,57 +52,59 @@ namespace :questions do
     abort("File không dùng được: #{e.message}")
   end
 
-  # Sinh đề và chấm điểm lúc chơi ĂN CHUNG hạn mức 20 request/ngày (spec §20). Task này không
-  # ghi ai_gradings nên Gemini::DailyBudget không thấy được request của chính nó — chỉ cảnh báo
-  # dựa trên phần chấm điểm đã dùng, và để người chạy tự cộng. Cố ý không abort: người vận hành
-  # có thể biết hôm nay không ai chơi Spec Detective nên dùng cả hạn mức để sinh đề.
-  def report_budget(game, count)
+  desc "Job hằng ngày: dọn lượt quá hạn rồi sinh + nạp đề cho game đang thiếu (BR-24 + refill)"
+  task refill: :environment do
+    unless Gemini::Client.configured?
+      abort("GEMINI_API_KEY chưa được cấu hình (xem .env.example)")
+    end
+
+    # Phải chạy TRƯỚC: Refiller bỏ qua game còn lượt in_progress, và lượt treo vĩnh viễn
+    # (BR-24 chưa từng có scheduler) sẽ chặn refill mãi mãi nếu không dọn.
+    Rake::Task["game_sessions:expire_stale"].invoke
+
+    outcomes = Questions::Refiller.new.call
+    outcomes.each { |outcome| puts "[#{outcome.status}] #{outcome.label}: #{outcome.detail}" }
+
+    # Exit code khác 0 để scheduler báo đỏ — im lặng thất bại thì tháng sau mới phát hiện
+    # ngân hàng đề không hề lớn lên.
+    abort("refill thất bại") if outcomes.any? { |outcome| outcome.status == :failed }
+  end
+
+  desc "MỘT LẦN sau 1.19: chuyển đề Spec Detective format cũ sang dạng chọn"
+  task convert_spec_detective: :environment do
+    unless Gemini::Client.configured?
+      abort("GEMINI_API_KEY chưa được cấu hình (xem .env.example)")
+    end
+
+    pending = Questions::SpecDetectiveConverter.pending
+    if pending.empty?
+      puts "Không còn đề Spec Detective format cũ nào."
+      next
+    end
+
+    puts "Sẽ chuyển #{pending.size} đề. Mỗi đề một request Gemini."
+    converter = Questions::SpecDetectiveConverter.new
+    counts = { converted: 0, failed: 0 }
+
+    pending.each do |question|
+      status, detail = converter.call(question)
+      counts[status] += 1
+      puts "  ##{question.id}: #{status}#{detail ? " — #{detail}" : ''}"
+    end
+
+    puts "Xong: #{counts[:converted]} chuyển được, #{counts[:failed]} thất bại."
+    puts "Đề thất bại vẫn ở format cũ và KHÔNG chơi được — chạy lại task này, hoặc ẩn chúng "          "trong trang admin." if counts[:failed].positive?
+  end
+
+  # Sinh đề và chấm điểm KHÔNG còn dùng chung hạn mức từ 1.19: Spec Detective chấm từ DB nên
+  # Gemini chỉ còn một người dùng duy nhất là việc sinh đề. Ước lượng ở đây để người chạy
+  # biết trước lô này tiêu bao nhiêu trong 20 request/ngày (spec §20).
+  def report_request_estimate(game, count)
     per_batch = Questions::Generator::BLUEPRINTS.dig(game.slug, :batch_size) ||
                 Questions::Generator::BATCH_SIZE
     needed = (count.to_f / per_batch).ceil
-    budget = Gemini::DailyBudget.new
-    limit = Gemini::DailyBudget::DAILY_REQUEST_LIMIT
+    allowance = Questions::Generator::EXTRA_BATCH_ALLOWANCE
 
-    puts "Hạn mức: #{limit} request/NGÀY cho mỗi model. Lô này cần khoảng #{needed} request " \
-         "(#{per_batch} đề/request)."
-    puts "Đã dùng cho CHẤM ĐIỂM trong 24h qua: #{budget.used}/#{limit}. Request sinh đề KHÔNG " \
-         "ghi vào ai_gradings nên không nằm trong số này — tự cộng thêm nếu đã chạy task này."
-
-    return unless budget.used + needed > limit
-
-    puts "CẢNH BÁO: #{budget.used} + #{needed} vượt #{limit}. Khả năng cao gặp HTTP 429 giữa lô, " \
-         "và người chơi Spec Detective hôm nay sẽ bị chặn. Ctrl+C nếu muốn dừng."
-  end
-
-  # Không ghi đè file đã tồn tại: file cũ có thể đã được người soạn đề soát và sửa tay.
-  def write_bank_file(game, language, batch)
-    dir = Rails.root.join("db", "question_banks", game.slug)
-    dir.mkpath
-
-    base = [ Date.current.iso8601, language ].compact.join("-")
-    path = dir.join("#{base}.yml")
-    suffix = 2
-    while path.exist?
-      path = dir.join("#{base}-#{suffix}.yml")
-      suffix += 1
-    end
-
-    payload = { "game" => game.slug, "model" => batch.model,
-                "generated_at" => Time.current.iso8601 }
-    payload["language"] = language if language
-    payload["questions"] = batch.records
-
-    # deep_dup trước khi dump: nhiều câu dùng chung object Question::BUG_HUNT_TYPES, và
-    # Psych sẽ sinh anchor/alias (*id001) cho object trùng — đọc rất khó khi soát tay.
-    path.write(<<~HEADER + payload.deep_dup.to_yaml)
-      # Đề do Gemini sinh — CHƯA vào DB.
-      #
-      # Soát tay trước khi import (Open Question Q4): kiểm tra đáp án có đúng không,
-      # nội dung có phù hợp không, và với Bug Hunt là buggy_line có trỏ đúng dòng không.
-      # Sửa trực tiếp trong file này rồi mới chạy:
-      #   rake 'questions:import[#{path.relative_path_from(Rails.root)}]'
-    HEADER
-
-    path
+    puts "Lô này cần khoảng #{needed} request (#{per_batch} đề/request), tối đa "          "#{needed + allowance} nếu có đề bị loại. Hạn mức đo được: 20 request/ngày mỗi model."
   end
 end

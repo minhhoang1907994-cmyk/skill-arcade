@@ -7,10 +7,6 @@ class Game < ApplicationRecord
 
   SLUGS = [ BUG_HUNT, SPEC_DETECTIVE, INCIDENT_ESCAPE_ROOM, ESTIMATE_POKER, PROD_ROULETTE ].freeze
 
-  # Game duy nhất gọi AI lúc chơi. 4 game còn lại chấm từ answer_key trong DB,
-  # nên vẫn chơi được khi Gemini không khả dụng (spec section 15).
-  AI_GRADED_SLUGS = [ SPEC_DETECTIVE ].freeze
-
   has_many :questions, dependent: :restrict_with_error
   has_many :game_sessions, dependent: :restrict_with_error
 
@@ -22,10 +18,6 @@ class Game < ApplicationRecord
   validates :max_score, numericality: { only_integer: true, greater_than: 0 }
 
   scope :active, -> { where(active: true) }
-
-  def ai_graded?
-    AI_GRADED_SLUGS.include?(slug)
-  end
 
   # Kịch bản nhiều bước: một câu hỏi cung cấp nhiều position (BR-30).
   def scenario_based?

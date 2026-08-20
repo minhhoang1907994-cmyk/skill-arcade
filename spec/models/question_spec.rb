@@ -42,7 +42,7 @@ RSpec.describe Question do
     end
 
     it "để nil khi content không có ngôn ngữ" do
-      question = create(:question, content: { "requirement_text" => "xử lý nhanh" })
+      question = create(:question, content: { "statements" => [ "xử lý nhanh" ] })
 
       expect(question.language).to be_nil
     end

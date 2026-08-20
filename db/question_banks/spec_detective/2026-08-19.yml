@@ -1,9 +1,12 @@
-# Đề do Gemini sinh — CHƯA vào DB.
+# FORMAT CŨ (trước 1.19) — KHÔNG import lại được.
 #
-# Soát tay trước khi import (Open Question Q4): kiểm tra đáp án có đúng không,
-# nội dung có phù hợp không, và với Bug Hunt là buggy_line có trỏ đúng dòng không.
-# Sửa trực tiếp trong file này rồi mới chạy:
-#   rake 'questions:import[db/question_banks/spec_detective/2026-08-19.yml]'
+# Từ 1.19 Spec Detective chấm từ answer_key nên đề cần `statements` +
+# `clarifying_options` + `ambiguous_statement_indexes` + `best_option_key`.
+# File này còn ở format `requirement_text` + `ambiguous_points`, nên
+# `Questions::Validator` sẽ loại toàn bộ nếu chạy import.
+#
+# Giữ lại làm bản ghi lịch sử. Các bản ghi tương ứng trong DB được chuyển sang
+# format mới bằng `rake questions:convert_spec_detective`.
 ---
 game: spec_detective
 model: gemini-3.6-flash

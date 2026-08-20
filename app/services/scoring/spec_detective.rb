@@ -1,39 +1,61 @@
 module Scoring
-  # BR-26: 5 đoạn spec × 20 điểm do AI chấm — tối đa 10đ cho việc tìm đủ điểm mơ hồ
-  # và 10đ cho chất lượng câu hỏi làm rõ. Không có hệ số tốc độ vì người chơi phải gõ text.
+  # BR-26: 5 đoạn spec × 20 điểm, chấm hoàn toàn từ `answer_key` trong DB — 10đ cho việc
+  # tick đúng những câu mơ hồ, 10đ cho việc chọn đúng câu hỏi làm rõ tốt nhất trong 4
+  # phương án. Không có hệ số tốc độ: người chơi phải đọc hiểu đoạn spec, thưởng tốc độ
+  # ở đây chỉ khuyến khích tick bừa.
   #
-  # Đây là game DUY NHẤT gọi AI lúc chơi. Gemini hỏng thì game này trả 503 và lượt
-  # chuyển abandoned với lý do system_error — không tính điểm, không trừ quota người
-  # chơi (§8.5, BR-33). 4 game còn lại không bị ảnh hưởng vì chấm từ answer_key.
+  # Trước phiên bản 1.19 game này gọi Gemini lúc chấm và là game DUY NHẤT làm vậy. Đổi
+  # sang chọn để bỏ lời gọi AI khỏi request path — xem changelog 1.19 và §20. Hệ quả: cả
+  # 5 game giờ đều chấm từ DB nên Gemini hỏng không ảnh hưởng lúc chơi.
+  #
+  # Nửa điểm tick PHẢI trừ tick sai. Không trừ thì tick toàn bộ câu trong đoạn là ăn đủ
+  # 10đ mà không cần đọc, và game mất hết ý nghĩa.
   class SpecDetective < Base
-    MAX_SCORE_PER_PASSAGE = Gemini::SpecDetectiveGrader::AMBIGUITY_POINTS +
-                            Gemini::SpecDetectiveGrader::QUESTION_POINTS
-
-    def initialize(grader: Gemini::SpecDetectiveGrader.new)
-      @grader = grader
-    end
+    STATEMENT_POINTS = 10
+    QUESTION_POINTS = 10
 
     def call(session:, question:, answer:, elapsed_ms:)
-      # Validate đầu vào trước, để lỗi định dạng vẫn trả 400 thay vì 503.
-      ambiguous_points = fetch_answer(answer, :ambiguous_points)
-      questions = fetch_answer(answer, :questions)
+      key = question.answer_key
+      picked = normalize_indexes(fetch_answer(answer, :statement_indexes))
+      option_key = fetch_answer(answer, :option_key).to_s
+      expected = normalize_indexes(key["ambiguous_statement_indexes"])
 
-      grading = @grader.call(question: question, ambiguous_points: ambiguous_points,
-                             questions: questions)
-
-      if grading.failed?
-        raise GradingUnavailable.new(
-          "Hệ thống chấm điểm tạm thời không khả dụng",
-          ai_grading: grading.attributes
-        )
-      end
+      hit = (picked & expected).size
+      miss = (picked - expected).size
+      statement_score = statement_score_for(hit, miss, expected.size)
+      option_correct = option_key.present? && option_key == key["best_option_key"].to_s
 
       Result.new(
-        score: grading.score,
-        explanation: grading.explanation,
-        metadata: { "graded_by" => grading.attributes[:model] },
-        ai_grading: grading.attributes
+        score: statement_score + (option_correct ? QUESTION_POINTS : 0),
+        explanation: explain(key, expected, hit, miss, option_correct),
+        metadata: { "statement_hit" => hit, "statement_miss" => miss,
+                    "option_correct" => option_correct }
       )
+    end
+
+    private
+
+    # Người chơi gửi mảng số thứ tự câu, đếm từ 1 theo content["statements"].
+    def normalize_indexes(value)
+      Array(value).map(&:to_i).select(&:positive?).uniq.sort
+    end
+
+    def statement_score_for(hit, miss, expected_size)
+      return 0 unless expected_size.positive?
+
+      raw = (hit - miss) * STATEMENT_POINTS / expected_size.to_f
+      raw.floor.clamp(0, STATEMENT_POINTS)
+    end
+
+    def explain(key, expected, hit, miss, option_correct)
+      parts = [
+        "Câu mơ hồ: #{expected.join(', ')} — bạn tìm đúng #{hit}/#{expected.size}" \
+        "#{miss.positive? ? ", tick sai #{miss}" : ''}.",
+        option_correct ? "Chọn đúng câu hỏi làm rõ tốt nhất." :
+                         "Câu hỏi làm rõ tốt nhất là phương án #{key['best_option_key']}."
+      ]
+      parts << key["explanation"].to_s if key["explanation"].present?
+      parts.join(" ")
     end
   end
 end

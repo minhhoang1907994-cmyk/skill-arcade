@@ -22,16 +22,7 @@ module GameSessions
 
       provider = StepProvider.new(@session)
       question = provider.question
-
-      result = begin
-        score(question)
-      rescue Scoring::Base::GradingUnavailable => e
-        # §8.5: lỗi hệ thống vẫn phải để lại dấu vết — ghi câu trả lời với 0 điểm và
-        # một bản ghi ai_gradings mang error (BR-19), rồi để controller trả 503 và
-        # chuyển lượt sang abandoned/system_error.
-        persist_ungraded(question, e.ai_grading)
-        raise
-      end
+      result = score(question)
 
       persist(question, result)
       finish_if_needed(result)
@@ -85,39 +76,11 @@ module GameSessions
           answered_at: Time.current
         )
 
-        write_ai_grading(@session_answer, result.ai_grading)
-
         @session.update!(
           current_position: @position,
           score: capped_score(@session.score + result.score)
         )
       end
-    end
-
-    # Câu trả lời chưa chấm được: giữ 0 điểm và KHÔNG tăng current_position — bước này
-    # chưa có điểm nên không coi là đã đi qua. Lượt sẽ bị abandoned ngay sau đó.
-    # Dấu hiệu "chờ chấm lại" suy ra từ dữ liệu: score = 0 và có ai_gradings kèm error.
-    def persist_ungraded(question, ai_grading)
-      ActiveRecord::Base.transaction do
-        session_answer = SessionAnswer.create!(
-          game_session: @session,
-          question: question,
-          position: @position,
-          answer: @answer.merge("_meta" => { "grading_pending" => true }),
-          score: 0,
-          elapsed_ms: elapsed_ms,
-          answered_at: Time.current
-        )
-
-        write_ai_grading(session_answer, ai_grading)
-      end
-    end
-
-    # BR-19: mỗi lần gọi AI ghi đúng một bản ghi, kể cả lần gọi thất bại.
-    def write_ai_grading(session_answer, attributes)
-      return if attributes.blank?
-
-      AiGrading.create!(attributes.merge(session_answer: session_answer))
     end
 
     def capped_score(value)

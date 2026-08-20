@@ -66,7 +66,8 @@ Rails.application.configure do
   # - bộ đếm rack_attack, gồm throttle 1 lượt/ngày của Spec Detective (§12) — mất là người chơi
   #   được lượt mới, throttle gần như vô hiệu vì web service gói Hobby tự ngủ khi không có traffic
   # - trạng thái Gemini::CircuitBreaker (§15)
-  # Gemini::DailyBudget không bị ảnh hưởng vì đếm từ bảng ai_gradings, không dùng cache.
+  # Từ 1.19 không có lời gọi Gemini nào lúc chơi, nên mất trạng thái breaker chỉ ảnh hưởng
+  # job sinh đề chạy ngoài app, không ảnh hưởng người chơi.
   #
   # Không có REDIS_URL thì vẫn boot được nhưng cảnh báo rõ ràng, để sự xuống cấp này không âm
   # thầm — thà log ầm lên còn hơn để throttle hỏng mà không ai biết.

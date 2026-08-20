@@ -3,18 +3,6 @@ module Scoring
   class Base
     class InvalidAnswer < StandardError; end
 
-    # §8.5: khi không chấm được, vẫn phải ghi lại lần gọi AI (BR-19). Exception mang
-    # theo thuộc tính của bản ghi `ai_gradings` để AnswerSubmitter ghi kèm với
-    # session_answer 0 điểm trước khi controller trả 503.
-    class GradingUnavailable < StandardError
-      attr_reader :ai_grading
-
-      def initialize(message, ai_grading: nil)
-        super(message)
-        @ai_grading = ai_grading
-      end
-    end
-
     SCORERS = {
       Game::BUG_HUNT => "Scoring::BugHunt",
       Game::SPEC_DETECTIVE => "Scoring::SpecDetective",

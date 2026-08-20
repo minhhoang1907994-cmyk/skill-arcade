@@ -371,11 +371,11 @@ boot được bằng file store nhưng ghi cảnh báo vào log. Trên Render, f
 filesystem của Render là ephemeral và riêng từng instance, nên mỗi lần deploy hoặc spin down sẽ
 mất:
 
-- bộ đếm rack_attack — gồm throttle **1 lượt/ngày** của Spec Detective (§12). Mất là người chơi
-  được lượt mới. Web service gói free tự ngủ khi hết traffic nên throttle gần như vô hiệu
+- bộ đếm rack_attack — throttle số lượt chơi theo giờ/ngày (§12). Mất là người chơi được lượt mới. Web service gói free tự ngủ khi hết traffic nên throttle gần như vô hiệu
 - trạng thái `Gemini::CircuitBreaker` (§15)
 
-`Gemini::DailyBudget` không bị ảnh hưởng vì đếm bảng `ai_gradings` chứ không dùng cache (BR-37).
+Từ 1.19 không có lời gọi Gemini nào lúc chơi, nên mất trạng thái breaker không ảnh hưởng người
+chơi — chỉ job sinh đề chạy ngoài app bị ảnh hưởng, và job đó cố ý chạy không có `REDIS_URL`.
 
 ---
 
@@ -396,35 +396,58 @@ Không cần thêm Secret File — CA đã nằm trong repo (mục 3.3).
 
 ---
 
-## 5. Cron job cho BR-24 — tuỳ chọn, CÓ PHÍ
+## 5. Scheduler cho BR-24 và việc sinh đề — MIỄN PHÍ qua GitHub Actions
 
-BR-24 yêu cầu lượt để quá 24 giờ được đánh dấu `abandoned` với lý do `timeout`, chạy bằng
-`rake game_sessions:expire_stale` nên cần scheduler bên ngoài.
+Từ 1.19 cả hai việc chạy trong cùng một job theo lịch: `.github/workflows/questions-refill.yml`
+gọi `rake questions:refill`, và task đó chạy `game_sessions:expire_stale` (BR-24) trước tiên rồi
+mới sinh + nạp đề cho game đang thiếu.
 
-**Render tính phí cron job theo phút, không có gói free** (từ khoảng 1 USD/tháng ở gói starter).
-Vì vậy nó **không** nằm trong `render.yaml` — để việc apply blueprint không phát sinh tiền.
+**Vì sao không dùng Render Cron Job:** Render tính phí cron theo phút, không có gói free (từ
+khoảng 1 USD/tháng ở gói starter). Actions theo lịch miễn phí, nên cron job vẫn **không** nằm
+trong `render.yaml`.
 
-### Không có cron job thì mất gì
+### Cần set gì
 
-Ít hơn tưởng. Đã rà lại code:
+Secrets của repo (Settings → Secrets and variables → Actions):
 
-- **Bảng xếp hạng không ảnh hưởng**: `LeaderboardQuery` chỉ lấy lượt `finished` (BR-08), lượt
-  `in_progress` treo không lọt vào
-- **Rate limit không ảnh hưởng**: rack_attack đếm request, không đếm bản ghi lượt
-- **Không chặn người chơi**: `GameSessions::Creator` không kiểm lượt `in_progress` đang mở, chỉ
-  tăng `attempt_number`, nên lượt treo không làm ai không chơi được
+| Secret | Giá trị |
+|---|---|
+| `RAILS_MASTER_KEY` | nội dung `config/master.key` |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | thông số Aiven, giống hệt biến trên Render |
+| `GEMINI_API_KEY` | key Gemini |
 
-Mất thật sự là độ chính xác của `abandoned_reason` cho mục đích thống kê, và dữ liệu gọn gàng.
+`DB_SSL_CA` và `GEMINI_MODEL` đã ghi thẳng trong workflow — CA nằm trong repo nên có ngay sau
+checkout, không cần secret.
 
-### Ba cách
+**KHÔNG set `REDIS_URL`.** Thiếu biến đó thì runner rơi về file store, nhờ vậy circuit breaker và
+rack_attack của job tách hoàn toàn khỏi web service: job lỗi liên tiếp không mở breaker của
+production.
 
-| Cách | Chi phí | Ghi chú |
-|---|---|---|
-| Render Cron Job, `plan: starter`, lịch mỗi giờ | ~1 USD/tháng | Command: `./bin/rails game_sessions:expire_stale`. Không kết thúc bằng `./bin/rails server` nên entrypoint sẽ KHÔNG chạy `db:prepare` — đúng ý, cron không nên đụng schema. Cần các biến `DB_*` + `DB_SSL_CA` + `RAILS_MASTER_KEY`; CA thì đã có trong image nên không phải cấp riêng |
-| Chạy tay khi cần, từ máy dev với biến `DB_*` trỏ vào Aiven | 0 | Đủ với tác động ở trên |
-| Bỏ hẳn | 0 | Ghi vào spec §19 là hạn chế đã biết |
+### Điều kiện tiên quyết chưa verify
+
+IP của GitHub runner là **động**. Nếu service Aiven đang bật **Allowed IP addresses** thì job
+không kết nối được DB. Kiểm tra ở Aiven console → service → Allowed IP addresses:
+
+- Cho phép mọi IP → dùng được Actions
+- Có allowlist → phải chuyển sang **Render Cron Job** (`type: cron`, `plan: starter`, ~1 USD/tháng,
+  command `./bin/rails questions:refill`). Cron job không kết thúc bằng `./bin/rails server` nên
+  entrypoint sẽ KHÔNG chạy `db:prepare` — đúng ý, cron không nên đụng schema. Cần các biến `DB_*`
+  + `DB_SSL_CA` + `RAILS_MASTER_KEY` + `GEMINI_API_KEY`; CA đã có trong image
+
+### Chạy tay khi cần
+
+Từ máy dev, với biến `DB_*` trỏ vào Aiven:
+
+```bash
+bin/rails questions:refill                     # dọn lượt quá hạn + sinh đề cho game đang thiếu
+bin/rails questions:convert_spec_detective     # MỘT LẦN sau khi deploy 1.19
+```
+
+Task `refill` in ra từng mục tiêu kèm trạng thái, và exit code khác 0 khi có mục tiêu thất bại —
+để scheduler báo đỏ thay vì im lặng.
 
 ---
+
 
 ## 6. Verify sau khi deploy
 

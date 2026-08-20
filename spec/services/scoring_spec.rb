@@ -140,23 +140,54 @@ RSpec.describe "Scoring" do
 
   describe Scoring::SpecDetective do
     let(:game) { create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective") }
-    let(:question) { create(:question, game: game) }
-
-    it "báo GradingUnavailable vì cần Gemini (Phase 3)" do
-      expect do
-        described_class.new.call(
-          session: session_for(game), question: question,
-          answer: { "ambiguous_points" => [ "nhanh" ], "questions" => "Nhanh là bao lâu?" },
-          elapsed_ms: nil
-        )
-      end.to raise_error(Scoring::Base::GradingUnavailable)
+    let(:question) do
+      create(:question, game: game,
+             content: {
+               "statements" => [ "Xử lý đơn nhanh.", "Lưu vào bảng orders.",
+                                 "Thông báo nếu cần thiết.", "Gửi qua email đã cấu hình." ],
+               "clarifying_options" => [ { "key" => "a", "label" => "Nhanh là mấy giây?" },
+                                         { "key" => "b", "label" => "Lưu ở bảng nào?" } ]
+             },
+             answer_key: { "ambiguous_statement_indexes" => [ 1, 3 ],
+                           "best_option_key" => "a", "explanation" => "vì đo được" })
     end
 
-    it "vẫn báo lỗi định dạng trước khi báo GradingUnavailable" do
+    def score_for(statement_indexes:, option_key:)
+      described_class.new.call(
+        session: session_for(game), question: question,
+        answer: { "statement_indexes" => statement_indexes, "option_key" => option_key },
+        elapsed_ms: nil
+      )
+    end
+
+    it "cho đủ 20 điểm khi tick đúng hết và chọn đúng phương án" do
+      expect(score_for(statement_indexes: [ 1, 3 ], option_key: "a").score).to eq(20)
+    end
+
+    it "trừ điểm tick sai — tick 1 đúng 1 sai trên 2 câu mơ hồ còn 0 điểm phần tick" do
+      result = score_for(statement_indexes: [ 1, 2 ], option_key: "a")
+
+      expect(result.score).to eq(10)
+      expect(result.metadata).to include("statement_hit" => 1, "statement_miss" => 1)
+    end
+
+    it "tick hết mọi câu KHÔNG cho điểm phần tick" do
+      expect(score_for(statement_indexes: [ 1, 2, 3, 4 ], option_key: "b").score).to eq(0)
+    end
+
+    it "không cho điểm phương án khi chọn sai" do
+      expect(score_for(statement_indexes: [ 1, 3 ], option_key: "b").score).to eq(10)
+    end
+
+    it "bỏ qua index trùng và index không phải số dương" do
+      expect(score_for(statement_indexes: [ 1, 1, 3, 0, -2 ], option_key: "a").score).to eq(20)
+    end
+
+    it "báo InvalidAnswer khi thiếu option_key" do
       expect do
         described_class.new.call(
           session: session_for(game), question: question,
-          answer: { "questions" => "thiếu ambiguous_points" }, elapsed_ms: nil
+          answer: { "statement_indexes" => [ 1 ] }, elapsed_ms: nil
         )
       end.to raise_error(Scoring::Base::InvalidAnswer)
     end

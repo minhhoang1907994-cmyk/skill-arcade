@@ -64,31 +64,22 @@
 <div class="panel">
   <h2 class="panel__title">2. Dữ liệu đi ra khỏi công ty</h2>
 
-  <p class="feedback feedback--bad">
-    Ở game <strong>Spec Detective</strong>, nội dung bạn tự gõ được gửi sang <strong>Google
-    Gemini</strong> để chấm điểm. App đang dùng gói <strong>miễn phí</strong> của Google. Theo
-    điều khoản gói miễn phí, Google dùng nội dung gửi lên để phát triển và cải thiện sản phẩm
-    của Google, và <strong>người thật của Google có thể đọc, đánh dấu và xử lý</strong> nội dung
-    đó. Chính Google khuyến cáo không gửi thông tin nhạy cảm, bí mật hoặc thông tin cá nhân vào
-    dịch vụ miễn phí.
+  <p>
+    <strong>Nội dung bạn nhập trong game không đi ra khỏi app.</strong> Cả 5 game đều chấm
+    điểm hoàn toàn trong app, so với đáp án đã lưu sẵn trong cơ sở dữ liệu. Không có game nào
+    gửi câu trả lời của bạn sang dịch vụ bên ngoài.
   </p>
 
   <p>
-    Nghĩa là: <strong>đừng dán nội dung nội bộ của công ty hoặc của khách hàng vào ô trả lời.</strong>
-    Hãy viết bằng lời của bạn về đoạn yêu cầu mà game đưa ra. Cùng với nội dung bạn gõ, app gửi
-    kèm đoạn yêu cầu của câu hỏi và đáp án tham chiếu để Gemini có căn cứ chấm.
+    App dùng <strong>Google Gemini</strong> để soạn sẵn ngân hàng câu hỏi, nhưng việc đó chạy
+    <strong>ngoài lúc chơi</strong> và chỉ gửi yêu cầu sinh đề — không có dữ liệu nào của người
+    dùng trong đó.
   </p>
-
   <p>
     Ngoài ra, giao diện dùng font từ <strong>Google Fonts</strong>, nên mỗi lần bạn mở một trang
     của app, trình duyệt của bạn kết nối tới <code>fonts.googleapis.com</code> và
     <code>fonts.gstatic.com</code>. Google nhận được địa chỉ IP và thông tin trình duyệt của bạn
     qua các kết nối đó.
-  </p>
-
-  <p>
-    Bốn game còn lại (Bug Hunt, Estimate Poker, Incident Escape Room, PROD Roulette) chấm điểm
-    hoàn toàn trong app, <strong>không gửi gì ra ngoài</strong>.
   </p>
 
   <p>
@@ -114,9 +105,10 @@
   <h2 class="panel__title">4. Giữ trong bao lâu</h2>
   <ul>
     <li>
-      <strong>Bản ghi chấm điểm AI giữ vĩnh viễn.</strong> Mỗi lần gọi Gemini, app lưu lại nội
-      dung đã gửi (gồm phần bạn gõ) và nội dung nhận về, và không bao giờ xoá. Đây là bằng chứng
-      duy nhất để giải trình nếu bạn khiếu nại điểm do AI chấm. Chỉ quản trị viên đọc được.
+      <strong>Bản ghi chấm điểm AI cũ giữ vĩnh viễn.</strong> Trước tháng 8/2026 game Spec
+      Detective chấm bằng Gemini và app lưu lại nội dung đã gửi cùng nội dung nhận về. Cách
+      chấm đó đã bỏ, app không tạo bản ghi mới nữa, nhưng bản ghi cũ vẫn giữ để giải trình
+      nếu bạn khiếu nại điểm đã chấm trước đó. Chỉ quản trị viên đọc được.
     </li>
     <li>
       <strong>Lượt chơi và câu trả lời</strong> giữ đến khi tài khoản của bạn bị xoá.

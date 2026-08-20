@@ -44,9 +44,6 @@
         <% if best == game.max_score %>
           <span class="badge">Đạt trần</span>
         <% end %>
-        <% if game.ai_graded? && !@ai_budget.enough_for_session?(game) %>
-          <span class="badge">Hết hạn mức hôm nay</span>
-        <% end %>
       </div>
       <div class="progress">
         <div class="progress__bar" style="width: <%= (best * 100.0 / game.max_score).round(1) %>%"></div>

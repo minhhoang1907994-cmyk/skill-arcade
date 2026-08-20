@@ -13,12 +13,15 @@ RSpec.describe "Trang chính sách riêng tư (Q7)" do
     expect(response).to have_http_status(:ok)
   end
 
-  it "công bố rõ việc gửi nội dung người chơi sang Gemini gói free" do
+  it "công bố rõ nội dung người chơi KHÔNG ra khỏi app (1.19)" do
     get privacy_path
 
+    expect(body_text).to include("Nội dung bạn nhập trong game không đi ra khỏi app")
     expect(body_text).to include("Google Gemini")
-    expect(body_text).to include("người thật của Google có thể đọc")
-    expect(body_text).to include("đừng dán nội dung nội bộ của công ty hoặc của khách hàng")
+    expect(body_text).to include("ngoài lúc chơi")
+    # Cảnh báo cũ phải biến mất cùng ô gõ text: giữ lại là nói sai về hành vi của app.
+    expect(body_text).not_to include("người thật của Google có thể đọc")
+    expect(body_text).not_to include("đừng dán nội dung nội bộ của công ty hoặc của khách hàng")
   end
 
   it "công bố Google Fonts nhận IP của người dùng" do
@@ -33,10 +36,10 @@ RSpec.describe "Trang chính sách riêng tư (Q7)" do
     expect(body_text).to include("Log ứng dụng giữ #{PagesController::LOG_RETENTION_DAYS} ngày")
   end
 
-  it "nói rõ bản ghi chấm điểm AI giữ vĩnh viễn và bảng xếp hạng là công khai" do
+  it "nói rõ bản ghi chấm điểm AI CŨ giữ vĩnh viễn và bảng xếp hạng là công khai" do
     get privacy_path
 
-    expect(body_text).to include("Bản ghi chấm điểm AI giữ vĩnh viễn")
+    expect(body_text).to include("Bản ghi chấm điểm AI cũ giữ vĩnh viễn")
     expect(body_text).to include("xem được không cần đăng nhập")
   end
 

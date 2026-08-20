@@ -198,40 +198,80 @@ module Questions
         end
       },
 
+      # Trước 1.19 game này chấm bằng Gemini lúc chơi nên đề chỉ cần `ambiguous_points`
+      # dạng text tự do. Giờ chấm từ DB nên đề phải mang sẵn cả thang điểm: câu nào mơ hồ
+      # (theo số thứ tự) và phương án câu hỏi làm rõ nào là tốt nhất.
       Game::SPEC_DETECTIVE => {
         item_schema: {
           type: "object",
           properties: {
             difficulty: { type: "string" },
-            requirement_text: { type: "string" },
-            ambiguous_points: { type: "array", items: { type: "string" } },
-            sample_questions: { type: "array", items: { type: "string" } },
-            rubric: { type: "string" }
+            statements: { type: "array", items: { type: "string" } },
+            ambiguous_statement_indexes: { type: "array", items: { type: "integer" } },
+            clarifying_options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  key: { type: "string" },
+                  label: { type: "string" }
+                },
+                required: [ "key", "label" ]
+              }
+            },
+            best_option_key: { type: "string" },
+            explanation: { type: "string" }
           },
-          required: [ "requirement_text", "ambiguous_points", "sample_questions" ]
+          required: [ "statements", "ambiguous_statement_indexes", "clarifying_options",
+                      "best_option_key", "explanation" ]
         },
         instructions: lambda do |_generator|
           <<~TEXT
-            Mỗi đề là một đoạn yêu cầu nghiệp vụ 3-6 câu, viết như khách hàng thật viết:
-            nghe hợp lý nhưng còn 3-5 điểm mơ hồ (thiếu ngưỡng số, thiếu quy tắc biên,
-            thiếu định nghĩa trạng thái, dùng từ chủ quan như "nhanh", "dễ dùng").
-            - requirement_text: nguyên văn đoạn yêu cầu.
-            - ambiguous_points: liệt kê từng điểm mơ hồ, mỗi điểm một dòng ngắn.
-            - sample_questions: câu hỏi làm rõ mẫu, mỗi câu đóng được một điểm mơ hồ,
-              phải cụ thể và trả lời được bằng một con số hoặc một quy tắc.
-            - rubric: ghi chú cho người chấm về điểm nào là quan trọng nhất.
+            Mỗi đề là một đoạn yêu cầu nghiệp vụ do khách hàng viết, tách thành từng câu.
+            - statements: 4-7 câu, mỗi phần tử một câu hoàn chỉnh. Đọc liền nhau phải thành
+              một đoạn yêu cầu tự nhiên, nghe hợp lý như khách hàng thật viết.
+            - ambiguous_statement_indexes: số thứ tự (đếm từ 1) những câu CÒN MƠ HỒ — thiếu
+              ngưỡng số, thiếu quy tắc biên, thiếu định nghĩa trạng thái, hoặc dùng từ chủ
+              quan như "nhanh", "phù hợp", "nếu cần". Phải có 2-4 câu mơ hồ, và phải còn ít
+              nhất 2 câu KHÔNG mơ hồ (nói rõ con số hoặc quy tắc cụ thể) để người chơi có
+              thể tick sai.
+            - clarifying_options: ĐÚNG 4 phương án câu hỏi làm rõ, key lần lượt "a","b","c","d".
+            - best_option_key: key của phương án tốt nhất — câu hỏi đóng được điểm mơ hồ
+              QUAN TRỌNG NHẤT và trả lời được bằng một con số hoặc một quy tắc.
+            - Ba phương án còn lại phải nghe hợp lý nhưng kém hơn rõ ràng, mỗi cái sai một
+              kiểu: hỏi về thứ đoạn text đã nói rõ, hỏi quá chung chung không đo được, hoặc
+              hỏi chuyện ngoài phạm vi yêu cầu.
+            - explanation: một câu nói rõ vì sao phương án tốt nhất hơn ba phương án kia.
           TEXT
         end,
         build: lambda do |item, _generator|
-          points = Array(item["ambiguous_points"]).map(&:to_s).reject(&:blank?)
-          next nil if item["requirement_text"].to_s.strip.blank? || points.empty?
+          statements = Array(item["statements"]).map { |line| line.to_s.strip }
+                                               .reject(&:blank?)
+          indexes = Array(item["ambiguous_statement_indexes"]).map(&:to_i)
+                                                             .select(&:positive?).uniq.sort
+          options = Array(item["clarifying_options"]).filter_map do |option|
+            key = option.is_a?(Hash) ? option["key"].to_s.strip : ""
+            label = option.is_a?(Hash) ? option["label"].to_s.strip : ""
+            { "key" => key, "label" => label } if key.present? && label.present?
+          end
+          best = item["best_option_key"].to_s.strip
+          keys = options.map { |option| option["key"] }
+
+          # Bỏ đề mà thang điểm không tự nhất quán — chấm từ DB nên sai ở đây là chấm sai
+          # theo, không còn tầng AI nào đứng giữa để đỡ.
+          next nil if statements.size < 3
+          next nil unless indexes.any? && indexes.all? { |index| index <= statements.size }
+          # Phải còn câu không mơ hồ, không thì tick hết là đủ điểm.
+          next nil unless indexes.size < statements.size
+          next nil unless options.size >= 3 && keys.uniq.size == keys.size
+          next nil unless keys.include?(best)
 
           {
-            "content" => { "requirement_text" => item["requirement_text"].to_s.strip },
+            "content" => { "statements" => statements, "clarifying_options" => options },
             "answer_key" => {
-              "ambiguous_points" => points,
-              "sample_questions" => Array(item["sample_questions"]).map(&:to_s),
-              "rubric" => item["rubric"].to_s
+              "ambiguous_statement_indexes" => indexes,
+              "best_option_key" => best,
+              "explanation" => item["explanation"].to_s
             }
           }
         end

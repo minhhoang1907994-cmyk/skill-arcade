@@ -18,13 +18,6 @@ module Api
                      "Chưa đủ câu hỏi cho game này")
       rescue ::GameSessions::Creator::InvalidLanguage => e
         render_error(:unprocessable_entity, "INVALID_LANGUAGE", e.message)
-      rescue ::GameSessions::Creator::QuotaExhausted
-        # 503 chứ không phải 429: đây là trần công suất của hệ thống, không phải lỗi người
-        # chơi thao tác quá nhanh. Mã riêng để client phân biệt với GRADING_UNAVAILABLE —
-        # cái kia là Gemini hỏng bất ngờ, cái này là biết trước và sẽ hết vào ngày mai.
-        render_error(:service_unavailable, "AI_QUOTA_EXHAUSTED",
-                     "Hôm nay đã dùng hết hạn mức của dịch vụ chấm điểm AI. " \
-                     "Mời bạn quay lại ngày mai, hoặc chơi 4 game còn lại.")
       rescue ::GameSessions::Creator::ConcurrentCreate => e
         render_error(:conflict, "CONFLICT", e.message)
       end

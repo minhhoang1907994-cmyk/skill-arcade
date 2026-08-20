@@ -267,147 +267,82 @@ RSpec.describe "Gameplay API" do
     end
   end
 
-  describe "Spec Detective — chấm bằng Gemini (§8.5, BR-19, BR-26, BR-33)" do
+  describe "Spec Detective — chấm từ answer_key (BR-26)" do
     let(:detective) do
       create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective",
-             questions_per_session: 1, steps_per_session: 1)
+             questions_per_session: 1, steps_per_session: 1, max_score: 20)
+    end
+
+    def create_detective_question
+      create(:question, game: detective,
+             content: {
+               "statements" => [ "Xử lý đơn nhanh.", "Lưu vào bảng orders.",
+                                 "Thông báo nếu cần thiết." ],
+               "clarifying_options" => [ { "key" => "a", "label" => "Nhanh là mấy giây?" },
+                                         { "key" => "b", "label" => "Lưu ở bảng nào?" } ]
+             },
+             answer_key: { "ambiguous_statement_indexes" => [ 1, 3 ],
+                           "best_option_key" => "a", "explanation" => "vì đo được" })
     end
 
     def start_detective
-      create(:question, game: detective, content: { "requirement_text" => "xử lý nhanh" },
-             answer_key: { "ambiguous_points" => [ "nhanh" ] })
-
+      create_detective_question
       post api_v1_game_sessions_path(slug: detective.slug), as: :json
       response.parsed_body["session_id"]
     end
 
-    def submit_answer(sid)
-      post api_v1_session_answers_path(id: sid),
-           params: { position: 1,
-                     answer: { ambiguous_points: [ "nhanh" ], questions: "Nhanh là bao lâu?" } },
-           as: :json
-    end
-
-    def stub_grader(grading)
-      allow_any_instance_of(Gemini::SpecDetectiveGrader).to receive(:call).and_return(grading)
-    end
-
-    it "cộng điểm AI chấm và ghi một bản ghi ai_gradings (BR-19, BR-26)" do
-      stub_grader(
-        Gemini::SpecDetectiveGrader::Grading.new(
-          score: 16, explanation: "Điểm mơ hồ: 8/10. Câu hỏi làm rõ: 8/10.",
-          attributes: { model: "gemini-test", prompt: "p", response: "{}",
-                        score: 16, latency_ms: 42 }
-        )
-      )
+    it "chấm không gọi Gemini và không ghi ai_gradings (BR-26)" do
+      # Nổ nếu có bất kỳ lời gọi Gemini nào trên đường chơi — đó là điều 1.19 bỏ đi.
+      allow_any_instance_of(Gemini::Client).to receive(:generate)
+        .and_raise("không được gọi Gemini lúc chơi")
       sid = start_detective
 
-      submit_answer(sid)
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { statement_indexes: [ 1, 3 ], option_key: "a" } },
+           as: :json
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["awarded_score"]).to eq(16)
-      expect(response.parsed_body["total_score"]).to eq(16)
+      expect(response.parsed_body["awarded_score"]).to eq(20)
       expect(GameSession.find(sid).state).to eq(GameSession::FINISHED)
-
-      grading = AiGrading.sole
-      expect(grading.score).to eq(16)
-      expect(grading.latency_ms).to eq(42)
-      expect(grading).not_to be_failed
+      expect(AiGrading.count).to eq(0)
     end
 
-    it "không trả prompt hay answer_key về client (BR-03)" do
-      stub_grader(
-        Gemini::SpecDetectiveGrader::Grading.new(
-          score: 10, explanation: "ok",
-          attributes: { model: "gemini-test", prompt: "ĐÁP ÁN THAM CHIẾU: nhanh",
-                        response: "{}", score: 10, latency_ms: 1 }
-        )
-      )
-      sid = start_detective
-
-      submit_answer(sid)
-
-      expect(response.body).not_to include("ĐÁP ÁN THAM CHIẾU")
-      expect(response.body).not_to include("answer_key")
-    end
-
-    it "trả 503, đánh dấu system_error và vẫn ghi ai_gradings kèm error (§8.5, BR-19)" do
-      # Stub ở tầng client, không phải tầng grader: cần grader chạy thật để chứng minh nó
-      # dựng đủ attributes cho ai_gradings khi lỗi. Không dựa vào việc test env thiếu
-      # GEMINI_API_KEY — như vậy test không đổi kết quả theo biến môi trường của máy chạy.
-      allow_any_instance_of(Gemini::Client).to receive(:generate)
-        .and_raise(Gemini::Client::RequestFailed, "Gemini timeout sau 10s")
-      sid = start_detective
-
-      submit_answer(sid)
-
-      expect(response).to have_http_status(:service_unavailable)
-      expect(response.parsed_body["code"]).to eq("GRADING_UNAVAILABLE")
-
-      session = GameSession.find(sid)
-      expect(session.state).to eq(GameSession::ABANDONED)
-      expect(session.abandoned_reason).to eq(GameSession::SYSTEM_ERROR)
-      expect(session.score).to eq(0)
-      expect(GameSession.finished).to be_empty
-
-      answer = SessionAnswer.sole
-      expect(answer.score).to eq(0)
-      expect(answer.answer.dig("_meta", "grading_pending")).to be true
-
-      grading = AiGrading.sole
-      expect(grading).to be_failed
-      expect(grading.score).to be_nil
-      expect(grading.error).to include("Gemini timeout sau 10s")
-    end
-
-    it "chặn TRƯỚC khi tạo lượt khi hết hạn mức ngày, mã riêng AI_QUOTA_EXHAUSTED" do
-      create(:question, game: detective, content: { "requirement_text" => "xử lý nhanh" },
-             answer_key: { "ambiguous_points" => [ "nhanh" ] })
-      # Hạn mức tính bằng số dòng ai_gradings trong 24h qua, nên dựng đúng ở tầng đó.
-      other = create(:game_session, game: detective, user: create(:user))
-      Gemini::DailyBudget::DAILY_REQUEST_LIMIT.times do
-        answer = create(:session_answer_record, session: other,
-                        question: create(:question, game: detective,
-                                         content: { "requirement_text" => "x#{SecureRandom.hex(4)}" },
-                                         answer_key: { "ambiguous_points" => [ "y" ] }))
-        AiGrading.create!(session_answer: answer, model: "gemini-test", prompt: "p",
-                          response: "{}", score: 5)
-      end
-
-      post api_v1_game_sessions_path(slug: detective.slug), as: :json
-
-      expect(response).to have_http_status(:service_unavailable)
-      expect(response.parsed_body["code"]).to eq("AI_QUOTA_EXHAUSTED")
-      # Không tạo lượt nào: người chơi không mất lượt vì trần công suất của hệ thống
-      expect(GameSession.where(game: detective, user: user)).to be_empty
-    end
-
-    it "không chặn 4 game còn lại khi hết hạn mức AI (spec §15)" do
-      create_bug_hunt_questions
-      other = create(:game_session, game: detective, user: create(:user))
-      Gemini::DailyBudget::DAILY_REQUEST_LIMIT.times do
-        answer = create(:session_answer_record, session: other,
-                        question: create(:question, game: detective,
-                                         content: { "requirement_text" => "x#{SecureRandom.hex(4)}" },
-                                         answer_key: { "ambiguous_points" => [ "y" ] }))
-        AiGrading.create!(session_answer: answer, model: "gemini-test", prompt: "p",
-                          response: "{}", score: 5)
-      end
-
-      start_session
-
-      expect(response).to have_http_status(:created)
-    end
-
-    it "vẫn trả 400 khi thiếu trường trong answer, không phải 503" do
+    it "trừ điểm tick sai" do
       sid = start_detective
 
       post api_v1_session_answers_path(id: sid),
-           params: { position: 1, answer: { ambiguous_points: [ "nhanh" ] } }, as: :json
+           params: { position: 1, answer: { statement_indexes: [ 1, 2 ], option_key: "a" } },
+           as: :json
+
+      expect(response.parsed_body["awarded_score"]).to eq(10)
+    end
+
+    it "không trả answer_key về client (BR-03)" do
+      sid = start_detective
+
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { statement_indexes: [ 1 ], option_key: "b" } },
+           as: :json
+
+      expect(response.body).not_to include("answer_key")
+      expect(response.body).not_to include("ambiguous_statement_indexes")
+    end
+
+    it "payload bước chơi chỉ gồm statements và clarifying_options" do
+      start_detective
+
+      expect(response.parsed_body["current"]["content"].keys)
+        .to contain_exactly("statements", "clarifying_options")
+    end
+
+    it "vẫn trả 400 khi thiếu trường trong answer" do
+      sid = start_detective
+
+      post api_v1_session_answers_path(id: sid),
+           params: { position: 1, answer: { statement_indexes: [ 1 ] } }, as: :json
 
       expect(response).to have_http_status(:bad_request)
       expect(response.parsed_body["code"]).to eq("VALIDATION_ERROR")
-      expect(AiGrading.count).to eq(0)
     end
   end
 
