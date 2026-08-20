@@ -23,6 +23,21 @@ module Api
         render_error(:bad_request, "VALIDATION_ERROR", e.message)
       end
 
+      # Ngân hàng câu hỏi không đủ để phục vụ bước đang cần. Rescue TẬP TRUNG ở đây vì cả ba
+      # endpoint bốc đề đều gặp được: tạo lượt, `GET current`, và nộp đáp án. Trước 1.20 chỉ
+      # endpoint tạo lượt rescue `NotEnoughQuestions`, nên khi admin ẩn câu giữa lúc có người
+      # đang chơi (BR-16/BR-18 — chính luồng app khuyến khích người chơi dùng) thì `GET current`
+      # và nộp đáp án trả **500**.
+      #
+      # `StepProvider::NoQuestionAvailable` gộp cùng chỗ: hiện không chạm được vì `Drawer#call`
+      # luôn trả đúng `count` câu hoặc ném `NotEnoughQuestions` trước đó, nhưng nó là cùng một
+      # tình huống nghiệp vụ nên không để hai đường xử lý khác nhau.
+      rescue_from ::Questions::Drawer::NotEnoughQuestions,
+                  ::GameSessions::StepProvider::NoQuestionAvailable do
+        render_error(:unprocessable_entity, "NO_QUESTIONS_AVAILABLE",
+                     "Chưa đủ câu hỏi cho game này")
+      end
+
       private
 
       # Người chơi chỉ thao tác được trên lượt của chính mình (spec §12).

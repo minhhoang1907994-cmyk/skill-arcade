@@ -13,9 +13,6 @@ module Api
         render json: session_payload(session).merge(
           current: ::GameSessions::StepProvider.new(session).payload
         ), status: :created
-      rescue ::Questions::Drawer::NotEnoughQuestions
-        render_error(:unprocessable_entity, "NO_QUESTIONS_AVAILABLE",
-                     "Chưa đủ câu hỏi cho game này")
       rescue ::GameSessions::Creator::InvalidLanguage => e
         render_error(:unprocessable_entity, "INVALID_LANGUAGE", e.message)
       rescue ::GameSessions::Creator::ConcurrentCreate => e
@@ -32,9 +29,6 @@ module Api
         render json: session_payload(@game_session).merge(
           current: ::GameSessions::StepProvider.new(@game_session).payload
         )
-      rescue ::GameSessions::StepProvider::NoQuestionAvailable
-        render_error(:unprocessable_entity, "NO_QUESTIONS_AVAILABLE",
-                     "Chưa đủ câu hỏi cho game này")
       end
 
       # POST /api/v1/sessions/:id/abandon

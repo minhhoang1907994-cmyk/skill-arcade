@@ -346,6 +346,74 @@ RSpec.describe "Gameplay API" do
     end
   end
 
+  # Lỗ đã trả 500 trước 1.20: `Questions::Drawer::NotEnoughQuestions` chỉ được rescue ở
+  # endpoint TẠO LƯỢT, còn `GET current` và nộp đáp án thì để nó lọt ra → 500. Chạm được thật
+  # khi admin ẩn câu giữa lúc có người đang chơi — chính luồng BR-16/BR-18 mà app khuyến khích
+  # người chơi dùng. Từ 1.20 rescue nằm tập trung ở BaseController nên cả ba endpoint cùng
+  # trả 422 NO_QUESTIONS_AVAILABLE.
+  #
+  # Ghi chú: `StepProvider::NoQuestionAvailable` KHÔNG phải exception xảy ra ở đây.
+  # `Drawer#call` luôn trả đúng `count` câu hoặc ném `NotEnoughQuestions` trước đó, nên
+  # `fresh_question` không bao giờ hết ứng viên. Test dưới đây khoá lại hành vi thật.
+  describe "ngân hàng câu hỏi hụt giữa lượt (BR-16/BR-18)" do
+    before do
+      create_bug_hunt_questions(2)
+      login
+      start_session
+      @sid = response.parsed_body["session_id"]
+      # Admin chấp nhận báo cáo → câu bị ẩn. Lượt đang mở vẫn trỏ vào pool sống.
+      Question.where(game: game).update_all(hidden: true)
+    end
+
+    def submit_position_one
+      post api_v1_session_answers_path(id: @sid),
+           params: { position: 1, answer: { line: 1, bug_type: "sql_injection" } }, as: :json
+    end
+
+    it "nộp đáp án trả 422 NO_QUESTIONS_AVAILABLE chứ không phải 500" do
+      submit_position_one
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("NO_QUESTIONS_AVAILABLE")
+    end
+
+    it "GET current cũng trả 422, không 500" do
+      get api_v1_session_current_path(id: @sid), as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("NO_QUESTIONS_AVAILABLE")
+    end
+
+    it "giữ lượt ở in_progress và không ghi câu trả lời nào — người chơi tự bỏ lượt" do
+      submit_position_one
+
+      session = GameSession.find(@sid)
+      expect(session.state).to eq(GameSession::IN_PROGRESS)
+      expect(session.abandoned_reason).to be_nil
+      expect(session.session_answers.count).to eq(0)
+      expect(session.score).to eq(0)
+    end
+
+    it "bỏ lượt vẫn hoạt động để người chơi thoát được" do
+      post api_v1_session_abandon_path(id: @sid), as: :json
+
+      expect(response).to have_http_status(:no_content)
+      expect(GameSession.find(@sid).abandoned_reason).to eq(GameSession::USER_QUIT)
+    end
+
+    # Ranh giới đã ghi ở creator.rb: ngôn ngữ CÒN trong bank nhưng thiếu câu →
+    # NO_QUESTIONS_AVAILABLE; ngôn ngữ không còn trong bank → INVALID_LANGUAGE. Ẩn HẾT câu
+    # làm "ruby" biến mất khỏi bank nên đường thứ hai mới đúng, không phải đường thứ nhất.
+    it "tạo lượt mới báo INVALID_LANGUAGE vì ẩn hết câu làm ngôn ngữ mất khỏi bank" do
+      start_session
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body["code"]).to eq("INVALID_LANGUAGE")
+      expect(game.available_languages).to be_empty
+    end
+  end
+
+
   describe "POST /api/v1/sessions/:id/abandon (§8.4)" do
     it "đánh dấu user_quit và không tính vào leaderboard" do
       create_bug_hunt_questions

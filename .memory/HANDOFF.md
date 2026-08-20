@@ -21,12 +21,12 @@
 
 ## Trạng thái hiện tại
 
-### ✅ Verify đã pass (2026-08-20)
+### ✅ Verify đã pass (2026-08-20, sau v1.21)
 ```
-bundle exec rspec        → 169 examples, 0 failures
-bundle exec rubocop      → 92 files, no offenses
-bin/brakeman             → 1 warning Medium, CÓ SẴN từ trước (permit! ở
-                           session_answers_controller.rb:31), không do session này
+bundle exec rspec        -> 174 examples, 0 failures
+bundle exec rubocop      -> 92 files, no offenses
+bin/brakeman             -> 1 warning Medium, CO SAN tu truoc (permit! o
+                            session_answers_controller.rb), khong do session nay
 ```
 Recheck UI bằng Chrome trên server dev (owner yêu cầu tự động check):
 - Spec Detective format mới: 4 ô tick + 4 phương án render đúng, tick [1,3] + chọn "a" →
@@ -126,6 +126,28 @@ answer      { statement_indexes: [1,3], option_key: "a" }
 - `.github/workflows/questions-refill.yml` — 19:00 UTC (02:00 VN). **Cố ý KHÔNG set
   `REDIS_URL`** → runner rơi về file store nên circuit breaker của job tách khỏi web service
 - Trang `/privacy` §2 viết lại: nội dung người chơi nhập KHÔNG ra khỏi app
+
+### v1.21 — vá lỗ 500 khi ngân hàng câu hỏi hụt giữa lượt (2026-08-20)
+
+`Questions::Drawer::NotEnoughQuestions` chỉ được rescue ở endpoint TẠO LƯỢT. `GET current` và
+nộp đáp án để nó lọt ra → **500**. Chạm được thật khi admin ẩn câu giữa lúc có người đang chơi
+— chính luồng BR-16/BR-18 mà app khuyến khích người chơi dùng.
+
+- Rescue chuyển về **tập trung** ở `Api::V1::BaseController` (`rescue_from`) cho cả
+  `NotEnoughQuestions` và `StepProvider::NoQuestionAvailable`. Bỏ 3 rescue inline trùng nhau —
+  lý do centralize: 3 endpoint cùng bốc đề, để inline thì endpoint thứ 4 lại quên
+- **Tôi đã phân tích sai lúc đầu**: nói exception thoát ra là `NoQuestionAvailable`. Sai.
+  `Drawer#call` luôn trả đúng `count` câu hoặc ném `NotEnoughQuestions` trước đó, nên
+  `fresh_question` không bao giờ hết ứng viên → `NoQuestionAvailable` hiện KHÔNG chạm được.
+  Test viết theo giả định sai đã fail và chỉ đúng chỗ. Bài học: viết test reproduce trước khi
+  tin vào suy luận về đường exception
+- Lượt cố ý GIỮ `in_progress`, KHÔNG tự chuyển `abandoned`: đó là thay đổi state machine §11 và
+  `abandoned_reason` chưa có giá trị nào đúng cho tình huống này. Người chơi thoát bằng nút Bỏ
+  lượt sẵn có (`user_quit`)
+- 5 test hồi quy, gồm ranh giới `INVALID_LANGUAGE` vs `NO_QUESTIONS_AVAILABLE`: ẩn HẾT câu làm
+  ngôn ngữ mất khỏi bank → `INVALID_LANGUAGE` (không phải `NO_QUESTIONS_AVAILABLE`), đúng như
+  `creator.rb` đã ghi
+
 
 ### v1.20 — hai lỗi phát hiện khi chơi thật trên Render (2026-08-20)
 
