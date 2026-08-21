@@ -1,0 +1,297 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-08-21T19:22:46Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần cung cấp tính năng áp dụng mã giảm giá tự động khi người dùng thanh
+      toán.
+    - Nếu giỏ hàng đạt giá trị tối thiểu, mã giảm giá tốt nhất sẽ được tự động kích
+      hoạt.
+    - Mỗi tài khoản chỉ được sử dụng tối đa 3 mã giảm giá khác nhau trong cùng một
+      tháng.
+    - Khi đơn hàng bị hủy bởi người mua, hệ thống sẽ hoàn lại mã giảm giá nếu mã đó
+      còn thời hạn.
+    - Thời gian xử lý việc áp dụng mã giảm giá phải thật nhanh để không làm gián đoạn
+      trải nghiệm mua sắm.
+    clarifying_options:
+    - key: a
+      label: Ngưỡng giá trị tối thiểu của giỏ hàng là bao nhiêu và tiêu chí lựa chọn
+        mã tốt nhất được xác định cụ thể như thế nào?
+    - key: b
+      label: Một tài khoản được dùng tối đa bao nhiêu mã giảm giá trong một tháng?
+    - key: c
+      label: Hệ thống có cần giao diện đẹp mắt khi hiển thị danh sách mã giảm giá
+        hay không?
+    - key: d
+      label: Làm sao để tích hợp cổng thanh toán VNPay vào hệ thống ứng dụng di động?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a hỏi đúng và trực tiếp vào quy tắc kinh doanh chưa rõ
+      ràng ở câu 2 về ngưỡng giá trị giỏ hàng và định nghĩa mã tốt nhất, trong khi
+      b hỏi trùng thông tin đã rõ ở câu 3, c mang tính cảm quan và d nằm ngoài phạm
+      vi nghiệp vụ mã giảm giá.
+  difficulty: medium
+- content:
+    statements:
+    - Người dùng đăng ký tài khoản mới bằng số điện thoại di động tại Việt Nam.
+    - Hệ thống sẽ gửi một mã OTP qua SMS ngay sau khi người dùng bấm nút Đăng ký.
+    - Mã OTP phải có độ dài phù hợp và tự động hết hạn sau một khoảng thời gian ngắn.
+    - Nếu người dùng nhập sai OTP quá số lần quy định, tài khoản sẽ bị tạm khóa.
+    - Tài khoản bị tạm khóa phải chờ đúng 24 giờ mới được gửi lại yêu cầu OTP mới.
+    clarifying_options:
+    - key: a
+      label: Tài khoản bị tạm khóa thì cần phải chờ bao nhiêu giờ mới được thử gửi
+        lại OTP?
+    - key: b
+      label: Mã OTP gồm bao nhiêu chữ số, thời gian hết hạn cụ thể là mấy phút và
+        nhập sai mấy lần thì khóa tài khoản?
+    - key: c
+      label: Người dùng có thể sử dụng số điện thoại của quốc gia nào để đăng ký tài
+        khoản?
+    - key: d
+      label: Chi phí gửi một tin nhắn SMS OTP cho nhà mạng viễn thông hiện tại là
+        bao nhiêu?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: b
+    explanation: Phương án b chốt được con số cụ thể cho độ dài OTP, thời gian hết
+      hạn và số lần nhập sai ở câu 3 và 4, còn a và c hỏi lại thông tin đã có rõ trong
+      câu 1 và 5, d là câu hỏi chi phí vận hành không liên quan logic nghiệp vụ.
+  difficulty: easy
+- content:
+    statements:
+    - Khách hàng có thể nộp hồ sơ vay tiêu dùng trực tuyến thông qua ứng dụng di động.
+    - Hệ thống tự động chấm điểm tín dụng dựa trên lịch sử giao dịch trong 6 tháng
+      gần nhất.
+    - Nếu điểm tín dụng đạt mức phù hợp, hồ sơ sẽ được chuyển thẳng sang trạng thái
+      phê duyệt tự động.
+    - Đối với các khoản vay trên 100 triệu đồng, hệ thống yêu cầu tải lên chứng minh
+      thu nhập.
+    - Ban cố vấn sẽ xem xét và phản hồi các hồ sơ nghi vấn trong thời gian sớm nhất.
+    - Sau khi được duyệt, tiền vay sẽ được chuyển vào tài khoản thanh toán của khách
+      hàng.
+    clarifying_options:
+    - key: a
+      label: Lịch sử giao dịch của khách hàng cần xét duyệt trong khoảng thời gian
+        bao lâu?
+    - key: b
+      label: Khoản vay có giá trị từ bao nhiêu tiền trở lên thì bắt buộc tải lên chứng
+        minh thu nhập?
+    - key: c
+      label: Ngưỡng điểm tín dụng cụ thể để duyệt tự động là bao nhiêu và SLA xử lý
+        tối đa cho hồ sơ nghi vấn là mấy giờ?
+    - key: d
+      label: Màn hình nộp hồ sơ vay tiêu dùng nên thiết kế theo tông màu xanh hay
+        màu cam?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: c
+    explanation: Phương án c quy định rõ ngưỡng điểm tín dụng để kích hoạt phê duyệt
+      tự động và thời hạn xử lý cụ thể cho câu 3 và 5, trong khi a và b nhắc lại điều
+      đã nêu ở câu 2 và 4, d hỏi về thẩm mỹ không ảnh hưởng luồng nghiệp vụ.
+  difficulty: hard
+- content:
+    statements:
+    - Nhân viên kho sử dụng máy quét mã vạch để thực hiện kiểm kê hàng tồn kho.
+    - Khi số lượng tồn kho của một mặt hàng xuống quá thấp, hệ thống phải phát cảnh
+      báo.
+    - Cảnh báo sẽ được gửi qua email cho Quản lý kho trong vòng 5 phút kể từ khi phát
+      sinh.
+    - Hệ thống cần tự động tạo đề xuất đơn đặt hàng mới với số lượng phù hợp nếu cần.
+    - Báo cáo kiểm kê tồn kho tổng hợp phải được xuất ra định dạng PDF hoặc Excel.
+    clarifying_options:
+    - key: a
+      label: Email cảnh báo tồn kho thấp sẽ được gửi tới Quản lý kho trong thời gian
+        tối đa bao nhiêu phút?
+    - key: b
+      label: Báo cáo kiểm kê tồn kho tổng hợp có thể xuất ra những định dạng tệp tin
+        nào?
+    - key: c
+      label: Công ty nên chọn mua thương hiệu máy quét mã vạch nào để bảo đảm độ bền
+        tốt nhất?
+    - key: d
+      label: Ngưỡng số lượng tồn kho tối thiểu để phát cảnh báo là bao nhiêu và công
+        thức tính số lượng đặt hàng tự động là gì?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: d
+    explanation: Phương án d giải quyết dứt điểm điều kiện phát cảnh báo và công thức
+      tính lượng hàng nhập ở câu 2 và 4, trong khi a và b lặp lại thông tin đã rõ
+      ở câu 3 và 5, c là câu hỏi mua sắm trang thiết bị ngoài phạm vi làm phần mềm.
+  difficulty: medium
+- content:
+    statements:
+    - Ứng dụng đặt xe tự động tính giá cước chuyến đi dựa trên khoảng cách GPS giữa
+      điểm đi và điểm đến.
+    - Trong khung giờ cao điểm hoặc thời tiết xấu, giá cước sẽ được tăng lên một mức
+      hợp lý.
+    - Mức phụ phí thời tiết xấu tối đa không được vượt quá 50.000 VNĐ cho mỗi chuyến
+      đi.
+    - Nếu tài xế hủy chuyến không lý do quá 3 lần một ngày, tài khoản tài xế sẽ bị
+      tạm ngừng nhận chuyến trong 24 giờ.
+    - Khách hàng có thể gửi phản hồi chất lượng dịch vụ và hệ thống sẽ xử lý nhanh
+      chóng.
+    clarifying_options:
+    - key: a
+      label: Khung giờ nào được tính là cao điểm, tiêu chí thời tiết xấu xác định
+        ra sao và hệ số nhân tăng giá cước cụ thể là bao nhiêu?
+    - key: b
+      label: Mức phụ phí thời tiết xấu tối đa cộng thêm vào chuyến đi được quy định
+        là bao nhiêu tiền?
+    - key: c
+      label: Tài xế hủy chuyến bao nhiêu lần một ngày thì bị tạm ngừng nhận chuyến
+        và thời gian ngừng là bao lâu?
+    - key: d
+      label: Làm sao để ứng dụng đạt được 100.000 lượt tải xuống trên App Store trong
+        tháng đầu tiên ra mắt?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 5
+    best_option_key: a
+    explanation: Phương án a xác định cụ thể các mốc thời gian, điều kiện thời tiết
+      và công thức tính giá tăng ở câu 2, trong khi b và c trùng khớp thông tin đã
+      định nghĩa chính xác ở câu 3 và 4, d là mục tiêu kinh doanh tiếp thị không thuộc
+      specification phần mềm.
+  difficulty: easy
+- content:
+    statements:
+    - Hệ thống cho phép người dùng thêm nhiều sản phẩm vào giỏ hàng và tiến hành đặt
+      hàng trực tuyến.
+    - Khi người dùng nhấn nút thanh toán, hệ thống sẽ tự động áp dụng mã giảm giá
+      phù hợp nhất.
+    - Mã giảm giá áp dụng phải còn hạn sử dụng và số lượng còn lại lớn hơn 0.
+    - Nếu hệ thống xử lý quá lâu, ứng dụng sẽ hiện thông báo lỗi và cho phép thử lại.
+    - Đơn hàng thành công sẽ gửi email xác nhận chứa đầy đủ thông tin mã đơn hàng
+      và chi tiết sản phẩm trong vòng 30 giây.
+    clarifying_options:
+    - key: a
+      label: Mã giảm giá phù hợp nhất được ưu tiên theo phần trăm giảm giá hay số
+        tiền giảm thực tế cao nhất?
+    - key: b
+      label: Email xác nhận đơn hàng có cần đính kèm file PDF hóa đơn không?
+    - key: c
+      label: Làm sao để làm cho giao diện thanh toán mượt mà và thân thiện hơn?
+    - key: d
+      label: Mã giảm giá có quy định số lượng còn lại phải lớn hơn 0 không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: a
+    explanation: Phương án a làm rõ quy tắc kinh doanh tính mã giảm giá ở câu 2 bằng
+      điều kiện định lượng cụ thể, trong khi b hỏi ngoài phạm vi yêu cầu, c quá chung
+      chung không đo lường được, còn d hỏi lại điều đã xác định rõ ở câu 3.
+  difficulty: easy
+- content:
+    statements:
+    - Khách hàng nộp hồ sơ vay vốn trực tuyến qua ứng dụng di động của ngân hàng.
+    - Hệ thống sẽ tự động kiểm tra điểm tín dụng từ hệ thống CIC ngay sau khi nhận
+      hồ sơ.
+    - Nếu điểm tín dụng đạt mức khá, hồ sơ sẽ được chuyển sang luồng duyệt tự động
+      nhanh chóng.
+    - Trong trường hợp cần thiết, chuyên viên tư vấn sẽ liên hệ để thu thập thêm chứng
+      từ thu nhập.
+    - Hồ sơ bị từ chối sẽ được lưu trữ lịch sử trên hệ thống và gửi SMS thông báo
+      cho khách hàng trong vòng 5 phút.
+    clarifying_options:
+    - key: a
+      label: Làm thế nào để tăng trải nghiệm của khách hàng khi nộp hồ sơ vay vốn?
+    - key: b
+      label: SMS thông báo từ chối có chứa tên của chuyên viên tư vấn hay không?
+    - key: c
+      label: Chính xác điểm tín dụng CIC đạt từ bao nhiêu điểm trở lên thì được tính
+        là mức khá để chạy luồng duyệt tự động?
+    - key: d
+      label: Hệ thống kiểm tra điểm tín dụng từ CIC ngay sau khi nhận hồ sơ có đúng
+        không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: c
+    explanation: Phương án c đưa ra câu hỏi chốt ngưỡng điểm số cụ thể cho logic ở
+      câu 3, trong khi a quá chung chung, b hỏi chi tiết phụ ngoài phạm vi chính,
+      và d lặp lại thông tin đã khẳng định rõ ở câu 2.
+  difficulty: medium
+- content:
+    statements:
+    - Học viên tham gia bài thi trắc nghiệm trực tuyến phải bật camera suốt thời gian
+      làm bài.
+    - Hệ thống sẽ tự động ghi lại màn hình và phát hiện các hành vi bất thường trong
+      quá trình thi.
+    - Bài thi sẽ tự động nộp khi hết thời gian quy định là 45 phút.
+    - Nếu kết quả thi chưa tốt, hệ thống sẽ gợi ý danh sách bài học ôn tập phù hợp.
+    - Kết quả thi và bảng điểm chi tiết sẽ hiển thị lập tức ngay sau khi bài thi được
+      gửi lên server.
+    - Nếu phát hiện vi phạm nghiêm trọng, hệ thống sẽ đình chỉ bài thi nếu cần.
+    clarifying_options:
+    - key: a
+      label: Điểm thi dưới bao nhiêu phần trăm thì được tính là chưa tốt để kích hoạt
+        tính năng gợi ý bài học?
+    - key: b
+      label: Thời gian 45 phút làm bài thi có bao gồm thời gian thí sinh chuẩn bị
+        bật camera không?
+    - key: c
+      label: Làm sao để hệ thống hoạt động ổn định và không bị giật lag khi ghi hình
+        màn hình?
+    - key: d
+      label: Bài thi trắc nghiệm có hiển thị đáp án đúng ngay sau khi nộp bài không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    - 6
+    best_option_key: a
+    explanation: Phương án a quy định rõ ngưỡng điểm số định lượng để kích hoạt logic
+      ở câu 4, trong khi b hỏi quy trình phụ, c hỏi chung chung về hiệu năng kỹ thuật,
+      còn d mở rộng sang tính năng hiển thị chưa có trong mô tả.
+  difficulty: hard
+- content:
+    statements:
+    - Nhân viên kho quét mã QR trên thùng hàng để bắt đầu quy trình đóng gói.
+    - Màn hình kho sẽ hiển thị danh sách tất cả sản phẩm cần lấy cùng vị trí kệ tương
+      ứng.
+    - Đối với các mặt hàng dễ vỡ, nhân viên phải bọc lót cẩn thận theo tiêu chuẩn
+      an toàn.
+    - Nếu trọng lượng kiện hàng vượt quá quy định, hệ thống sẽ phát cảnh báo để chia
+      nhỏ kiện hàng.
+    - Sau khi đóng gói xong, nhãn vận chuyển chứa mã tracking sẽ được in tự động qua
+      máy in nhiệt trong 2 giây.
+    clarifying_options:
+    - key: a
+      label: Máy in nhiệt dùng loại giấy in kích thước bao nhiêu mm?
+    - key: b
+      label: Trọng lượng tối đa cụ thể của một kiện hàng là bao nhiêu kg trước khi
+        hệ thống báo vượt quá quy định?
+    - key: c
+      label: Làm thế nào để nhân viên bọc lót hàng dễ vỡ một cách cẩn thận hơn?
+    - key: d
+      label: Màn hình kho có hiển thị hình ảnh của sản phẩm cùng vị trí kệ không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: b
+    explanation: Phương án b chốt con số giới hạn trọng lượng cụ thể cho câu 4 để
+      lập trình logic kích hoạt cảnh báo, trong khi a hỏi chi tiết phần cứng không
+      ảnh hưởng logic chính, c mang tính định tính không đo lường được, và d đào sâu
+      giao diện ngoài phạm vi mô tả.
+  difficulty: medium
