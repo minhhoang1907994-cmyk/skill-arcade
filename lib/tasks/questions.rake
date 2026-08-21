@@ -58,7 +58,7 @@ namespace :questions do
       abort("GEMINI_API_KEY chưa được cấu hình (xem .env.example)")
     end
 
-    # Phải chạy TRƯỚC: Refiller bỏ qua game còn lượt in_progress, và lượt treo vĩnh viễn
+    # Phải chạy TRƯỚC: Refiller bỏ qua mục tiêu còn lượt in_progress, và lượt treo vĩnh viễn
     # (BR-24 chưa từng có scheduler) sẽ chặn refill mãi mãi nếu không dọn.
     Rake::Task["game_sessions:expire_stale"].invoke
 
@@ -68,6 +68,14 @@ namespace :questions do
     # Exit code khác 0 để scheduler báo đỏ — im lặng thất bại thì tháng sau mới phát hiện
     # ngân hàng đề không hề lớn lên.
     abort("refill thất bại") if outcomes.any? { |outcome| outcome.status == :failed }
+
+    # Mọi mục tiêu bị chặn cũng phải báo đỏ. Trước đây chỉ :failed làm job đỏ nên nhiều ngày
+    # liền job xanh mà KHÔNG nạp được đề nào — đúng cái bẫy mà comment trên đây cảnh báo.
+    # :nothing_to_do (mọi game đã đủ đề) vẫn xanh, vì đó là trạng thái đúng.
+    if outcomes.none? { |outcome| outcome.status == :done } &&
+       outcomes.any? { |outcome| outcome.status == :skipped }
+      abort("refill không nạp được đề nào: mọi mục tiêu đang thiếu đều còn lượt đang chơi")
+    end
   end
 
   desc "Ẩn mọi đề không còn hợp lệ theo Questions::Validator (vd: đề Spec Detective format cũ)"

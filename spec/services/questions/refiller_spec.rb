@@ -25,14 +25,17 @@ RSpec.describe Questions::Refiller do
   # bank_dir trỏ vào tmp: không ghi rác vào db/question_banks của repo khi chạy test.
   let(:bank_dir) { Rails.root.join("tmp", "question_banks_spec", SecureRandom.hex(4)) }
 
-  def refiller(records: [], per_run: 10)
+  # generated ghi NHÃN của từng mục tiêu đã gọi Gemini chứ không chỉ đếm số lần: từ khi trần
+  # là 3 mục tiêu thì phải kiểm được ĐÚNG mục tiêu nào được chọn, không chỉ chọn mấy cái.
+  def refiller(records: [], per_run: 10, max_targets: described_class::MAX_TARGETS_PER_RUN)
     generated = []
-    builder = lambda do |_game, _language|
-      generated << true
+    builder = lambda do |game, language|
+      generated << [ game.slug, language ].compact.join("/")
       fake_generator(records)
     end
 
-    [ described_class.new(per_run: per_run, generator_builder: builder, bank_dir: bank_dir),
+    [ described_class.new(per_run: per_run, max_targets: max_targets,
+                          generator_builder: builder, bank_dir: bank_dir),
       generated ]
   end
 
@@ -114,19 +117,109 @@ RSpec.describe Questions::Refiller do
     end
   end
 
-  describe "trần 3 — tối đa một mục tiêu mỗi lần chạy" do
-    it "chỉ xử lý mục tiêu thiếu nhiều nhất khi nhiều game cùng thiếu" do
-      other = create(:game, slug: Game::BUG_HUNT, name: "Bug Hunt",
-                     questions_per_session: 10, steps_per_session: 10)
-      create_questions(1)
+  describe "trần 3 — tối đa MAX_TARGETS_PER_RUN mục tiêu mỗi lần chạy" do
+    it "mục tiêu thiếu ít nhất bị hoãn khi số mục tiêu vượt trần" do
+      # 4 game không phân ngôn ngữ, không game nào có đề — cả 4 đều thiếu.
+      create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective",
+             questions_per_session: 5, steps_per_session: 5)
+      create(:game, slug: Game::PROD_ROULETTE, name: "PROD Roulette",
+             questions_per_session: 1, steps_per_session: 10)
+      create(:game, slug: Game::INCIDENT_ESCAPE_ROOM, name: "Incident Escape Room",
+             questions_per_session: 1, steps_per_session: 8)
+      game
       service, generated = refiller(records: [ valid_record(1) ])
 
       outcomes = service.call
 
-      expect(outcomes.size).to eq(1)
-      expect(generated.size).to eq(1)
-      # Bug Hunt phân đề theo ngôn ngữ và bank rỗng nên không sinh ra mục tiêu nào.
-      expect(other.available_languages).to be_empty
+      expect(generated.size).to eq(3)
+      # Mục tiêu bị hoãn KHÔNG có outcome nào — không phải :skipped (đó là nghĩa "còn lượt
+      # đang chơi"), chỉ đơn giản là để lần chạy sau.
+      expect(outcomes.size).to eq(3)
+      # goal: spec_detective 15 > estimate_poker 6 > prod_roulette = escape_room 3.
+      expect(generated).to include("spec_detective", "estimate_poker")
+    end
+
+    it "trần đọc từ tham số max_targets" do
+      create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective",
+             questions_per_session: 5, steps_per_session: 5)
+      game
+      service, generated = refiller(records: [ valid_record(1) ], max_targets: 1)
+
+      service.call
+
+      expect(generated).to eq([ "spec_detective" ])
+    end
+
+    it "trần mặc định là 3 — giữ tổng request trong hạn mức 20/ngày" do
+      expect(described_class::MAX_TARGETS_PER_RUN).to eq(3)
+    end
+  end
+
+  # Lỗi đã gặp thật trên production 2026-08-21: sessions_open? chỉ lọc theo game nên cả 4 mục
+  # tiêu bug_hunt cùng bị chặn bởi cùng một tập 5 lượt, job xanh mà nạp 0 đề.
+  describe "lượt đang chơi chỉ chặn ĐÚNG ngôn ngữ của nó" do
+    let(:bug_hunt) do
+      create(:game, slug: Game::BUG_HUNT, name: "Bug Hunt",
+             questions_per_session: 2, steps_per_session: 2)
+    end
+
+    def create_bug_hunt_question(language)
+      create(:question, game: bug_hunt,
+             content: { "language" => language, "code_lines" => [ "x = #{SecureRandom.hex(3)}" ],
+                        "bug_types" => [ "sql_injection" ] },
+             answer_key: { "buggy_line" => 1, "bug_type" => "sql_injection" })
+    end
+
+    def bug_hunt_record(language)
+      { "content" => { "language" => language,
+                       "code_lines" => [ "y = #{SecureRandom.hex(3)}" ],
+                       "bug_types" => [ "sql_injection" ] },
+        "answer_key" => { "buggy_line" => 1, "bug_type" => "sql_injection" } }
+    end
+
+    before do
+      create_bug_hunt_question("java")
+      create_bug_hunt_question("php")
+    end
+
+    def open_session(language)
+      create(:game_session, game: bug_hunt, user: create(:user), language: language,
+             state: GameSession::IN_PROGRESS)
+    end
+
+    it "lượt bug_hunt/java KHÔNG chặn refill của bug_hunt/php" do
+      open_session("java")
+      service, generated = refiller(records: [ bug_hunt_record("php") ])
+
+      outcomes = service.call
+
+      expect(generated).to eq([ "bug_hunt/php" ])
+      expect(outcomes.find { |o| o.label == "bug_hunt/java" }.status).to eq(:skipped)
+      expect(outcomes.find { |o| o.label == "bug_hunt/php" }.status).to eq(:done)
+      expect(Question.playable.where(game: bug_hunt, language: "php").count).to eq(2)
+      expect(Question.playable.where(game: bug_hunt, language: "java").count).to eq(1)
+    end
+
+    it "đếm số lượt theo riêng ngôn ngữ đó trong thông báo skipped" do
+      2.times { open_session("java") }
+      open_session("php")
+      service, generated = refiller(records: [ bug_hunt_record("php") ])
+
+      outcomes = service.call
+
+      expect(generated).to be_empty
+      expect(outcomes.find { |o| o.label == "bug_hunt/java" }.detail).to include("2 lượt đang chơi")
+      expect(outcomes.find { |o| o.label == "bug_hunt/php" }.detail).to include("1 lượt đang chơi")
+    end
+
+    it "lượt language NULL của game phân ngôn ngữ chặn MỌI ngôn ngữ" do
+      open_session(nil)
+      service, generated = refiller(records: [ bug_hunt_record("php") ])
+
+      outcomes = service.call
+
+      expect(generated).to be_empty
+      expect(outcomes.map(&:status).uniq).to eq([ :skipped ])
     end
   end
 

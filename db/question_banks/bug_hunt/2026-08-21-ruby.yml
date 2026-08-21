@@ -1,0 +1,285 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-21T02:00:17Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def self.search_by_keyword(query)
+    - "  return [] if query.blank?"
+    - '  where("title LIKE ''%#{query}%'' OR content LIKE ''%#{query}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: 'Nối trực tiếp chuỗi biến query vào câu lệnh SQL tạo ra lỗ hổng SQL
+      Injection. Cần sử dụng parameterized query như where(''title LIKE :q OR content
+      LIKE :q'', q: "%#{query}%").'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def render_recent_orders
+    - "  orders = Order.recent.limit(10)"
+    - "  orders.map do |order|"
+    - "    { id: order.id, user_name: order.user.name, total: order.total_price }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn Order chưa eager load quan hệ user, dẫn đến lỗi N+1 query
+      khi truy cập order.user.name trong vòng lặp. Cần thêm .includes(:user) vào câu
+      truy vấn.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(payment_params)
+    - '  Rails.logger.info("Processing payment with params: #{payment_params.inspect}")'
+    - "  gateway = PaymentGateway.new(payment_params[:card_number])"
+    - "  gateway.charge(payment_params[:amount])"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log trực tiếp toàn bộ payment_params làm rò rỉ dữ liệu nhạy cảm
+      như số thẻ tín dụng vào file log. Cần lọc bỏ (filter/mask) các thông tin nhạy
+      cảm trước khi ghi log.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_data(user)
+    - "  ExternalApiClient.sync(user)"
+    - rescue => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối rescue nuốt ngoại lệ mà không ghi log hay xử lý, khiến ứng dụng
+      che giấu lỗi khi đồng bộ dữ liệu thất bại. Cần ghi log lỗi hoặc xử lý ngoại
+      lệ thỏa đáng.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def calculate_discount(user, base_price)
+    - "  discount_rate = user.membership.discount_rate"
+    - "  base_price * (1 - discount_rate)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_null_check
+    explanation: Nếu user không có membership (trả về nil), việc gọi discount_rate
+      sẽ gây ra lỗi NoMethodError. Cần dùng safe navigation operator user.membership&.discount_rate
+      hoặc kiểm tra null.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(status_filter)
+    - '  query = "SELECT * FROM users WHERE status = ''#{status_filter}''"'
+    - "  User.connection.execute(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến status_filter vào chuỗi SQL gây ra lỗ hổng SQL
+      Injection. Cần truyền tham số an toàn bằng parameterized query hoặc ActiveRecord
+      sanitize.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def calculate_total_revenue
+    - "  orders = Order.where(status: 'completed')"
+    - "  orders.map { |order| order.line_items.sum(&:amount) }.sum"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: 'Truy cập quan hệ order.line_items trong vòng lặp map gây ra lỗi
+      truy vấn N+1. Cần dùng Order.where(status: ''completed'').includes(:line_items)
+      để eager load dữ liệu.'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(order)
+    - "  PaymentGateway.charge(order.amount, order.token)"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: swallowed_exception
+    explanation: Đoạn code bắt ngoại lệ nhưng bỏ qua hoàn toàn (swallow exception)
+      mà không ghi log hay xử lý lỗi, khiến hệ thống âm thầm thất bại. Cần log lỗi
+      và xử lý phản hồi phù hợp.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def authenticate(email, password)
+    - "  user = User.find_by(email: email)"
+    - '  Rails.logger.info("Login attempt for #{email} with password: #{password}")'
+    - "  user&.authenticate(password)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log mật khẩu dạng plain text vi phạm nghiêm trọng quy định bảo
+      mật dữ liệu nhạy cảm. Cần xóa thông tin password khỏi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def send_welcome_email(user_id)
+    - "  user = User.find_by(id: user_id)"
+    - "  UserMailer.welcome(user.email).deliver_later"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Nếu không tìm thấy user, biến user sẽ là nil và gọi user.email gây
+      lỗi NoMethodError. Cần kiểm tra user tồn tại hoặc dùng safe navigation user&.email.
+  difficulty: medium

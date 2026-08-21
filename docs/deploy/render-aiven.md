@@ -446,6 +446,14 @@ bin/rails questions:convert_spec_detective     # MỘT LẦN sau khi deploy 1.19
 Task `refill` in ra từng mục tiêu kèm trạng thái, và exit code khác 0 khi có mục tiêu thất bại —
 để scheduler báo đỏ thay vì im lặng.
 
+Job cũng exit khác 0 khi **mọi** mục tiêu đang thiếu đều bị chặn vì còn lượt đang chơi (không
+nạp được đề nào). Trước đây trạng thái này được coi là bình thường nên job xanh nhiều ngày liền
+mà ngân hàng đề không lớn lên. Trạng thái "mọi game đã đủ đề" vẫn xanh.
+
+Mỗi lần chạy xử lý tối đa `Questions::Refiller::MAX_TARGETS_PER_RUN` mục tiêu (3), ưu tiên mục
+tiêu thiếu nhiều nhất — tối đa khoảng 12 request Gemini, nằm trong hạn mức đo được 20/ngày. Mục
+tiêu = một cặp (game, ngôn ngữ), và lượt đang chơi chỉ chặn ĐÚNG ngôn ngữ của nó.
+
 ---
 
 
