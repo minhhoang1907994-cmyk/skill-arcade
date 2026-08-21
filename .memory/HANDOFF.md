@@ -80,16 +80,19 @@ chuỗi vào innerHTML). CSS `.breakdown` dùng lớp phủ trong suốt + thừ
 nhật TẠI CHỖ. Sửa `content` (kể cả `context`) → checksum đổi → bản ghi cũ thành mồ côi, phải
 xoá tay. Đã verify: sau seed + import lại, DB vẫn đúng 17 câu.
 
-#### E. Trạng thái 3 nguồn đề (đã verify bằng checksum, KHÁC với comment trong file)
+#### E. Trạng thái 3 nguồn đề — DEV và PROD KHÁC NHAU
 
-| Nguồn | Số câu | Trong DB |
-|---|---|---|
-| `db/seeds/sample_questions.rb` | 12 | 12/12 (id 13-24) |
-| `db/question_banks/estimate_poker/2026-08-19.yml` | 5 | 5/5 (id 76-80) |
-| `db/question_banks/estimate_poker/2026-08-21.yml` | 10 | **0/10** |
+| Nguồn | Số câu | Trong DB dev | Trong DB PROD |
+|---|---|---|---|
+| `db/seeds/sample_questions.rb` | 12 | 12/12 (id 13-24) | 12/12 (id 41-52) |
+| `db/question_banks/estimate_poker/2026-08-19.yml` | 5 | 5/5 (id 76-80) | 5/5 (id 75-79) |
+| `db/question_banks/estimate_poker/2026-08-21.yml` | 10 | **0/10** | 10/10 (id 130-139) |
 
-**Comment đầu 2 file bank đang ghi NGƯỢC sự thật**: file 08-19 ghi "CHƯA vào DB" nhưng đã
-vào cả 5; file 08-21 ghi "bản ghi những gì đã vào DB" nhưng chưa câu nào vào. Chưa sửa.
+**dev 17 câu, PROD 27 câu.** File 08-21 do `questions:refill` chạy với `RAILS_ENV=production`
+ở phiên trước sinh ra → vào thẳng PROD, chưa từng import vào dev.
+
+Header file 08-21 ("bản ghi những gì đã vào DB") vì vậy ĐÚNG — đúng với PROD. Chỉ header
+file 08-19 ("CHƯA vào DB") là sai, nó đã vào cả dev lẫn PROD. Chưa sửa comment.
 
 #### F. File đã sửa
 
@@ -113,15 +116,78 @@ tổng=17, câu lỗi breakdown=0                # toàn bộ đề trong DB
 
 **Chưa verify**: JS + CSS mới chưa chạy trên trình duyệt thật.
 
-#### H. Việc còn treo
+#### H. Cập nhật DB PRODUCTION (owner duyệt, đã chạy xong)
 
-1. Recheck UI trên trình duyệt (owner chưa chọn tự động hay tự kiểm tra)
-2. Có import `2026-08-21.yml` (10 đề, đã có breakdown) vào DB không → 17 lên 27 câu
-3. Sửa comment sai trạng thái ở đầu 2 file bank
-4. 08-21 có 2 đề gần trùng: `middle_name` vào POST /register và vào PUT /users/profile,
+Sau khi deploy `58d4dca`, owner báo server không hiện `<div class="breakdown">`. Nguyên nhân:
+**deploy chỉ mang code, `breakdown` nằm trong dữ liệu**. DB Aiven đã tồn tại nên
+`bin/docker-entrypoint` gọi `db:prepare` chỉ migrate, KHÔNG seed lại (`render.yaml:116-117`
+nói rõ). Đây đúng là fallback của BR-20b, không phải bug.
+
+Đã cập nhật 27 `answer_key` trên PROD (chỉ game Estimate Poker, khớp theo checksum, không
+đụng `content`). **17 đề đổi giờ**, trong đó chỉ 4 là từ lần rà hôm nay — **13 đề còn lại là
+do commit `05c5c91` (v2.4, 20/08) hạ giờ trong repo mà chưa bao giờ được đẩy lên PROD**. PROD
+đã chạy đáp án trước lần hiệu chỉnh v2.4 suốt từ đó.
+
+Bài học: sửa `answer_key` trong repo KHÔNG tự tới PROD. Mọi lần đổi đáp án phải kèm một bước
+áp lên PROD, không thì dev và PROD chấm khác nhau mà không ai thấy.
+
+Sao lưu nguyên trạng trước khi ghi: `prod_answer_keys_backup.json` trong scratchpad phiên này
+(scratchpad không bền — nếu cần giữ lâu phải chép ra chỗ khác).
+
+#### I. BẪY: `question.update!` làm TRÔI checksum — ĐÃ SỬA
+
+Phát hiện khi cập nhật PROD: sau `update!`, cả 27 checksum đổi giá trị, `questions:import`
+và seed mất tính idempotent (lần chạy sau sẽ TẠO BẢN GHI TRÙNG thay vì cập nhật).
+
+Cơ chế:
+- MySQL chuẩn hoá lại thứ tự khoá cột JSON. Content đọc từ DB ra là
+  `["context", "task_description"]`, còn nguồn YAML/seed là `["task_description", "context"]`
+- `Question#assign_checksum` (`before_validation`) tính `SHA256(content.to_json)`
+- Nên MỌI `update!` trên bản ghi ĐỌC TỪ DB đều ghi đè checksum bằng bản theo thứ tự MySQL
+
+Đã sửa xong 27 checksum trên PROD về giá trị chuẩn bằng `update_column` (đi thẳng DB, không
+kích hoạt lại callback), đối chiếu 2 nguồn độc lập (file bank + bản xuất từ DB dev), 27/27
+khớp lại.
+
+**ĐÃ SỬA tận gốc ở model** (`app/models/question.rb:107`):
+
+```ruby
+before_validation :assign_checksum, if: :content_changed?
+```
+
+Sửa ở model chứ không sửa từng call site, vì có ÍT NHẤT hai đường dính bẫy và đều là code
+đúng đắn — không nên bắt mỗi chỗ tự nhớ né:
+- `app/models/question_report.rb:23` — admin duyệt báo cáo câu sai (BR-18)
+- `lib/tasks/questions.rake:93` — `questions:hide_invalid` ẩn đề không hợp lệ
+
+`content_changed?` đã verify là guard đáng tin: `false` khi nạp từ DB và cả sau khi đổi cột
+khác; `true` khi content thực sự đổi (nên chuyển đổi format vẫn tính lại checksum đúng).
+
+Regression test ở `spec/models/question_spec.rb:37-66`. Đã xác nhận **cả 2 test fail đúng
+chỗ khi gỡ guard** — không phải test xanh vì lý do sai. Test dùng content có
+`task_description` (16 ký tự) và `context` (7) vì MySQL sắp khoá JSON theo độ dài, đủ để
+đảo thứ tự và tái hiện bug.
+
+**Đã quét toàn bộ dữ liệu, KHÔNG có thiệt hại tồn đọng**: đối chiếu mọi file bank với DB —
+PROD khớp 54/54 câu (bug_hunt 35, estimate_poker 15, escape_room 4), dev khớp 19/19 câu
+thực sự đã import. Riêng `spec_detective/2026-08-19.yml` không khớp 5/5 nhưng KHÔNG phải
+trôi checksum: file đó là **format cũ** (`content` chỉ có `requirement_text`) từ trước
+spec v1.19, `Questions::Validator` sẽ loại hết khi import chứ không tạo trùng. File này nên
+xoá hoặc đánh dấu obsolete.
+
+#### J. Việc còn treo
+
+1. **Commit** — mục C-I chưa commit (fix checksum + spec + HANDOFF)
+2. Recheck UI trên trình duyệt (owner chưa chọn tự động hay tự kiểm tra)
+3. Import các file bank vào DB **dev** cho khớp PROD — dev đang thiếu 50 câu (bug_hunt 40,
+   estimate_poker 10) mà PROD đã có. Dev 89 câu / PROD 139 câu
+4. Xoá hoặc đánh dấu obsolete `db/question_banks/spec_detective/2026-08-19.yml` — format cũ
+   trước spec v1.19, import lại sẽ bị Validator loại hết 5/5
+5. Sửa comment sai trạng thái ở đầu file bank `estimate_poker/2026-08-19.yml`
+6. 08-21 có 2 đề gần trùng: `middle_name` vào POST /register và vào PUT /users/profile,
    cùng 1.5h — chiếm 2/10 slot một lượt chơi
-5. Cả 12 đề manual vẫn dùng chung một chuỗi `context` boilerplate — gốc của vấn đề A. Sửa
-   được nhưng đổi `content` → 12 bản ghi cũ thành mồ côi, phải xoá tay
+7. Cả 12 đề manual vẫn dùng chung một chuỗi `context` boilerplate — gốc của vấn đề A. Sửa
+   được nhưng đổi `content` → bản ghi cũ thành mồ côi, phải xoá tay
 
 
 ### Phiên 2026-08-21 — job refill chưa từng nạp được đề. CHƯA COMMIT

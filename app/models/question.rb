@@ -104,7 +104,16 @@ class Question < ApplicationRecord
   validates :source, inclusion: { in: SOURCES }
   validates :difficulty, inclusion: { in: DIFFICULTIES }, allow_nil: true
 
-  before_validation :assign_checksum
+  # `if: :content_changed?` KHÔNG phải tối ưu, là điều kiện đúng đắn. MySQL chuẩn hoá lại
+  # thứ tự khoá của cột JSON: content ghi xuống theo thứ tự nguồn (`task_description`,
+  # `context`) nhưng đọc lên là (`context`, `task_description`). Vì checksum là SHA-256 của
+  # `content.to_json`, băm lại từ bản đọc-từ-DB ra một giá trị KHÁC dù nội dung y hệt.
+  #
+  # Không có guard này thì mọi `update!` chạm bản ghi đã nạp từ DB — kể cả khi chỉ đổi cột
+  # khác, như `QuestionReport#accept!` ẩn câu bị báo sai (BR-18) — đều ghi đè checksum. Hậu
+  # quả không lộ ra ngay: lần `questions:import` hoặc seed kế tiếp không tìm thấy checksum
+  # cũ nữa nên TẠO BẢN GHI TRÙNG thay vì cập nhật câu đang có.
+  before_validation :assign_checksum, if: :content_changed?
   before_validation :assign_language
 
   # Câu bị ẩn không được bốc cho lượt mới, nhưng lượt cũ vẫn giữ nguyên điểm đã chấm (BR-16).
