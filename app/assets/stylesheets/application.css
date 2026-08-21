@@ -1155,6 +1155,36 @@ tbody tr:nth-child(even) { background: rgba(255, 201, 60, .14); }
 .feedback--good::before { content: "Chuẩn!"; }
 .feedback--bad::before { content: "Chưa đúng"; }
 
+/* Bảng chi tiết giờ của Estimate Poker, nằm BÊN TRONG .feedback nên phải đọc được trên cả
+   nền xanh (--good), nền đỏ (--bad) lẫn nền giấy (--neutral). Dùng lớp phủ trong suốt và
+   để chữ thừa hưởng `color` của .feedback thay vì đặt màu cứng — không thì mỗi biến thể
+   feedback lại phải có một bộ màu riêng, và dark mode thành ba chỗ phải sửa. */
+.breakdown {
+  margin-top: 12px;
+  padding: 2px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, .2);
+  font-size: 15px;
+  font-weight: 500;
+  text-shadow: none;
+}
+.feedback--neutral .breakdown { background: rgba(0, 0, 0, .06); }
+.breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .2);
+}
+.feedback--neutral .breakdown__row { border-bottom-color: rgba(0, 0, 0, .12); }
+.breakdown__row:last-child { border-bottom: 0; }
+.breakdown__row--total { font-weight: 700; }
+.breakdown__hours {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; align-items: center; }
 .actions--split { justify-content: space-between; }
 

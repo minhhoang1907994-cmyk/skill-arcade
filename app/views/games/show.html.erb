@@ -117,10 +117,49 @@
     return body;
   }
 
-  function showFeedback(text, kind) {
+  function showFeedback(text, kind, breakdown) {
     const el = $("feedback");
     el.className = "feedback feedback--" + kind;
     el.textContent = text;
+    if (breakdown && breakdown.length) el.appendChild(buildBreakdown(breakdown));
+  }
+
+  // Bảng "thao tác nào tốn bao nhiêu giờ" của Estimate Poker. Dựng bằng DOM node và
+  // textContent chứ không nối chuỗi vào innerHTML — nội dung step đến từ đề trong DB.
+  function buildBreakdown(rows) {
+    const wrap = document.createElement("div");
+    wrap.className = "breakdown";
+
+    let total = 0;
+    rows.forEach(function (row) {
+      total += Number(row.hours) || 0;
+      const line = document.createElement("div");
+      line.className = "breakdown__row";
+      const step = document.createElement("span");
+      step.textContent = row.step;
+      const hours = document.createElement("span");
+      hours.className = "breakdown__hours";
+      hours.textContent = formatHours(row.hours) + "h";
+      line.append(step, hours);
+      wrap.appendChild(line);
+    });
+
+    const sum = document.createElement("div");
+    sum.className = "breakdown__row breakdown__row--total";
+    const label = document.createElement("span");
+    label.textContent = "Tổng";
+    const value = document.createElement("span");
+    value.className = "breakdown__hours";
+    value.textContent = formatHours(total) + "h";
+    sum.append(label, value);
+    wrap.appendChild(sum);
+
+    return wrap;
+  }
+
+  // 0.5 -> "0.5", 2.0 -> "2". Số giờ trong đề là bội của 0.25 nên hai chữ số thập phân là đủ.
+  function formatHours(value) {
+    return String(Math.round(Number(value) * 100) / 100);
   }
 
   function clearFeedback() {
@@ -367,7 +406,7 @@
       $("score").textContent = data.total_score;
       $("progress-bar").style.width = (step * 100 / totalSteps) + "%";
       showFeedback("+" + data.awarded_score + " điểm. " + (data.explanation || ""),
-                   data.awarded_score > 0 ? "good" : "bad");
+                   data.awarded_score > 0 ? "good" : "bad", data.breakdown);
 
       // Giữ nguyên đáp án đã chọn và phần giải thích trên màn hình; chỉ sang câu tiếp
       // theo khi người chơi tự bấm nút, không tự động chuyển sau vài giây.

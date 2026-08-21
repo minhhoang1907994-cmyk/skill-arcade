@@ -16,6 +16,15 @@ questions:
       backend đã mapping sẵn field này. Đã có Unit Test cho User Controller.
   answer_key:
     actual_hours: 1.0
+    breakdown:
+    - step: Thêm field vào response DTO
+      hours: 0.25
+    - step: Bổ sung logic mapping ở Service layer
+      hours: 0.25
+    - step: Thêm assertion vào Unit Test có sẵn
+      hours: 0.25
+    - step: Chạy lại test suite và sửa sau review
+      hours: 0.25
     reasoning: Thời gian chủ yếu để update DTO, bổ sung logic mapping trong Service
       layer, thêm assertion vào Unit Test hiện có và chạy lại test suite ngắn.
   difficulty: easy
@@ -26,6 +35,19 @@ questions:
       checksum/signature bằng secret_key và cập nhật trạng thái đơn hàng trong DB.
   answer_key:
     actual_hours: 10.0
+    breakdown:
+    - step: Đọc tài liệu checksum của VNPAY
+      hours: 2
+    - step: Viết logic verify signature
+      hours: 2
+    - step: Endpoint callback và cập nhật trạng thái đơn hàng
+      hours: 2
+    - step: Xử lý idempotent chống ghi trùng giao dịch
+      hours: 1.5
+    - step: Integration test giả lập request từ VNPAY
+      hours: 1.5
+    - step: Sửa sau review
+      hours: 1
     reasoning: Thời gian dành cho việc nghiên cứu tài liệu checksum của VNPAY, viết
       logic verify signature, xử lý tính idempotent để tránh ghi trùng giao dịch khi
       nhận trùng webhook, và viết Integration Test giả lập request.
@@ -39,6 +61,19 @@ questions:
       map.
   answer_key:
     actual_hours: 20.0
+    breakdown:
+    - step: Khảo sát mẫu dữ liệu địa chỉ cũ để biết các kiểu sai
+      hours: 3
+    - step: Viết parser và fuzzy matching với bảng danh mục hành chính
+      hours: 6
+    - step: Xử lý batch để không lock bảng
+      hours: 3
+    - step: Ghi log các record không tự động map được
+      hours: 1.5
+    - step: Chạy thử trên Staging và đối chiếu kết quả rollback
+      hours: 4.5
+    - step: Sửa sau review
+      hours: 2
     reasoning: Phần lớn thời gian nằm ở việc xử lý các trường hợp dữ liệu cũ bị sai
       chính tả/thiếu thông tin, viết thuật toán fuzzy matching, tối ưu batch processing
       để không làm lock bảng, và kiểm thử rollback trên môi trường Staging.
@@ -51,6 +86,21 @@ questions:
       và lưu file ra AWS S3.
   answer_key:
     actual_hours: 28.0
+    breakdown:
+    - step: 'Thiết kế luồng background job: tạo task, polling trạng thái, notification'
+      hours: 3
+    - step: Task Celery và lưu trạng thái trong Redis
+      hours: 5
+    - step: Tối ưu SQL tổng hợp 4 bảng, tránh full table scan
+      hours: 6
+    - step: Format file Excel nhiều sheet
+      hours: 5
+    - step: Lưu file ra S3 và trả link tải
+      hours: 3
+    - step: Test tải với lượng dữ liệu lớn
+      hours: 4
+    - step: Sửa sau review
+      hours: 2
     reasoning: Cần thiết kế luồng background job (tạo task, polling trạng thái, gửi
       notification), tối ưu các câu truy vấn SQL phức tạp tránh full table scan, format
       file Excel nhiều sheet bằng thư viện mã nguồn mở, và test tải với lượng dữ liệu
@@ -63,6 +113,15 @@ questions:
       hoạt động cho mục đích lưu session.
   answer_key:
     actual_hours: 4.0
+    breakdown:
+    - step: Viết Interceptor sliding window truy vấn Redis
+      hours: 1.5
+    - step: Trả HTTP 429 kèm header Retry-After
+      hours: 0.5
+    - step: Unit/Integration test giả lập spam request
+      hours: 1.5
+    - step: Sửa sau review
+      hours: 0.5
     reasoning: Thời gian dùng để viết Middleware/Interceptor truy vấn Redis theo thuật
       toán Sliding Window, trả về HTTP status 429 Too Many Requests kèm header Retry-After,
       và viết Unit/Integration test giả lập spam request.

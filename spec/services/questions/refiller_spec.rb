@@ -41,7 +41,10 @@ RSpec.describe Questions::Refiller do
 
   def valid_record(index)
     { "content" => { "task_description" => "sinh #{index}-#{SecureRandom.hex(3)}" },
-      "answer_key" => { "actual_hours" => 12.0 } }
+      "answer_key" => {
+        "actual_hours" => 12.0,
+        "breakdown" => [ { "step" => "Làm việc đó", "hours" => 12.0 } ]
+      } }
   end
 
   describe "trần 2 — chỉ sinh khi thiếu" do

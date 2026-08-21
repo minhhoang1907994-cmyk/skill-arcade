@@ -568,37 +568,155 @@ end
 # --- Estimate Poker: 12 task ---
 estimate_poker = Game.find_by!(slug: Game::ESTIMATE_POKER)
 
+# `steps` là bảng thao tác + số giờ hiện cho người chơi sau khi trả lời; `actual_hours`
+# cộng ra từ đó chứ không viết tay, nên không thể có chuyện bảng nói một đằng điểm chấm
+# một nẻo (Questions::Validator#breakdown_error chặn ở đường import, đây chặn từ nguồn).
+#
+# Mỗi dòng chỉ tính điều tra + gõ code + tự viết test + sửa sau review, và chỉ tính việc
+# CÓ TRONG mô tả task. Thêm dòng cho việc mô tả không nhắc tới là chấm sai người chơi:
+# họ ước lượng đúng phạm vi được cho mà vẫn bị trừ điểm.
 ESTIMATE_SAMPLES = [
-  [ "Thêm cột `deleted_at` vào bảng users và cập nhật model dùng soft delete", 3,
-    "Migration đơn giản, nhưng phải rà lại mọi query đang lấy user để loại bản ghi đã xoá." ],
-  [ "Viết API đăng nhập email/password kèm khoá tài khoản sau 5 lần sai", 8,
-    "Gồm model, controller, rate limit, và test cho luồng khoá." ],
-  [ "Đổi màu nút primary trong design system", 1, "Sửa biến CSS, kiểm tra lại vài màn hình chính." ],
-  [ "Tích hợp cổng thanh toán mới có webhook và xử lý idempotency", 16,
-    "Phần lớn thời gian nằm ở xử lý webhook trùng và test sandbox." ],
-  [ "Sinh báo cáo Excel từ 200k bản ghi, có filter theo khoảng ngày", 8,
-    "Cần streaming/chunk để không hết RAM, cộng thời gian tối ưu query." ],
-  [ "Thêm trang danh sách có phân trang và sắp xếp cho một bảng đã có sẵn API", 4,
-    "Frontend là chính, backend chỉ cần bổ sung tham số sort." ],
-  [ "Chuyển toàn bộ upload ảnh từ local disk sang S3", 12,
-    "Gồm migrate file cũ, đổi code upload, và xử lý URL trong dữ liệu đã có." ],
-  [ "Sửa lỗi sai múi giờ khi hiển thị ngày tạo đơn hàng", 4,
-    "Tìm nguyên nhân mất thời gian hơn sửa; phải rà cả nơi lưu và nơi hiển thị." ],
-  [ "Viết unit test cho một service đã có 300 dòng, hiện chưa có test nào", 6,
-    "Phải tách phụ thuộc trước khi test được, đó mới là phần tốn thời gian." ],
-  [ "Thêm chức năng quên mật khẩu qua email", 6,
-    "Token có hạn, gửi mail, trang đặt lại, và test cho token hết hạn." ],
-  [ "Nâng phiên bản framework từ major cũ lên major mới", 32,
-    "Không đoán trước được số breaking change; luôn phát sinh thêm khi chạy test." ],
-  [ "Thêm bộ lọc theo trạng thái vào màn hình danh sách đơn hàng", 2,
-    "Một tham số query, một dropdown, cộng test." ]
+  {
+    task: "Thêm cột `deleted_at` vào bảng users và cập nhật model dùng soft delete",
+    steps: [
+      [ "Viết migration thêm cột và index", 0.5 ],
+      [ "Thêm default_scope lọc bản ghi đã xoá vào model", 0.5 ],
+      [ "Sửa unique index trên email để bản ghi đã xoá không chặn đăng ký lại", 0.5 ],
+      [ "Chỉnh test cũ vỡ vì default_scope", 0.5 ]
+    ],
+    note: "Rà lại toàn bộ query đang lấy user là việc khác, không nằm trong mô tả task."
+  },
+  {
+    task: "Viết API đăng nhập email/password kèm khoá tài khoản sau 5 lần sai",
+    steps: [
+      [ "Migration cột đếm lần sai và thời điểm mở khoá", 0.5 ],
+      [ "Endpoint xác thực email/password", 1.5 ],
+      [ "Logic đếm, reset khi đăng nhập đúng, tự mở khoá sau thời hạn", 1.5 ],
+      [ "Test luồng khoá và mở khoá", 2 ],
+      [ "Sửa sau review", 0.5 ]
+    ],
+    note: "Không tính rate limit theo IP — mô tả task chỉ yêu cầu khoá theo tài khoản."
+  },
+  {
+    task: "Đổi màu nút primary trong design system",
+    steps: [
+      [ "Sửa biến màu trong design token", 0.25 ],
+      [ "Rà lại các màn hình chính dùng nút primary", 0.5 ],
+      [ "Sửa sau review", 0.25 ]
+    ],
+    note: "Sửa một biến, phần còn lại là mở vài màn hình xem có chỗ nào lệch tương phản."
+  },
+  {
+    task: "Tích hợp cổng thanh toán mới có webhook và xử lý idempotency",
+    steps: [
+      [ "Đọc tài liệu và viết module ký/kiểm chữ ký", 3 ],
+      [ "Luồng khởi tạo thanh toán và trang trả về", 4 ],
+      [ "Webhook cập nhật đơn, chống xử lý trùng bằng unique index mã giao dịch", 4 ],
+      [ "Test với sandbox của cổng thanh toán", 3 ],
+      [ "Sửa sau review", 2 ]
+    ],
+    note: "Phần lớn thời gian nằm ở xử lý webhook trùng và test sandbox."
+  },
+  {
+    task: "Sinh báo cáo Excel từ 200k bản ghi, có filter theo khoảng ngày",
+    steps: [
+      [ "Tối ưu query và thêm index cho filter theo ngày", 2 ],
+      [ "Ghi file theo luồng stream để không hết RAM", 2.5 ],
+      [ "Endpoint tải file kèm tham số filter", 1 ],
+      [ "Test bộ nhớ với 200k bản ghi", 1.5 ],
+      [ "Sửa sau review", 1 ]
+    ],
+    note: "Cần streaming/chunk để không hết RAM, cộng thời gian tối ưu query."
+  },
+  {
+    task: "Thêm trang danh sách có phân trang và sắp xếp cho một bảng đã có sẵn API",
+    steps: [
+      [ "Thêm tham số sort vào API có sẵn", 0.5 ],
+      [ "Dựng bảng và phân trang ở frontend", 2 ],
+      [ "Nút sắp xếp theo cột", 0.5 ],
+      [ "Test", 0.5 ],
+      [ "Sửa sau review", 0.5 ]
+    ],
+    note: "Frontend là chính, backend chỉ cần bổ sung tham số sort."
+  },
+  {
+    task: "Chuyển toàn bộ upload ảnh từ local disk sang S3",
+    steps: [
+      [ "Cấu hình SDK, bucket và quyền truy cập", 1.5 ],
+      [ "Đổi code upload sang S3", 2 ],
+      [ "Script chuyển file cũ từ disk lên S3", 3 ],
+      [ "Xử lý URL ảnh trong dữ liệu đã có", 2 ],
+      [ "Test", 2 ],
+      [ "Sửa sau review", 1.5 ]
+    ],
+    note: "Gồm migrate file cũ, đổi code upload, và xử lý URL trong dữ liệu đã có."
+  },
+  {
+    task: "Sửa lỗi sai múi giờ khi hiển thị ngày tạo đơn hàng",
+    steps: [
+      [ "Tái hiện lỗi và xác định lệch ở nơi lưu hay nơi hiển thị", 1.5 ],
+      [ "Sửa cấu hình timezone và chỗ format ngày", 1 ],
+      [ "Test với vài múi giờ", 1 ],
+      [ "Sửa sau review", 0.5 ]
+    ],
+    note: "Tìm nguyên nhân mất thời gian hơn sửa; phải rà cả nơi lưu và nơi hiển thị."
+  },
+  {
+    task: "Viết unit test cho một service đã có 300 dòng, hiện chưa có test nào",
+    steps: [
+      [ "Đọc service và tách phụ thuộc để test được", 2 ],
+      [ "Viết test cho các nhánh chính", 2.5 ],
+      [ "Viết test cho edge case", 1 ],
+      [ "Sửa sau review", 0.5 ]
+    ],
+    note: "Phải tách phụ thuộc trước khi test được, đó mới là phần tốn thời gian."
+  },
+  {
+    task: "Thêm chức năng quên mật khẩu qua email",
+    steps: [
+      [ "Migration bảng lưu token đặt lại mật khẩu", 0.5 ],
+      [ "Sinh token có hạn và gửi mail", 1.5 ],
+      [ "Trang đặt lại mật khẩu", 1.5 ],
+      [ "Xử lý token hết hạn và token đã dùng", 1 ],
+      [ "Test", 1 ],
+      [ "Sửa sau review", 0.5 ]
+    ],
+    note: "Token có hạn, gửi mail, trang đặt lại, và test cho token hết hạn."
+  },
+  {
+    task: "Nâng phiên bản framework từ major cũ lên major mới",
+    steps: [
+      [ "Đọc release note và liệt kê breaking change", 4 ],
+      [ "Nâng version và sửa lỗi không khởi động được", 6 ],
+      [ "Sửa code dùng API đã bị bỏ", 10 ],
+      [ "Sửa test vỡ", 8 ],
+      [ "Chạy lại toàn bộ và sửa lỗi phát sinh", 4 ]
+    ],
+    note: "Không đoán trước được số breaking change; luôn phát sinh thêm khi chạy test."
+  },
+  {
+    task: "Thêm bộ lọc theo trạng thái vào màn hình danh sách đơn hàng",
+    steps: [
+      [ "Thêm tham số lọc vào query", 0.5 ],
+      [ "Dropdown trạng thái ở màn hình danh sách", 0.75 ],
+      [ "Test", 0.5 ],
+      [ "Sửa sau review", 0.25 ]
+    ],
+    note: "Một tham số query, một dropdown, cộng test."
+  }
 ].freeze
 
-ESTIMATE_SAMPLES.each do |description, hours, reasoning|
+ESTIMATE_SAMPLES.each do |sample|
+  breakdown = sample[:steps].map { |step, hours| { "step" => step, "hours" => hours } }
+
   upsert_question(
     estimate_poker,
-    { "task_description" => description, "context" => "Dev có kinh nghiệm trung bình, đã quen codebase" },
-    { "actual_hours" => hours, "reasoning" => reasoning }
+    { "task_description" => sample[:task], "context" => "Dev có kinh nghiệm trung bình, đã quen codebase" },
+    {
+      "actual_hours" => breakdown.sum { |row| row["hours"] },
+      "breakdown" => breakdown,
+      "reasoning" => sample[:note]
+    }
   )
 end
 

@@ -15,6 +15,17 @@ questions:
       validation đã có sẵn trong dự án. Bộ Unit Test cho module Auth đã hoàn chỉnh.
   answer_key:
     actual_hours: 1.5
+    breakdown:
+    - step: Tạo Flyway migration thêm column middle_name
+      hours: 0.25
+    - step: Thêm field vào UserEntity, RegisterRequest DTO và validation annotation
+      hours: 0.5
+    - step: Cập nhật UserMapper và UserService
+      hours: 0.25
+    - step: Bổ sung test case vào suite UnitTest có sẵn
+      hours: 0.25
+    - step: Sửa sau review
+      hours: 0.25
     reasoning: 'Thời gian phân bổ: 15 phút tạo Flyway migration script thêm column
       middle_name; 20 phút thêm field vào UserEntity, RegisterRequest DTO và validation
       annotation; 15 phút cập nhật UserMapper và UserService; 20 phút bổ sung test
@@ -28,6 +39,15 @@ questions:
       có sẵn.
   answer_key:
     actual_hours: 4.0
+    breakdown:
+    - step: Đọc document payload ZaloPay và tạo DTO mapping
+      hours: 1
+    - step: 'Controller webhook: gọi helper kiểm HMAC và cập nhật bảng orders'
+      hours: 1.5
+    - step: Unit test case thành công và case sai chữ ký
+      hours: 1
+    - step: Sửa sau review
+      hours: 0.5
     reasoning: 'Thời gian phân bổ: 1 giờ đọc document payload ZaloPay và tạo DTO mapping;
       1.5 giờ viết controller xử lý webhook, gọi helper kiểm tra HMAC checksum và
       cập nhật bảng orders; 1 giờ viết unit test giả lập request từ ZaloPay (case
@@ -40,6 +60,17 @@ questions:
       hàng. Chưa có thư viện thao tác Excel trong dự án.
   answer_key:
     actual_hours: 12.0
+    breakdown:
+    - step: Chọn và cấu hình thư viện Apache POI (SXSSFWorkbook)
+      hours: 2
+    - step: Viết ExcelExporter ghi dữ liệu theo batch và định dạng header/cell
+      hours: 4
+    - step: Endpoint REST GET /api/v1/orders/export
+      hours: 2
+    - step: Integration test dung lượng và bộ nhớ khi export 50,000 bản ghi
+      hours: 3
+    - step: Sửa sau review
+      hours: 1
     reasoning: 'Thời gian phân bổ: 2 giờ chọn và cấu hình thư viện Apache POI (SXSSFWorkbook);
       4 giờ viết ExcelExporter service hỗ trợ ghi dữ liệu theo batch/stream để tránh
       tràn bộ nhớ và định dạng header/cell; 2 giờ viết endpoint REST GET /api/v1/orders/export;
@@ -53,6 +84,17 @@ questions:
       phát hành Access Token (hạn 15 phút) và Refresh Token (hạn 7 ngày).
   answer_key:
     actual_hours: 24.0
+    breakdown:
+    - step: Đọc codebase hiện tại và thiết kế luồng JWT Filter
+      hours: 4
+    - step: Viết JwtTokenProvider và JwtAuthenticationFilter
+      hours: 5
+    - step: API refresh-token và lưu Refresh Token trong Redis
+      hours: 3
+    - step: Cập nhật integration test cũ vỡ vì đổi SecurityContext
+      hours: 8
+    - step: Refactor và sửa sau review
+      hours: 4
     reasoning: 'Thời gian phân bổ: 4 giờ đọc codebase hiện tại và thiết kế luồng JWT
       Filter; 8 giờ viết JwtTokenProvider, JwtAuthenticationFilter, API /api/v1/auth/refresh-token
       và tích hợp Redis lưu trữ Refresh Token; 8 giờ cập nhật lại toàn bộ các integration
@@ -67,6 +109,19 @@ questions:
       Staging.
   answer_key:
     actual_hours: 40.0
+    breakdown:
+    - step: 'Khởi tạo project Go: Clean Architecture, Viper, Zap, Dockerfile'
+      hours: 8
+    - step: Consumer lắng nghe notification_queue và logic router
+      hours: 6
+    - step: Tích hợp SendGrid SDK (Email) và Twilio SDK (SMS)
+      hours: 6
+    - step: Retry logic và Dead Letter Queue khi gửi thất bại
+      hours: 8
+    - step: Unit test với mock client, coverage > 80%
+      hours: 8
+    - step: Sửa sau review
+      hours: 4
     reasoning: 'Thời gian phân bổ: 8 giờ khởi tạo project Go (Clean Architecture,
       cấu hình Viper, logger Zap, Dockerfile); 12 giờ viết consumer lắng nghe queue
       notification_queue, logic router và tích hợp SendGrid SDK (Email), Twilio SDK
@@ -80,6 +135,17 @@ questions:
     context: Hệ thống dùng NestJS + TypeORM. Đội ngũ đã theo chuẩn Pattern từ trước.
   answer_key:
     actual_hours: 1.5
+    breakdown:
+    - step: Thêm field vào Request DTO
+      hours: 0.25
+    - step: Bổ sung validation rule
+      hours: 0.25
+    - step: Map sang Entity
+      hours: 0.25
+    - step: Cập nhật Unit Test
+      hours: 0.5
+    - step: Sửa sau review
+      hours: 0.25
     reasoning: Hạ tầng DTO, Controller, Service và ORM Model đã chuẩn chỉnh. Bảng
       users trong MySQL đã có sẵn cột middle_name (nullable). Công việc chỉ gồm thêm
       field vào Request DTO, bổ sung validation rule nhẹ, map sang Entity và cập nhật
@@ -92,6 +158,13 @@ questions:
       Listener và đã tích hợp sẵn Telegram Webhook.
   answer_key:
     actual_hours: 4.0
+    breakdown:
+    - step: Viết SlackWebhookClient dựa trên TelegramClient có sẵn
+      hours: 1
+    - step: Event Listener bắt OrderCancelledEvent và format message
+      hours: 1.5
+    - step: Unit Test và kiểm thử với webhook URL thật
+      hours: 1.5
     reasoning: Mất khoảng 1 giờ để viết SlackWebhookClient dựa trên code TelegramClient
       có sẵn, 1.5 giờ tạo Event Listener bắt event OrderCancelledEvent và format message,
       1.5 giờ viết Unit Test và kiểm thử với webhook URL thật.
@@ -103,6 +176,13 @@ questions:
       kho đã có service hàm riêng nhưng cần gọi theo batch.
   answer_key:
     actual_hours: 12.0
+    breakdown:
+    - step: Thiết kế query theo batch và bọc Redis Distributed Lock
+      hours: 3
+    - step: Revert tồn kho, chuyển trạng thái đơn và bắn event hủy
+      hours: 5
+    - step: Integration test cho các trường hợp race condition
+      hours: 4
     reasoning: Mất 3 giờ thiết kế logic query theo batch và bọc Redis Distributed
       Lock tránh chạy trùng giữa các instance. 5 giờ triển khai logic revert lại số
       lượng tồn kho (inventory), chuyển trạng thái đơn hàng và bắn event hủy. 4 giờ
@@ -114,12 +194,23 @@ questions:
     context: Dự án Express.js chưa có module render Excel phức tạp. Cần xử lý tập
       dữ liệu khoảng 100,000 dòng.
   answer_key:
-    actual_hours: 32.0
-    reasoning: Mất 8 giờ viết và tối ưu SQL query gom nhóm dữ liệu lớn từ 4 bảng (orders,
-      order_items, payments, discounts) dùng Stream để tránh Out of Memory. 12 giờ
-      dùng ExcelJS dựng layout 3 sheet, format currency, style cell và vẽ chart. 8
-      giờ xử lý upload file ra S3 và tạo presigned URL. 4 giờ viết test và sửa lỗi
-      edge case.
+    actual_hours: 20.0
+    breakdown:
+    - step: Viết và tối ưu SQL gom nhóm 4 bảng, dùng Stream tránh Out of Memory
+      hours: 6
+    - step: 'Dựng 3 sheet bằng ExcelJS: format currency, style cell, vẽ chart'
+      hours: 8
+    - step: Upload file ra S3 và tạo presigned URL
+      hours: 2
+    - step: Viết test
+      hours: 3
+    - step: Sửa sau review
+      hours: 1
+    reasoning: 6 giờ viết và tối ưu SQL query gom nhóm dữ liệu lớn từ 4 bảng (orders,
+      order_items, payments, discounts) dùng Stream để tránh Out of Memory. 8 giờ
+      dùng ExcelJS dựng layout 3 sheet, format currency, style cell và vẽ chart. 2
+      giờ upload file ra S3 và tạo presigned URL — SDK có sẵn hàm cho cả hai việc
+      này. 3 giờ viết test. 1 giờ sửa sau review.
   difficulty: medium
 - content:
     task_description: Tích hợp cổng thanh toán VNPay (luồng Redirect Web và IPN Webhook)
@@ -127,10 +218,24 @@ questions:
     context: Codebase Go/Golang chưa có SDK VNPay. Yêu cầu tính chính xác cao về mặt
       tài chính và lưu vết audit log chi tiết vào bảng payment_transactions.
   answer_key:
-    actual_hours: 60.0
-    reasoning: Mất 12 giờ nghiên cứu tài liệu spec, viết module tạo/kiểm tra chữ ký
-      HMAC-SHA512 checksum. 16 giờ xử lý luồng khởi tạo thanh toán và webhook IPN
-      với cơ chế Idempotency nghiêm ngặt. 14 giờ viết Cronjob Requery đối soát trạng
-      thái giao dịch bị mất kết nối. 12 giờ làm Mock Server VNPay để viết Integration
-      Test coverage 90%. 6 giờ sửa lỗi sau khi dev test.
+    actual_hours: 32.0
+    breakdown:
+    - step: Đọc tài liệu spec và viết module tạo/kiểm chữ ký HMAC-SHA512
+      hours: 5
+    - step: Luồng Redirect Web khởi tạo thanh toán
+      hours: 5
+    - step: Webhook IPN với cơ chế Idempotency và audit log payment_transactions
+      hours: 8
+    - step: Cronjob Requery đối soát giao dịch treo
+      hours: 6
+    - step: Integration test với stub server VNPay
+      hours: 6
+    - step: Sửa sau review
+      hours: 2
+    reasoning: 5 giờ đọc tài liệu spec và viết module tạo/kiểm tra chữ ký HMAC-SHA512
+      (phần tốn thời gian là đối chiếu thứ tự tham số trong doc, còn HMAC là hàm sẵn
+      trong stdlib). 5 giờ luồng redirect khởi tạo thanh toán. 8 giờ webhook IPN với
+      cơ chế Idempotency và ghi audit log vào payment_transactions. 6 giờ Cronjob
+      Requery đối soát giao dịch treo. 6 giờ viết Integration Test với stub server.
+      2 giờ sửa sau review.
   difficulty: hard

@@ -56,6 +56,8 @@ module Api
           finished: outcome.finished
         }
 
+        # Chỉ Estimate Poker có bảng chi tiết giờ; game khác trả nil nên khoá này vắng mặt.
+        payload[:breakdown] = outcome.result.breakdown if outcome.result.breakdown.present?
         payload[:summary] = summary if outcome.finished
         payload
       end

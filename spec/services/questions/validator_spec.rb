@@ -65,23 +65,60 @@ RSpec.describe Questions::Validator do
     let(:game) { create(:game, slug: Game::ESTIMATE_POKER, name: "Estimate Poker") }
     let(:content) { { "task_description" => "Thêm một field vào API sẵn có" } }
 
+    # Mọi đề hợp lệ đều phải có breakdown cộng đúng bằng actual_hours (BR-20b), nên helper
+    # này dựng sẵn một bảng khớp — test nào muốn kiểm chính breakdown thì truyền đè.
+    def answer_key_for(hours, breakdown: [ { "step" => "Làm việc đó", "hours" => hours } ])
+      { "actual_hours" => hours, "breakdown" => breakdown }
+    end
+
     it "nhận đề có actual_hours trong khoảng hợp lệ" do
-      expect(error_for(game, content: content, answer_key: { "actual_hours" => 4.0 })).to be_nil
+      expect(error_for(game, content: content, answer_key: answer_key_for(4.0))).to be_nil
     end
 
     it "loại đề vượt trần — task quá lớn phải chẻ nhỏ trước khi đem ước lượng" do
-      expect(error_for(game, content: content, answer_key: { "actual_hours" => 120 }))
+      expect(error_for(game, content: content, answer_key: answer_key_for(120)))
         .to include("nằm ngoài khoảng")
     end
 
     it "loại đề dưới sàn" do
-      expect(error_for(game, content: content, answer_key: { "actual_hours" => 0.25 }))
+      expect(error_for(game, content: content, answer_key: answer_key_for(0.25)))
         .to include("nằm ngoài khoảng")
     end
 
     it "loại đề có actual_hours không phải số" do
-      expect(error_for(game, content: content, answer_key: { "actual_hours" => "8 giờ" }))
+      expect(error_for(game, content: content, answer_key: answer_key_for("8 giờ")))
         .to include("phải là số")
+    end
+
+    it "loại đề thiếu breakdown — người chơi cần thấy giờ đi đâu (BR-20b)" do
+      expect(error_for(game, content: content, answer_key: { "actual_hours" => 4.0 }))
+        .to include("breakdown")
+    end
+
+    it "loại đề có tổng breakdown lệch actual_hours" do
+      answer_key = answer_key_for(8.0, breakdown: [
+        { "step" => "Viết migration", "hours" => 3 },
+        { "step" => "Viết test", "hours" => 2 }
+      ])
+
+      expect(error_for(game, content: content, answer_key: answer_key))
+        .to include("không khớp actual_hours")
+    end
+
+    it "loại đề có dòng breakdown thiếu step" do
+      answer_key = answer_key_for(4.0, breakdown: [ { "hours" => 4 } ])
+
+      expect(error_for(game, content: content, answer_key: answer_key)).to include("thiếu step")
+    end
+
+    it "loại đề có dòng breakdown hours không phải số dương" do
+      answer_key = answer_key_for(4.0, breakdown: [
+        { "step" => "Làm việc đó", "hours" => 4 },
+        { "step" => "Việc không tốn giờ", "hours" => 0 }
+      ])
+
+      expect(error_for(game, content: content, answer_key: answer_key))
+        .to include("không phải số dương")
     end
   end
 

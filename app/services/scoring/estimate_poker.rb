@@ -22,7 +22,8 @@ module Scoring
       Result.new(
         score: score,
         explanation: explain(actual, estimate, deviation, question.answer_key["reasoning"]),
-        metadata: { "deviation" => deviation.round(4) }
+        metadata: { "deviation" => deviation.round(4) },
+        breakdown: breakdown_for(question.answer_key, actual)
       )
     end
 
@@ -35,6 +36,28 @@ module Scoring
       ]
       parts << reasoning if reasoning.present?
       parts.join(" ")
+    end
+
+    # Bảng "thao tác nào tốn bao nhiêu giờ" hiện kèm giải thích. Trả nil khi đề không có
+    # bảng (đề cũ nhập trước khi Validator bắt buộc khoá này) — client tự lùi về chỉ hiện
+    # phần chữ.
+    #
+    # Tổng các dòng phải khớp actual_hours, không thì bỏ luôn bảng: người chơi bị chấm theo
+    # actual_hours, hiện một bảng cộng ra số khác là tự mâu thuẫn với chính điểm vừa cho.
+    # Validator chặn từ lúc import, đây là lưới cuối cho đề đã nằm sẵn trong DB.
+    def breakdown_for(answer_key, actual)
+      rows = answer_key["breakdown"]
+      return nil unless rows.is_a?(Array) && rows.any?
+
+      rows = rows.filter_map do |row|
+        next nil unless row.is_a?(Hash) && row["step"].present? && row["hours"].to_f.positive?
+
+        { "step" => row["step"].to_s, "hours" => row["hours"].to_f }
+      end
+      return nil if rows.empty?
+      return nil if (rows.sum { |row| row["hours"] } - actual).abs > 0.01
+
+      rows
     end
   end
 end

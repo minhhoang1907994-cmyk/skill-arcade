@@ -284,37 +284,62 @@ module Questions
             difficulty: { type: "string" },
             task_description: { type: "string" },
             context: { type: "string" },
-            actual_hours: { type: "number" },
+            breakdown: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { step: { type: "string" }, hours: { type: "number" } },
+                required: [ "step", "hours" ]
+              }
+            },
             reasoning: { type: "string" }
           },
-          required: [ "task_description", "actual_hours", "reasoning" ]
+          required: [ "task_description", "breakdown", "reasoning" ]
         },
         instructions: lambda do |_generator|
           <<~TEXT
             Mỗi đề là một task phát triển có thể ước lượng được.
             - task_description: một câu mô tả task, cụ thể đủ để ước lượng.
             - context: bối cảnh ảnh hưởng đến effort (đã có sẵn gì, ràng buộc gì).
-            - actual_hours: số giờ làm việc của MỘT dev đã quen codebase, trong khoảng
-              #{Question::ESTIMATE_HOURS_RANGE.min} đến #{Question::ESTIMATE_HOURS_RANGE.max}.
-              Chỉ tính điều tra + gõ code + tự viết test + sửa sau review. KHÔNG cộng thêm
-              thời gian QA, họp, chờ review, deploy hay buffer rủi ro — người chơi ước lượng
-              phần việc của dev nên đáp án cộng thêm các khoản đó là chấm sai họ.
-              Task đã có sẵn hạ tầng và chỉ thêm một field/một tham số thì thuộc mức 1-2 giờ,
-              đừng đẩy lên vài ngày.
-            - reasoning: giải thích phần lớn thời gian nằm ở đâu.
+            - breakdown: mảng 3-7 dòng, mỗi dòng { step, hours } — chia task thành từng
+              thao tác cụ thể và số giờ của thao tác đó. Đây là phần hiện cho người chơi
+              sau khi trả lời, nên step phải là việc làm được ("viết migration thêm cột",
+              "sửa test cũ vỡ"), không phải giai đoạn chung chung ("phát triển", "kiểm thử").
+              hours là bội của 0.25. Tổng các dòng phải nằm trong khoảng
+              #{Question::ESTIMATE_HOURS_RANGE.min} đến #{Question::ESTIMATE_HOURS_RANGE.max} giờ.
+              Mỗi dòng chỉ tính điều tra + gõ code + tự viết test + sửa sau review. KHÔNG
+              thêm dòng cho QA, họp, chờ review, deploy hay buffer rủi ro — người chơi ước
+              lượng phần việc của dev nên đáp án cộng thêm các khoản đó là chấm sai họ.
+              Task đã có sẵn hạ tầng và chỉ thêm một field/một tham số thì tổng thuộc mức
+              1-2 giờ, đừng đẩy lên vài ngày. Đừng phóng đại dòng nào: việc mà thư viện/SDK
+              đã có sẵn hàm thì tính theo thời gian gọi hàm đó, không tính như tự viết lại.
+            - reasoning: một câu nói phần lớn thời gian nằm ở đâu, không lặp lại breakdown.
             Trộn đủ các mức: task 1-2 giờ, task nửa ngày, task một hai ngày, và task cả tuần.
           TEXT
         end,
         build: lambda do |item, _generator|
-          hours = item["actual_hours"].to_f
-          next nil if item["task_description"].to_s.strip.blank? || hours <= 0
+          # actual_hours KHÔNG hỏi model mà cộng từ breakdown. Hỏi cả hai thì model thường
+          # trả về một tổng lệch với chính bảng nó vừa liệt kê, và Validator sẽ loại đề —
+          # tức mỗi lần refill mất đề vì một phép cộng, không phải vì nội dung sai.
+          rows = Array(item["breakdown"]).filter_map do |row|
+            next nil unless row.is_a?(Hash) && row["step"].to_s.strip.present?
+            next nil unless row["hours"].to_f.positive?
+
+            { "step" => row["step"].to_s.strip, "hours" => row["hours"].to_f }
+          end
+          hours = rows.sum { |row| row["hours"] }.round(2)
+          next nil if item["task_description"].to_s.strip.blank? || rows.empty? || hours <= 0
 
           {
             "content" => {
               "task_description" => item["task_description"].to_s.strip,
               "context" => item["context"].to_s
             },
-            "answer_key" => { "actual_hours" => hours, "reasoning" => item["reasoning"].to_s }
+            "answer_key" => {
+              "actual_hours" => hours,
+              "breakdown" => rows,
+              "reasoning" => item["reasoning"].to_s
+            }
           }
         end
       },

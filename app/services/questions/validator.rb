@@ -18,7 +18,7 @@ module Questions
         answer_key: %w[ambiguous_statement_indexes best_option_key]
       },
       Game::ESTIMATE_POKER => {
-        content: %w[task_description], answer_key: %w[actual_hours]
+        content: %w[task_description], answer_key: %w[actual_hours breakdown]
       },
       Game::INCIDENT_ESCAPE_ROOM => {
         content: %w[scenario nodes], answer_key: %w[option_effects recovery_node]
@@ -96,6 +96,33 @@ module Questions
       return "actual_hours phải là số" unless hours.is_a?(Numeric)
       unless Question::ESTIMATE_HOURS_RANGE.cover?(hours)
         return "actual_hours #{hours} nằm ngoài khoảng "                "#{Question::ESTIMATE_HOURS_RANGE.min}..#{Question::ESTIMATE_HOURS_RANGE.max} giờ"
+      end
+
+      breakdown_error(hours)
+    end
+
+    # `breakdown` là bảng thao tác + số giờ hiện cho người chơi sau khi trả lời. Bắt buộc
+    # có, vì một con số trần trụi không dạy được gì: người chơi cần thấy giờ đi đâu mới
+    # biết mình ước lượng thiếu bước nào.
+    #
+    # Tổng phải khớp actual_hours: người chơi bị chấm theo actual_hours, nên một bảng cộng
+    # ra số khác là màn hình kết quả tự mâu thuẫn với điểm nó vừa đưa ra.
+    def breakdown_error(hours)
+      rows = answer_key["breakdown"]
+      return "breakdown phải là mảng >= 1 dòng" unless rows.is_a?(Array) && rows.any?
+
+      rows.each_with_index do |row, index|
+        unless row.is_a?(Hash) && row["step"].present?
+          return "breakdown dòng #{index + 1} thiếu step"
+        end
+        unless row["hours"].is_a?(Numeric) && row["hours"].positive?
+          return "breakdown dòng #{index + 1} có hours không phải số dương"
+        end
+      end
+
+      total = rows.sum { |row| row["hours"] }
+      if (total - hours).abs > 0.01
+        return "tổng breakdown #{format('%g', total)}h không khớp actual_hours #{format('%g', hours)}h"
       end
 
       nil

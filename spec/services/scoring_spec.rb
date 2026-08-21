@@ -68,11 +68,15 @@ RSpec.describe "Scoring" do
       create(:question, game: game, answer_key: { "actual_hours" => 8, "reasoning" => "..." })
     end
 
-    def score_for(hours)
+    def result_for(hours, target: question)
       described_class.new.call(
-        session: session_for(game), question: question,
+        session: session_for(game), question: target,
         answer: { "hours" => hours }, elapsed_ms: nil
-      ).score
+      )
+    end
+
+    def score_for(hours)
+      result_for(hours).score
     end
 
     it "chấm theo bậc sai số (BR-28)" do
@@ -84,6 +88,35 @@ RSpec.describe "Scoring" do
 
     it "từ chối ước lượng không hợp lệ" do
       expect { score_for(0) }.to raise_error(Scoring::Base::InvalidAnswer)
+    end
+
+    context "bảng chi tiết giờ (BR-20b)" do
+      def question_with(breakdown, hours: 8)
+        create(:question, game: game,
+                          answer_key: { "actual_hours" => hours, "breakdown" => breakdown })
+      end
+
+      it "trả bảng khi tổng khớp actual_hours" do
+        target = question_with([
+          { "step" => "Viết migration", "hours" => 3 },
+          { "step" => "Viết test", "hours" => 5 }
+        ])
+
+        expect(result_for(8, target: target).breakdown).to eq([
+          { "step" => "Viết migration", "hours" => 3.0 },
+          { "step" => "Viết test", "hours" => 5.0 }
+        ])
+      end
+
+      it "bỏ bảng khi tổng không khớp actual_hours" do
+        target = question_with([ { "step" => "Viết migration", "hours" => 3 } ])
+
+        expect(result_for(8, target: target).breakdown).to be_nil
+      end
+
+      it "bỏ bảng khi đề cũ chưa có breakdown" do
+        expect(result_for(8).breakdown).to be_nil
+      end
     end
   end
 
