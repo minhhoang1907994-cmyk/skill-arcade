@@ -2,9 +2,11 @@
 
 ## Session gần nhất
 - Ngày: 2026-08-21
-- Việc mới nhất: **sửa job refill chưa từng nạp được đề** (4 nguyên nhân) + nạp 40 đề vào
-  PROD — chi tiết ở mục "Phiên 2026-08-21" ngay dưới. **Chưa commit.**
-- Việc trước đó: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
+- Việc mới nhất: **rà lại toàn bộ đáp án Estimate Poker + thêm bảng chi tiết giờ (BR-20b)**
+  — mục "Phiên 2026-08-21 (Estimate Poker)" ngay dưới. **Chưa commit.**
+- Việc trước đó: **sửa job refill chưa từng nạp được đề** (4 nguyên nhân) + nạp 40 đề vào
+  PROD — mục "Phiên 2026-08-21". **Chưa commit.**
+- Việc trước nữa: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
   và dialog (spec 1.26)** — mục "Phiên 2026-08-20 (chiều)". **Chưa commit.**
 - Tóm tắt: **Bỏ Gemini khỏi đường chơi** (spec v1.19) rồi sửa hai lỗi phát hiện khi chơi
   thật trên Render (spec v1.20). Commit `v2.0` đã push lên `origin/main`.
@@ -21,6 +23,105 @@
   BR-24 lần đầu có scheduler (task gọi `game_sessions:expire_stale` trước tiên), miễn phí.
 - Open Question: chỉ còn **Q6** (KPI). Q9 (gửi text người chơi sang Google) **hết hiệu lực**
   — không còn text người chơi nào được gửi đi.
+
+
+### Phiên 2026-08-21 (Estimate Poker) — rà đáp án + bảng chi tiết giờ. CHƯA COMMIT
+
+Bắt đầu từ một câu hỏi của owner: đề "thêm cột `deleted_at` + soft delete" chấm 3h, thực tế
+1h là đủ. Rà ra vấn đề hệ thống chứ không phải một đáp án lẻ.
+
+#### A. Đáp án tính cả việc KHÔNG có trong mô tả task
+
+Gốc của cả hai đề bị sửa dưới đây: `reasoning` mô tả phạm vi rộng hơn `task_description`,
+mà người chơi chỉ đọc được `task_description`. Ước lượng đúng phạm vi được cho vẫn bị 0 điểm.
+
+Chuẩn đã chốt: **mỗi dòng đáp án chỉ được tính việc CÓ TRONG `task_description`/`context`**.
+
+#### B. 4 đáp án đã sửa (rà cả 27 đề, 23 đề giữ nguyên)
+
+| Đề | Cũ | Mới | Lý do |
+|---|---|---|---|
+| `deleted_at` soft delete (manual) | 3h | 2h | tính cả "rà lại mọi query đang lấy user" — ngoài mô tả |
+| API đăng nhập + khoá 5 lần sai (manual) | 8h | 6h | tính cả rate limit — ngoài mô tả (đề rate limit riêng đã là 4h) |
+| Excel 3 sheet + chart (bank 08-21) | 32h | 20h | 8h cho "upload S3 + presigned URL" khi SDK có sẵn hàm |
+| VNPay Go full (bank 08-21) | 60h | 32h | 12h viết HMAC (hàm stdlib) + 12h mock server đạt coverage 90% |
+
+Ngưỡng đã dùng khi rà: **chỉ sửa khi lệch ≥25%** — đúng biên tolerance 7 điểm ở
+`Scoring::EstimatePoker::THRESHOLDS`, dưới mức đó sửa không đổi kết quả chấm.
+
+4 đề sát ngưỡng nhưng dưới 25% nên cố ý GIỮ NGUYÊN, đừng "sửa nốt" ở phiên sau mà không
+đọc lại lý do: Excel Java 12h (bottom-up ra 10h), BullMQ 12h (ra 10h), Slack 4h (ra 3h),
+Go microservice 40h (ra 32-36h).
+
+#### C. BR-20b — `answer_key.breakdown` bắt buộc
+
+Owner yêu cầu màn hình kết quả hiện từng thao tác tốn bao nhiêu giờ rồi cộng tổng.
+`breakdown` là mảng `{ step, hours }`, **tổng phải bằng `actual_hours`** (người chơi bị chấm
+theo `actual_hours`; bảng cộng ra số khác là kết quả tự mâu thuẫn với điểm). Chặn 3 tầng:
+
+- `Questions::Generator` **không hỏi model `actual_hours` nữa**, tự cộng từ breakdown. Hỏi
+  cả hai thì model trả tổng lệch với chính bảng nó liệt kê → mất đề vì phép cộng, không
+  phải vì nội dung sai
+- `Questions::Validator#breakdown_error` — `breakdown` vào `REQUIRED_KEYS`, kiểm từng dòng
+  và kiểm tổng (sai số 0.01)
+- `Scoring::EstimatePoker#breakdown_for` — đề cũ thiếu bảng hoặc lệch tổng thì bỏ bảng, chỉ
+  hiện chữ
+
+`Scoring::Result` có field `breakdown` **tách khỏi `metadata`** — metadata bị ghi vào cột
+`answer` của `session_answers` (`AnswerSubmitter#persist`), nhét bảng vào đó là phình DB.
+
+Frontend `buildBreakdown()` dựng DOM node + `textContent` (nội dung `step` từ DB, không nối
+chuỗi vào innerHTML). CSS `.breakdown` dùng lớp phủ trong suốt + thừa hưởng `color` của
+`.feedback` nên đọc được trên cả 3 biến thể feedback mà không cần bộ màu riêng cho dark mode.
+
+#### D. Vì sao chỉ đụng `answer_key`, không đụng `content`
+
+`checksum` tính từ `content` (`Question.checksum_for`). Sửa `answer_key` → seed/import cập
+nhật TẠI CHỖ. Sửa `content` (kể cả `context`) → checksum đổi → bản ghi cũ thành mồ côi, phải
+xoá tay. Đã verify: sau seed + import lại, DB vẫn đúng 17 câu.
+
+#### E. Trạng thái 3 nguồn đề (đã verify bằng checksum, KHÁC với comment trong file)
+
+| Nguồn | Số câu | Trong DB |
+|---|---|---|
+| `db/seeds/sample_questions.rb` | 12 | 12/12 (id 13-24) |
+| `db/question_banks/estimate_poker/2026-08-19.yml` | 5 | 5/5 (id 76-80) |
+| `db/question_banks/estimate_poker/2026-08-21.yml` | 10 | **0/10** |
+
+**Comment đầu 2 file bank đang ghi NGƯỢC sự thật**: file 08-19 ghi "CHƯA vào DB" nhưng đã
+vào cả 5; file 08-21 ghi "bản ghi những gì đã vào DB" nhưng chưa câu nào vào. Chưa sửa.
+
+#### F. File đã sửa
+
+`app/services/scoring/result.rb`, `estimate_poker.rb` · `app/controllers/api/v1/session_answers_controller.rb`
+· `app/views/games/show.html.erb` · `app/assets/stylesheets/application.css`
+· `app/services/questions/validator.rb`, `generator.rb` · `db/seeds/sample_questions.rb`
+· 2 file bank YAML · `docs/spec/skill-arcade.md` (BR-20b)
+· `spec/services/scoring_spec.rb`, `questions/validator_spec.rb`, `questions/refiller_spec.rb`
+
+`ESTIMATE_SAMPLES` đổi từ tuple `[task, hours, reasoning]` sang hash có `steps:`,
+`actual_hours` cộng tại chỗ seed.
+
+#### G. Verify
+
+```
+299 examples, 0 failures                    # bundle exec rspec (full suite)
+106 files inspected, no offenses detected   # bin/rubocop
+tổng=17, câu lỗi breakdown=0                # toàn bộ đề trong DB
+Đã nạp: 0 câu mới, 5 câu cập nhật           # re-import bank 08-19
+```
+
+**Chưa verify**: JS + CSS mới chưa chạy trên trình duyệt thật.
+
+#### H. Việc còn treo
+
+1. Recheck UI trên trình duyệt (owner chưa chọn tự động hay tự kiểm tra)
+2. Có import `2026-08-21.yml` (10 đề, đã có breakdown) vào DB không → 17 lên 27 câu
+3. Sửa comment sai trạng thái ở đầu 2 file bank
+4. 08-21 có 2 đề gần trùng: `middle_name` vào POST /register và vào PUT /users/profile,
+   cùng 1.5h — chiếm 2/10 slot một lượt chơi
+5. Cả 12 đề manual vẫn dùng chung một chuỗi `context` boilerplate — gốc của vấn đề A. Sửa
+   được nhưng đổi `content` → 12 bản ghi cũ thành mồ côi, phải xoá tay
 
 
 ### Phiên 2026-08-21 — job refill chưa từng nạp được đề. CHƯA COMMIT
