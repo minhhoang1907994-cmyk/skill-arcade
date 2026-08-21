@@ -70,7 +70,8 @@ RSpec.describe Questions::Refiller do
     before { create_questions(1) }
 
     it "bỏ qua game còn lượt in_progress" do
-      create(:game_session, game: game, user: create(:user), state: GameSession::IN_PROGRESS)
+      create(:game_session, :question_served, game: game, user: create(:user),
+             state: GameSession::IN_PROGRESS)
       service, generated = refiller(records: [ valid_record(1) ])
 
       outcomes = service.call
@@ -88,7 +89,8 @@ RSpec.describe Questions::Refiller do
                      questions_per_session: 1, steps_per_session: 10)
       # estimate_poker thiếu nhiều hơn nhưng đang có người chơi; prod_roulette nạp được.
       create_questions(1)
-      create(:game_session, game: game, user: create(:user), state: GameSession::IN_PROGRESS)
+      create(:game_session, :question_served, game: game, user: create(:user),
+             state: GameSession::IN_PROGRESS)
 
       scenario_record = {
         "content" => { "scenario" => "sự cố #{SecureRandom.hex(3)}",
@@ -104,6 +106,31 @@ RSpec.describe Questions::Refiller do
       expect(outcomes.map(&:status)).to contain_exactly(:done, :skipped)
       expect(outcomes.find { |o| o.status == :done }.label).to eq(other.slug)
       expect(outcomes.find { |o| o.status == :skipped }.label).to eq(game.slug)
+    end
+
+    # 2026-08-21: cả 5 lượt chặn refill trên production đều ở vị trí 0 và chưa phát câu nào —
+    # người chơi bấm "Bắt đầu lượt" rồi rời đi, nhưng vẫn giữ in_progress tới 24 giờ.
+    it "lượt chưa hiển thị câu nào KHÔNG chặn" do
+      create(:game_session, game: game, user: create(:user), state: GameSession::IN_PROGRESS)
+      service, generated = refiller(records: [ valid_record(1) ])
+
+      outcomes = service.call
+
+      expect(generated.size).to eq(1)
+      expect(outcomes.first.status).to eq(:done)
+    end
+
+    it "lượt đang chờ phát câu KẾ TIẾP vẫn chặn" do
+      # step_served_at nil nhưng đã qua 3 câu: AnswerSubmitter xoá mốc sau mỗi câu, nên nil
+      # một mình KHÔNG có nghĩa là chưa hiển thị gì.
+      create(:game_session, game: game, user: create(:user), state: GameSession::IN_PROGRESS,
+             current_position: 3, step_served_at: nil)
+      service, generated = refiller(records: [ valid_record(1) ])
+
+      outcomes = service.call
+
+      expect(generated).to be_empty
+      expect(outcomes.first.status).to eq(:skipped)
     end
 
     it "vẫn chạy khi lượt duy nhất đã kết thúc" do
@@ -183,8 +210,8 @@ RSpec.describe Questions::Refiller do
     end
 
     def open_session(language)
-      create(:game_session, game: bug_hunt, user: create(:user), language: language,
-             state: GameSession::IN_PROGRESS)
+      create(:game_session, :question_served, game: bug_hunt, user: create(:user),
+             language: language, state: GameSession::IN_PROGRESS)
     end
 
     it "lượt bug_hunt/java KHÔNG chặn refill của bug_hunt/php" do

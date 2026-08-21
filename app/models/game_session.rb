@@ -33,6 +33,16 @@ class GameSession < ApplicationRecord
     where.not(state: ABANDONED, abandoned_reason: SYSTEM_ERROR)
   }
   scope :stale, -> { where(state: IN_PROGRESS).where(started_at: ...STALE_AFTER.ago) }
+  # Lượt đã phát ra ít nhất một câu cho người chơi. Phần bị loại (vị trí 0 và chưa phát câu
+  # nào) là lượt bấm "Bắt đầu lượt" rồi rời đi ngay — người chơi chưa từng thấy câu nào.
+  #
+  # PHẢI xét cả current_position: `step_served_at` bị reset về nil sau MỖI câu
+  # (GameSessions::AnswerSubmitter), nên nil một mình không phân biệt được "chưa bắt đầu" với
+  # "đang chờ phát câu kế tiếp".
+  #
+  # where.not với hai cột sinh NAND — NOT (current_position = 0 AND step_served_at IS NULL) —
+  # giống scope counting_toward_rate_limit ở trên.
+  scope :question_served, -> { where.not(current_position: 0, step_served_at: nil) }
 
   def in_progress?
     state == IN_PROGRESS

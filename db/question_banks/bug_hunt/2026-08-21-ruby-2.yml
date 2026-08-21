@@ -1,0 +1,293 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-21T05:05:15Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - '  query = "SELECT * FROM users WHERE email = ''#{params[:email]}''"'
+    - "  User.find_by_sql(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: 'Nối chuỗi trực tiếp tham số người dùng vào câu SQL gây lỗi SQL Injection.
+      Cần sử dụng parameterized query như User.where(email: params[:email]).'
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def generate_orders_report
+    - "  orders = Order.where(status: 'completed').limit(50)"
+    - "  orders.map do |order|"
+    - "    { id: order.id, customer_name: order.customer.name }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách Order mà không eadger load quan hệ customer sẽ
+      dẫn đến truy vấn N+1 khi gọi order.customer.name trong vòng lặp. Cần thêm .includes(:customer).
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(payment_params)
+    - '  Rails.logger.info("Processing payment card: #{payment_params[:card_number]}
+      CVV: #{payment_params[:cvv]}")'
+    - "  PaymentGateway.charge(payment_params)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm như số thẻ và mã CVV vào log gây vi phạm an
+      toàn thông tin PCI-DSS. Cần loại bỏ hoặc mã hóa/che mờ (mask) các trường này
+      trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_data(user)
+    - '  ExternalApiClient.post("/sync", user.as_json)'
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối rescue âm thầm bỏ qua ngoại lệ và trả về nil mà không log hay
+      xử lý lỗi khiến hệ thống bị ẩn lỗi, rất khó cho việc debug khi API bên ngoài
+      gặp sự cố.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def export_all_logs_to_csv
+    - "  logs = AuditLog.all"
+    - "  CSV.generate do |csv|"
+    - "    logs.each { |log| csv << [log.id, log.action, log.created_at] }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: unbounded_query
+    explanation: Sử dụng AuditLog.all sẽ nạp toàn bộ bản ghi vào RAM cùng lúc gây
+      tràn bộ nhớ (OOM) khi bảng dữ liệu lớn. Cần dùng AuditLog.find_each để xử lý
+      theo từng batch nhỏ.
+  difficulty: hard
+- content:
+    language: ruby
+    code_lines:
+    - def search_orders(user, status_filter)
+    - '  query = "user_id = #{user.id} AND status = ''#{status_filter}''"'
+    - "  Order.where(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: 'Việc nối trực tiếp biến status_filter vào chuỗi truy vấn SQL gây
+      ra lỗi SQL Injection; cần đổi sang dạng parameterized query như Order.where(user_id:
+      user.id, status: status_filter).'
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def calculate_monthly_payouts(merchant_ids)
+    - "  merchants = Merchant.where(id: merchant_ids)"
+    - "  merchants.map do |merchant|"
+    - "    total = merchant.orders.where(status: 'completed').sum(&:amount)"
+    - "    { merchant_id: merchant.id, total_payout: total }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: 'Dòng 2 thiếu eager loading mối quan hệ orders (ví dụ: includes(:orders)),
+      dẫn đến việc mỗi vòng lặp ở dòng 4 đều thực thi thêm một truy vấn cơ sở dữ liệu
+      riêng lẻ gây ra lỗi N+1.'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(payment_params)
+    - '  Rails.logger.info("Processing transaction with params: #{payment_params.inspect}")'
+    - "  GatewayClient.charge(payment_params[:amount], payment_params[:card_number])"
+    - rescue GatewayError => e
+    - '  Rails.logger.error("Payment failed: #{e.message}")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi trực tiếp payment_params vào log sẽ làm rò rỉ thông tin nhạy
+      cảm như thẻ tín dụng (card_number); cần lọc bỏ các trường nhạy cảm trước khi
+      log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_avatar(user, avatar_url)
+    - "  image_data = ImageDownloader.fetch(avatar_url)"
+    - "  user.update!(avatar_data: image_data)"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối rescue nuốt chửng ngoại lệ bằng cách trả về nil mà không log
+      hay xử lý lỗi, khiến ứng dụng che giấu sự cố khi tải ảnh hoặc cập nhật cơ sở
+      dữ liệu thất bại.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def calculate_discounted_price(product_id, promo_code)
+    - "  product = Product.find_by(id: product_id)"
+    - "  discount = Promotion.active.find_by(code: promo_code).discount_percent"
+    - "  product.price * (1 - discount / 100.0)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Nếu mã promo_code không tồn tại hoặc hết hạn, find_by sẽ trả về nil
+      và gọi .discount_percent gây ra lỗi NoMethodError; cần sử dụng toán tử safe
+      navigation (&.) hoặc kiểm tra nil trước.
+  difficulty: hard

@@ -1,9 +1,11 @@
 # Session Handoff
 
 ## Session gần nhất
-- Ngày: 2026-08-20
-- Việc mới nhất: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
-  và dialog (spec 1.26)** — chi tiết ở mục "Phiên 2026-08-20 (chiều)" ngay dưới. **Chưa commit.**
+- Ngày: 2026-08-21
+- Việc mới nhất: **sửa job refill chưa từng nạp được đề** (4 nguyên nhân) + nạp 40 đề vào
+  PROD — chi tiết ở mục "Phiên 2026-08-21" ngay dưới. **Chưa commit.**
+- Việc trước đó: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
+  và dialog (spec 1.26)** — mục "Phiên 2026-08-20 (chiều)". **Chưa commit.**
 - Tóm tắt: **Bỏ Gemini khỏi đường chơi** (spec v1.19) rồi sửa hai lỗi phát hiện khi chơi
   thật trên Render (spec v1.20). Commit `v2.0` đã push lên `origin/main`.
 - **Spec Detective giờ là game CHỌN**: tick câu mơ hồ (10đ, trừ điểm tick sai) + chọn câu
@@ -20,6 +22,97 @@
 - Open Question: chỉ còn **Q6** (KPI). Q9 (gửi text người chơi sang Google) **hết hiệu lực**
   — không còn text người chơi nào được gửi đi.
 
+
+### Phiên 2026-08-21 — job refill chưa từng nạp được đề. CHƯA COMMIT
+
+Phát hiện khi kiểm tra "hôm nay có đề mới chưa": job `questions-refill` chạy đúng lịch, báo
+**xanh**, nhưng nạp **0 đề** — cả 6 mục tiêu đều `[skipped]`. Bốn nguyên nhân xếp lớp:
+
+#### A. `sessions_open?` không lọc `language` — lỗi thật
+
+`Refiller#sessions_open?` chỉ query `where(game:, state:)`. Mục tiêu là cặp (game, ngôn ngữ),
+nên **một** lượt bug_hunt bất kỳ ngôn ngữ nào chặn refill của **cả 4** ngôn ngữ. Dấu hiệu trong
+log: 4 dòng `bug_hunt/*` cùng báo "còn 5 lượt đang chơi" — cùng một tập lượt đếm 4 lần. Tổng
+lượt đang mở thực tế chỉ 7, không phải 22.
+
+Fix: tách `open_sessions(target)` dùng chung cho `sessions_open?` và `skipped`, lọc thêm
+`language`. Lượt của game phân ngôn ngữ mà `language` NULL vẫn chặn MỌI ngôn ngữ (cột nullable,
+model không validate, nên bản ghi cũ dạng đó không xác định được thuộc pool nào).
+
+#### B. `MAX_TARGETS_PER_RUN = 1` quá chậm
+
+Tổng thiếu lúc phát hiện là 87 đề trên 6 mục tiêu, mỗi lần chạy 10 đề cho 1 mục tiêu.
+Nâng lên **3**. Tính lại hạn mức: mỗi mục tiêu tốn nhiều nhất
+`ceil(count/batch_size) + EXTRA_BATCH_ALLOWANCE` = 4 request (kể cả hai game kịch bản
+`batch_size` 2, vì goal của chúng chỉ 3 đề nên `count` không tới 10) → 3 × 4 = 12 request,
+còn dư trong hạn mức đo được 20/ngày.
+
+#### C. `:skipped` không làm job đỏ
+
+`lib/tasks/questions.rake` chỉ `abort` khi có `:failed`. Job xanh nhiều ngày liền trong khi
+ngân hàng không lớn lên — đúng cái bẫy mà comment ngay trên dòng đó cảnh báo. Thêm `abort` khi
+không có `:done` nào mà có `:skipped`. `:nothing_to_do` (đủ đề) vẫn xanh.
+
+#### D. Lượt "chết" chặn refill 24 giờ — nguyên nhân gốc
+
+Cả 7 lượt đang chặn đều có `current_position = 0` và `step_served_at IS NULL`: người chơi bấm
+"Bắt đầu lượt" rồi rời đi ngay, **chưa từng thấy câu nào**, nhưng giữ `in_progress` tới
+`STALE_AFTER` = 24 giờ. Với tỉ lệ bỏ dở thực tế (16 abandoned / 13 finished lúc đo), cửa sổ
+"không có lượt nào mở" gần như không tồn tại → job vĩnh viễn bị chặn.
+
+Fix: scope mới `GameSession.question_served`, và `open_sessions` chỉ đếm lượt này.
+
+**Vì sao an toàn** (verify từ code, không suy đoán): rủi ro của việc nạp giữa lượt là câu ĐÃ
+hiển thị khác câu được chấm, vì `StepProvider#drawn_questions` bốc lại từ pool sống bằng seed
+`"#{session.id}:#{position}"` cho cả lần hiển thị và lần chấm (`step_provider.rb:137-140`).
+Lượt chưa hiển thị gì thì không có câu nào để lệch — insert xong, cả hai lần bốc đều đọc pool
+mới nên vẫn khớp. Còn một race hẹp: người chơi gọi `GET current` đúng lúc import chạy — cùng
+loại race đã có sẵn (mở lượt mới ngay sau khi kiểm tra), không tệ hơn về bản chất.
+
+**BẪY: phải xét CẢ HAI cột.** `AnswerSubmitter#persist` xoá `step_served_at` về nil sau MỖI câu
+(`answer_submitter.rb:96`), nên `step_served_at IS NULL` một mình KHÔNG có nghĩa "chưa bắt đầu"
+— lượt ở vị trí 5 đang chờ phát câu thứ 6 cũng NULL. Scope dùng `where.not` hai cột (NAND,
+cùng idiom với `counting_toward_rate_limit`): `NOT (current_position = 0 AND step_served_at IS
+NULL)`.
+
+**BẪY trong test**: mặc định factory `:game_session` là vị trí 0 + chưa phát câu, tức KHÔNG
+chặn refill. Mọi test mong đợi bị chặn phải dùng trait mới `:question_served`, không thì chúng
+pass vì lý do sai.
+
+#### Kết quả đo trên PRODUCTION
+
+4 lần chạy tay `questions:refill`: **88 → 128 câu** (40 đề mới). Lần đầu (chỉ có A+B+C) nạp
+được 1/6 mục tiêu — chính `bug_hunt/ruby`, mục tiêu duy nhất không có lượt cùng ngôn ngữ, tức
+fix A tự chứng minh. Sau khi thêm D: 0 lượt còn chặn, 3 mục tiêu xử lý cùng lần.
+
+`bug_hunt/ruby` đã đạt goal 30/30. Còn thiếu: php 20, javascript 10, spec_detective 9, java 5,
+estimate_poker 3 — **không mục tiêu nào còn bị chặn**.
+
+`bug_hunt/php` một lần `[failed]` vì Gemini trả **HTTP 503 high demand** (lỗi phía Google, không
+phải code). Exit code 1 — đúng thiết kế.
+
+#### Bẫy môi trường gặp trong phiên này
+
+- **`dotenv-rails` nằm trong `group :development`** (`Gemfile:63`), cố ý. Nên chạy
+  `RAILS_ENV=production` từ máy dev thì `.env` KHÔNG được nạp — phải truyền `GEMINI_API_KEY`
+  tay, không thì task abort "GEMINI_API_KEY chưa được cấu hình". Lệnh đúng:
+  `Get-Content .env.aiven, .env | ForEach-Object { ... }` rồi `ruby bin/rails questions:refill`
+- **Trên Windows phải gọi `ruby bin/rails`**, không phải `bin/rails`. Và `bundle exec rubocop`
+  bị RTK hook chặn → dùng `ruby -S bundle exec rubocop`
+- **4 file bank chưa track**: `bug_hunt/2026-08-21-ruby.yml`, `-ruby-2.yml`, `-java.yml`,
+  `estimate_poker/2026-08-21.yml`. Trên Actions bước cuối tự commit các file này làm bản ghi
+  hậu kiểm; chạy tay thì không có. Vì Q4 đã bỏ bước người soát TRƯỚC import, đây là chỗ duy
+  nhất còn xem lại được nội dung đã vào DB → nên commit cùng fix
+- Rollback nếu cần: `Question.where(id: 100..139).update_all(hidden: true)` — dùng `hidden`,
+  KHÔNG `destroy`, vì `session_answers` có `dependent: :restrict_with_error`
+
+#### Việc tiếp theo
+
+1. Commit (đang ở `main`, cần tạo branch): fix A-D + spec + `docs/deploy/render-aiven.md` §5
+   + 4 file bank
+2. Thử lại `bug_hunt/php` (503 là tạm thời). Chú ý hạn mức 20 request/ngày — phiên này đã
+   chạy 4 lần
+3. Còn 47 đề thiếu ở 5 mục tiêu; job 19:00 UTC giờ nạp được 3 mục tiêu mỗi lần
 
 ### Phiên 2026-08-20 (chiều) — 2 bug fix + trang Hướng dẫn. CHƯA COMMIT
 
@@ -1005,10 +1098,14 @@ checksum = SHA-256 của `content`. Nên thêm **một bug_type mới** sẽ đ�
 BỘ câu cũ → `upsert_question` không tìm thấy bản ghi cũ và tạo bản ghi TRÙNG thay vì cập
 nhật. Thêm câu mới thì dùng lại 12 bug_type đã có, hoặc phải xử lý câu cũ trước.
 
-### Ngân hàng Bug Hunt hiện chỉ đủ mức tối thiểu
-php/ruby/javascript đúng 10 câu = `questions_per_session` (java 15 sau khi import đề AI). Chơi lại cùng ngôn ngữ sẽ gặp lại
-toàn bộ 10 câu (BR-32 buộc phải fallback sang câu đã trả lời đúng). Muốn có câu mới ở
-lượt sau thì cần thêm ít nhất 2-3 câu mỗi ngôn ngữ.
+### Ngân hàng đề — trạng thái 2026-08-21
+Tổng 128 câu. `Refiller` coi "đủ" là `questions_per_session × 3` (TARGET_MULTIPLIER), vì đúng
+`questions_per_session` là vừa đủ MỘT lượt, chơi lại sẽ gặp lại toàn bộ câu cũ (BR-32 phải
+fallback sang câu đã trả lời đúng).
+
+Đủ goal: bug_hunt/ruby 30/30, incident_escape_room, prod_roulette.
+Còn thiếu: bug_hunt/php 20, bug_hunt/javascript 10, spec_detective 9, bug_hunt/java 5,
+estimate_poker 3 — không mục tiêu nào còn bị chặn refill sau fix phiên 2026-08-21.
 
 ### Bẫy môi trường đã gặp — nhớ để khỏi mất thời gian lại
 - **Turbo/Stimulus KHÔNG được nạp** dù có gem trong `Gemfile`: không có `config/importmap.rb`,
@@ -1042,6 +1139,11 @@ lượt sau thì cần thêm ít nhất 2-3 câu mỗi ngôn ngữ.
 - **`attempts_to_best` tính theo chu kỳ đang xem** (BR-10), không dùng `attempt_number` all-time
 - **Chấm điểm ở server** (BR-02); `answer_key` chặn ở cả `as_json` và `serializable_hash` (BR-03)
 - **Câu hỏi bốc theo từng bước**, không chốt sẵn cả bộ vào cache — cache mất là hỏng lượt
+- **Lượt CHƯA hiển thị câu nào (`current_position = 0` và `step_served_at IS NULL`) KHÔNG chặn
+  refill** (chốt 2026-08-21, scope `GameSession.question_served`). Không hồi sinh phương án
+  "mọi lượt in_progress đều chặn": đó là thứ làm job refill không nạp được đề trong nhiều ngày.
+  Cũng KHÔNG được rút gọn điều kiện thành chỉ `step_served_at IS NULL` — cột này bị xoá sau mỗi
+  câu nên lượt giữa lượt cũng NULL
 - **MySQL tối thiểu 8.0.16** — dưới đó CHECK constraint bị bỏ qua âm thầm
 - **Giữ CSRF protection cho JSON API** — endpoint dùng cookie session, tắt là mở lỗ hổng thật
 

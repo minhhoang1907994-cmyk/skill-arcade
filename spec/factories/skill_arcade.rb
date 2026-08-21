@@ -56,6 +56,12 @@ FactoryBot.define do
       finished_at { Time.current }
     end
 
+    # Lượt đã được phát ít nhất một câu. Mặc định của factory là vị trí 0 và chưa phát câu
+    # nào — đúng trạng thái "bấm Bắt đầu lượt rồi rời đi", KHÔNG chặn refill (BR-36).
+    trait :question_served do
+      step_served_at { Time.current }
+    end
+
     trait :abandoned_by_system do
       state { GameSession::ABANDONED }
       abandoned_reason { GameSession::SYSTEM_ERROR }

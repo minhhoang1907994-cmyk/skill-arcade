@@ -7,7 +7,8 @@ module Questions
   #    hiển thị bước và mỗi lần chấm đều bốc lại từ pool sống (StepProvider, BR-36). INSERT
   #    câu mới giữa lượt làm pool đổi, thứ tự MD5 trong Questions::Drawer đổi theo, và người
   #    chơi có thể bị chấm theo câu họ chưa từng thấy. Bỏ qua một ngày rẻ hơn nhiều.
-  #    Pool là (game, ngôn ngữ) nên chỉ lượt CÙNG ngôn ngữ mới chặn — xem #open_sessions.
+  #    Pool là (game, ngôn ngữ) nên chỉ lượt CÙNG ngôn ngữ mới chặn, và chỉ lượt đã hiển thị
+  #    ít nhất một câu mới chặn — xem #open_sessions.
   # 2. CHỈ sinh khi thiếu. Đủ đề thì tốn 0 request — không thì ngân hàng phình vô hạn và
   #    hạn mức Gemini bị đốt mỗi ngày để lấy đề không ai cần.
   # 3. MỖI LẦN CHẠY chỉ xử lý MAX_TARGETS_PER_RUN mục tiêu. Generator gọi tối đa
@@ -130,11 +131,22 @@ module Questions
     # tức cùng một tập lượt bị đếm 4 lần: một người chơi ở BẤT KỲ ngôn ngữ nào cũng chặn cả 4,
     # job báo xanh mà không nạp được đề nào.
     #
+    # question_served: lượt chưa hiển thị câu nào KHÔNG chặn. Rủi ro của việc nạp giữa lượt là
+    # câu ĐÃ hiển thị khác câu được chấm, vì StepProvider bốc lại từ pool sống bằng seed
+    # "#{session.id}:#{position}" cho cả hai lần (step_provider.rb). Lượt chưa hiển thị gì thì
+    # không có câu nào để lệch: insert xong, cả lần hiển thị và lần chấm đều đọc pool mới.
+    # Đây là thứ mở được cửa refill trong thực tế — 2026-08-21 cả 5 lượt đang chặn đều ở vị
+    # trí 0 và chưa phát câu nào, tức người chơi bấm "Bắt đầu lượt" rồi rời đi.
+    #
+    # Còn một race hẹp: người chơi gọi GET current đúng lúc import đang chạy. Cùng loại race
+    # đã có sẵn (người chơi mở lượt mới ngay sau khi kiểm tra), không tệ hơn về bản chất.
+    #
     # Lượt của game phân ngôn ngữ mà language NULL vẫn tính là chặn MỌI ngôn ngữ:
     # GameSessions::Creator luôn set giá trị này, nhưng cột nullable và model không validate,
     # nên bản ghi cũ dạng đó không xác định được thuộc pool nào.
     def open_sessions(target)
-      scope = GameSession.where(game: target.game, state: GameSession::IN_PROGRESS)
+      scope = GameSession.question_served
+                         .where(game: target.game, state: GameSession::IN_PROGRESS)
       return scope unless target.game.language_scoped?
 
       scope.where(language: [ target.language, nil ])

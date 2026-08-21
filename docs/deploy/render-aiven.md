@@ -454,6 +454,12 @@ Mỗi lần chạy xử lý tối đa `Questions::Refiller::MAX_TARGETS_PER_RUN`
 tiêu thiếu nhiều nhất — tối đa khoảng 12 request Gemini, nằm trong hạn mức đo được 20/ngày. Mục
 tiêu = một cặp (game, ngôn ngữ), và lượt đang chơi chỉ chặn ĐÚNG ngôn ngữ của nó.
 
+Lượt CHƯA hiển thị câu nào (`current_position = 0` và `step_served_at IS NULL`, scope
+`GameSession.question_served`) không chặn refill: rủi ro của việc nạp giữa lượt là câu đã hiển
+thị khác câu được chấm, mà lượt chưa hiển thị gì thì không có câu nào để lệch. Đây là trạng thái
+của người chơi bấm "Bắt đầu lượt" rồi rời đi — chiếm `in_progress` tới 24 giờ và trước đây chặn
+refill suốt thời gian đó.
+
 ---
 
 

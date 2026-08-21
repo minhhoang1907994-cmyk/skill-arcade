@@ -63,6 +63,21 @@ RSpec.describe GameSession do
     end
   end
 
+  describe "scope :question_served (BR-36)" do
+    it "loại lượt ở vị trí 0 chưa phát câu nào, giữ lượt đã phát" do
+      never_started = create(:game_session, user: user, game: game, attempt_number: 1,
+                             current_position: 0, step_served_at: nil)
+      serving = create(:game_session, user: user, game: game, attempt_number: 2,
+                       current_position: 0, step_served_at: Time.current)
+      # step_served_at bị xoá sau mỗi câu, nên nil ở vị trí > 0 vẫn là lượt đã hiển thị đề.
+      between_steps = create(:game_session, user: user, game: game, attempt_number: 3,
+                             current_position: 3, step_served_at: nil)
+
+      expect(described_class.question_served).to contain_exactly(serving, between_steps)
+      expect(described_class.question_served).not_to include(never_started)
+    end
+  end
+
   describe "#abandon!" do
     it "ghi lại lý do bỏ lượt" do
       session = create(:game_session, user: user, game: game)
