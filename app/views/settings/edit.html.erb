@@ -20,6 +20,21 @@
       </ul>
     <% end %>
 
+    <%# Bọc riêng ô nhập tên trong .form để dùng lại giới hạn 470px và style label sẵn có —
+        ô text kéo hết bề rộng panel thì rất khó nhắm. Lưới hình bên dưới nằm NGOÀI khối
+        này nên vẫn giữ cả bề rộng panel. %>
+    <div class="form">
+      <div class="field">
+        <%= f.label :display_name, "Tên hiển thị" %>
+        <%# minlength/maxlength khớp validates length: { in: 2..50 } ở User — chặn ngay tại
+            trình duyệt, còn validation ở model vẫn là lớp chốt. %>
+        <%= f.text_field :display_name, required: true, minlength: 2, maxlength: 50 %>
+        <p class="muted small">
+          Tên này xuất hiện trên bảng xếp hạng, không được trùng người khác.
+        </p>
+      </div>
+    </div>
+
     <%# Một fieldset duy nhất: mọi radio dùng cùng name user[avatar] nên chúng là MỘT nhóm
         lựa chọn, mũi tên bàn phím đi xuyên cả ba khối. Chia khối chỉ để mắt dễ tìm, vì vậy
         không đặt role="radiogroup" cho từng khối — làm vậy là khai sai cấu trúc cho
@@ -41,6 +56,8 @@
       <% end %>
     </fieldset>
 
+    <%# Một nút Lưu cho cả tên và hình vì đây là MỘT form gửi cùng lúc — tách hai nút
+        submit sẽ khiến người dùng tưởng phải lưu riêng từng phần. %>
     <div class="actions">
       <%= f.submit "Lưu", class: "btn--primary" %>
       <%= link_to "Về danh sách game", games_path, class: "btn" %>

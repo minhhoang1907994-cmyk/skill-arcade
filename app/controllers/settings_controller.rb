@@ -7,9 +7,9 @@ class SettingsController < ApplicationController
 
   def update
     if current_user.update(settings_params)
-      redirect_to settings_path, notice: "Đã lưu hình đại diện"
+      redirect_to settings_path, notice: "Đã lưu cài đặt"
     else
-      flash.now[:alert] = "Hình đại diện không hợp lệ"
+      flash.now[:alert] = "Không lưu được — xem lỗi bên dưới"
       render :edit, status: :unprocessable_entity
     end
   end
@@ -17,6 +17,6 @@ class SettingsController < ApplicationController
   private
 
   def settings_params
-    params.expect(user: [ :avatar ])
+    params.expect(user: [ :display_name, :avatar ])
   end
 end

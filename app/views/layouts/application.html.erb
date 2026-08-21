@@ -39,7 +39,6 @@
         <nav>
           <% if logged_in? %>
             <%= link_to "Game", games_path %>
-            <%= link_to "Cài đặt", settings_path %>
           <% end %>
           <%= link_to "Bảng xếp hạng", leaderboards_path %>
           <%# Hướng dẫn để ngoài nhánh logged_in?: guest cần đọc được luật trước khi đăng ký. %>
@@ -53,11 +52,20 @@
         <div class="site-header__spacer"></div>
 
         <% if logged_in? %>
-          <%= link_to settings_path, class: "site-header__user" do %>
-            <%= avatar_sprite(current_user.avatar, size: 26) %>
-            <span><%= current_user.display_name %></span>
-          <% end %>
-          <%= button_to "Đăng xuất", session_path, method: :delete %>
+          <%# Dùng <details> chứ không tự dựng dropdown bằng div + JS: trình duyệt lo sẵn
+              trạng thái đóng/mở, Enter/Space trên summary, và aria-expanded. JS bên dưới
+              chỉ thêm hai thứ <details> không có: đóng khi bấm ra ngoài và khi bấm Esc. %>
+          <details class="user-menu">
+            <summary class="site-header__user">
+              <%= avatar_sprite(current_user.avatar, size: 26) %>
+              <span><%= current_user.display_name %></span>
+            </summary>
+            <div class="user-menu__panel">
+              <%= link_to "Cài đặt", settings_path, class: "user-menu__item" %>
+              <%= button_to "Đăng xuất", session_path, method: :delete,
+                    class: "user-menu__item user-menu__item--danger" %>
+            </div>
+          </details>
         <% else %>
           <nav>
             <%= link_to "Đăng nhập", login_path %>
@@ -66,6 +74,25 @@
         <% end %>
       </div>
     </header>
+
+    <%# <details> không tự đóng khi bấm ra ngoài hay bấm Esc — hai hành vi người dùng
+        mong đợi ở một dropdown. Chỉ bổ sung đúng hai thứ đó, phần còn lại để trình duyệt lo. %>
+    <script>
+      (function () {
+        const menu = document.querySelector(".user-menu");
+        if (!menu) return;
+
+        document.addEventListener("click", (event) => {
+          if (menu.open && !menu.contains(event.target)) menu.open = false;
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape" || !menu.open) return;
+          menu.open = false;
+          menu.querySelector("summary").focus();
+        });
+      })();
+    </script>
 
     <main>
       <% if flash[:notice] %>

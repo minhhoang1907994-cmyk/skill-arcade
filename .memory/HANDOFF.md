@@ -2,8 +2,8 @@
 
 ## Session gần nhất
 - Ngày: 2026-08-20
-- Việc mới nhất: **hình đại diện tài khoản (BR-40, spec 1.25)** + dàn nhân vật JRPG cho
-  giao diện — chi tiết ở hai mục đầu "Đã thực hiện". **Chưa commit.**
+- Việc mới nhất: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
+  và dialog (spec 1.26)** — chi tiết ở mục "Phiên 2026-08-20 (chiều)" ngay dưới. **Chưa commit.**
 - Tóm tắt: **Bỏ Gemini khỏi đường chơi** (spec v1.19) rồi sửa hai lỗi phát hiện khi chơi
   thật trên Render (spec v1.20). Commit `v2.0` đã push lên `origin/main`.
 - **Spec Detective giờ là game CHỌN**: tick câu mơ hồ (10đ, trừ điểm tick sai) + chọn câu
@@ -20,6 +20,78 @@
 - Open Question: chỉ còn **Q6** (KPI). Q9 (gửi text người chơi sang Google) **hết hiệu lực**
   — không còn text người chơi nào được gửi đi.
 
+
+### Phiên 2026-08-20 (chiều) — 2 bug fix + trang Hướng dẫn. CHƯA COMMIT
+
+#### 1. Nút Huỷ của modal dialog dạng prompt không đóng được (spec 1.26)
+
+Gặp ở luồng "Báo câu hỏi sai" trong trang game: bấm Huỷ thì browser báo "bắt nhập dữ liệu"
+và dialog không đóng.
+
+Nguyên nhân: `app/views/shared/_dialog.html.erb:63` đặt `inputEl.required = true` khi dialog
+có input, nhưng nút Huỷ là `type="submit"` trong cùng form → constraint validation của form
+chặn luôn submit, dialog không đóng và promise không resolve. Esc vẫn đóng được vì Esc không
+đi qua submit.
+
+Fix: thêm `formnovalidate` vào nút Huỷ. Nút Đồng ý vẫn giữ validation nên vẫn không gửi được
+báo cáo rỗng. Test guard thuộc tính này ở `spec/requests/dialog_spec.rb`.
+
+#### 2. Cùng một đáp án đúng Bug Hunt nhận điểm khác nhau (spec 1.26) — cột DB mới
+
+Nguyên nhân: `AnswerSubmitter#elapsed_ms` đo từ `answered_at` của câu TRƯỚC. Nhưng client giữ
+phần giải thích trên màn hình tới khi người chơi bấm "Câu tiếp theo", nên **thời gian đọc giải
+thích bị cộng vào đồng hồ của câu sau**. Vì BR-21 lấy `max(client, server)`, giá trị sai luôn
+thắng → đọc giải thích 40s rồi trả lời câu sau trong 5s vẫn bị ×0.8.
+
+BR-21 trong spec vốn đã ghi "time between the question being **served** and the answer
+arriving" — nên đây là implementation lệch spec, không phải đảo quyết định cũ.
+
+Đã làm:
+- Migration `20260820000002` thêm `game_sessions.step_served_at` (datetime, nullable)
+- `GameSession#mark_step_served!` — CHỈ ghi khi cột đang nil, nên F5 giữa bước **không reset
+  được đồng hồ tốc độ**
+- `AnswerSubmitter`: đo từ `step_served_at` (fallback về `answered_at`/`started_at` cho lượt
+  chơi dở từ trước migration); `persist` xoá mốc về nil; **memo hoá `elapsed_ms`** (trước đó
+  gọi 2 lần nên giá trị chấm và giá trị ghi DB lệch nhau)
+- **BỎ trường `next` khỏi response `POST /api/v1/sessions/:id/answers`.** Prefetch bước sau
+  làm mốc phát đề sớm hơn lúc hiển thị. Client giờ gọi `GET /current` khi bấm "Câu tiếp theo"
+  → thêm 1 roundtrip mỗi câu, đổi lại mốc đo đúng
+- `GET current` và `POST sessions` ghi mốc SAU khi payload dựng xong (bốc đề lỗi thì không
+  tính là đã phát)
+
+**BR-36 vẫn đúng**: `StepProvider` seed theo `(session_id, position)` nên chuyển việc bốc đề
+sang `GET current` không đổi câu hỏi của bước.
+
+**Nếu sau này muốn trả lại prefetch `next`** thì phải có tín hiệu khác từ client lúc hiển thị,
+không được quay về đo từ `answered_at` — đó chính là bug này.
+
+#### 3. Trang Hướng dẫn `/guide` (BR-41, spec 1.27)
+
+- Route `get "guide"` → `PagesController#guide`, **guest xem được** (đọc luật trước khi đăng ký)
+- Nút "Hướng dẫn" ở header mọi trang, đặt NGOÀI nhánh `logged_in?`
+- Nội dung: giới thiệu app → luật chung 5 màn → cách xếp hạng (kể cả tie-break theo số lượt)
+  → 5 card game (cơ chế / bảng điểm / mẹo) → CTA
+- **Số bước và trần điểm render từ bảng `games`**, không viết cứng. Game `active = false` bị bỏ
+  hẳn khỏi trang → vì thế phần "Mẹo" nằm TRONG từng card, không phải một panel gộp (panel gộp
+  viết cứng tên 5 game nên vẫn nói về game đã tắt — test đã bắt được)
+- Con số cơ chế điểm lấy tay từ `app/services/scoring/` vì không có trong DB. **Đổi scorer thì
+  phải sửa trang này trong cùng commit** (đã ghi vào BR-41)
+- Thêm style cho `h3` trong `application.css` — trước đó chưa trang nào dùng thẻ này
+
+### Verify phiên này
+```
+bundle exec rspec                      -> 279 examples, 0 failures
+bundle exec rubocop app config spec db -> 99 files, no offenses
+bundle exec brakeman                   -> 0 warnings
+bundle exec rails db:migrate           -> OK, db/schema.rb tự sinh lại
+```
+CHƯA recheck UI bằng browser: luồng bấm "Câu tiếp theo" (thêm roundtrip), nút Huỷ của dialog,
+và layout trang `/guide`.
+
+### Việc còn treo
+- `db/seeds.rb:16` mô tả Spec Detective là "viết câu hỏi làm rõ" — từ 1.19 game đã đổi sang
+  dạng CHỌN nên description trong DB đang nói sai. **Đã hỏi owner, chưa có câu trả lời.**
+  Trang `/guide` viết theo hành vi thật (chọn), nên hai chỗ hiện đang lệch nhau.
 
 
 ### ✅ Job refill hằng ngày ĐÃ CHẠY THẬT (2026-08-20, run 32332690030)
