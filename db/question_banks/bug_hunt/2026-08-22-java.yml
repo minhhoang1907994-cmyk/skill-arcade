@@ -1,0 +1,153 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-22T19:19:18Z'
+language: java
+questions:
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/users/search")'
+    - public List<User> searchUsers(@RequestParam String name) {
+    - '    String query = "SELECT * FROM users WHERE name LIKE ''%" + name + "%''";'
+    - "    return entityManager.createNativeQuery(query, User.class).getResultList();"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối trực tiếp tham số đầu vào vào câu truy vấn SQL gây ra lỗ hổng
+      SQL Injection; cần dùng Parameterized Query để truyền biến an toàn.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - '@PostMapping("/login")'
+    - public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request)
+      {
+    - '    log.info("Processing login for user: {}, password: {}", request.getUsername(),
+      request.getPassword());'
+    - "    AuthResponse response = authService.authenticate(request);"
+    - "    return ResponseEntity.ok(response);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm (mật khẩu) vào file log gây nguy cơ rò rỉ
+      dữ liệu người dùng; cần loại bỏ việc log mật khẩu.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public void processOrder(Order order) {
+    - "    try {"
+    - "        paymentService.charge(order);"
+    - "    } catch (PaymentException e) {"
+    - '        log.debug("Payment failed");'
+    - "    }"
+    - "    orderRepository.save(order);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ thanh toán bị bắt nhưng bị bỏ qua không xử lý đúng cách,
+      khiến đơn hàng vẫn tiếp tục được lưu ngay cả khi chưa thanh toán thành công.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - "@Service"
+    - public class AccountService {
+    - "    public void transferMoney(Long fromId, Long toId, BigDecimal amount) {"
+    - "        accountRepository.deductBalance(fromId, amount);"
+    - "        accountRepository.addBalance(toId, amount);"
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_transaction
+    explanation: Hàm chuyển tiền thực hiện 2 thao tác cập nhật DB nhưng thiếu annotation
+      @Transactional, dẫn đến nguy cơ bất nhất dữ liệu nếu bước 2 xảy ra lỗi.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/export/audit-logs")'
+    - public List<AuditLog> exportAuditLogs() {
+    - "    return auditLogRepository.findAll();"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: unbounded_query
+    explanation: Truy vấn toàn bộ dữ liệu bảng log mà không có giới hạn hoặc phân
+      trang (unbounded query) gây tràn bộ nhớ (OutOfMemoryError) khi dữ liệu lớn.
+  difficulty: hard

@@ -1,0 +1,82 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-08-22T19:19:35Z'
+questions:
+- content:
+    task_description: Thêm trường boolean is_featured vào API danh sách sản phẩm GET
+      /api/v1/products
+    context: Hệ thống viết bằng Laravel, đã có sẵn cơ sở dữ liệu, model, resource
+      transformer và suite unit test hoàn chỉnh.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Viết migration thêm cột is_featured vào bảng products
+      hours: 0.25
+    - step: Cập nhật ProductModel và ProductResource để bổ sung thuộc tính is_featured
+      hours: 0.25
+    - step: Cập nhật ProductFactory và bổ sung unit test kiểm tra field is_featured
+        trong response
+      hours: 0.5
+    - step: Chạy lại test suite liên quan và sửa các test case bị vỡ
+      hours: 0.25
+    reasoning: Phần lớn thời gian dành cho việc bổ sung unit test và cập nhật dữ liệu
+      mẫu để đảm bảo API trả về đúng cấu trúc mới.
+  difficulty: easy
+- content:
+    task_description: Tích hợp webhook tiếp nhận và xác thực thông báo trạng thái
+      thanh toán từ cổng PayOS
+    context: Backend Node.js/Express đã cài sẵn SDK PayOS, cơ sở dữ liệu MySQL đã
+      có cấu trúc bảng orders hoàn chỉnh.
+  answer_key:
+    actual_hours: 10.0
+    breakdown:
+    - step: Tạo endpoint POST /webhooks/payos và viết hàm verify chữ ký HMAC bằng
+        SDK PayOS
+      hours: 2.5
+    - step: Viết logic kiểm tra idempotency key và cập nhật trạng thái đơn hàng trong
+        bảng orders
+      hours: 3.0
+    - step: Viết unit test kiểm tra các trường hợp chữ ký hợp lệ, chữ ký giả mạo và
+        request trùng lặp
+      hours: 2.5
+    - step: Chạy thử nghiệm trên môi trường local kết nối Ngrok với PayOS Sandbox
+        để tinh chỉnh xử lý lỗi
+      hours: 2.0
+    reasoning: Thời gian tập trung nhiều nhất vào việc xử lý logic chống trùng lặp
+      (idempotency) và cập nhật chính xác trạng thái đơn hàng khi nhận callback.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng xuất báo cáo doanh thu hàng tháng ra file
+      Excel dữ liệu lớn bằng background job
+    context: Dự án Spring Boot, PostgreSQL, hạ tầng AWS S3 và Redis đã được kết nối
+      sẵn nhưng chưa có cơ chế xử lý file lớn ngầm.
+  answer_key:
+    actual_hours: 36.0
+    breakdown:
+    - step: Tối ưu câu truy vấn SQL liên kết các bảng orders, order_items, promotions
+        để tổng hợp dữ liệu báo cáo
+      hours: 8.0
+    - step: Cấu hình Spring Batch worker queue để xử lý task xuất file ngầm và lưu
+        trạng thái job vào Redis
+      hours: 6.0
+    - step: Cài đặt ghi dữ liệu luồng (streaming) vào file Excel bằng Apache POI SXSSFWorkbook
+        và tải file lên AWS S3
+      hours: 8.0
+    - step: Viết API POST /api/v1/reports/export để khởi tạo job và API GET /api/v1/reports/status/{jobId}
+        để lấy link tải
+      hours: 4.0
+    - step: Viết unit test, integration test cho luồng export và xử lý kịch bản job
+        bị lỗi
+      hours: 6.0
+    - step: Tối ưu bộ nhớ tránh OutOfMemory khi chạy thử nghiệm với tập dữ liệu 1
+        triệu dòng và sửa lỗi code review
+      hours: 4.0
+    reasoning: Phần lớn thời gian dành cho việc tối ưu câu lệnh SQL dữ liệu lớn và
+      triển khai kỹ thuật ghi file theo luồng nhằm tránh nghẽn bộ nhớ hệ thống.
+  difficulty: hard
