@@ -1,0 +1,288 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-21T19:21:07Z'
+language: php
+questions:
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['id'];"
+    - $query = "SELECT * FROM users WHERE id = " . $userId;
+    - "$result = $db->query($query);"
+    - return $result->fetch_assoc();
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp tham số người dùng truyền vào câu lệnh SQL gây lỗi
+      SQL Injection, cần dùng Prepared Statement để tham số hóa truy vấn.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function processPayment(Request $request) {
+    - "  $cardDetails = $request->only(['card_number', 'cvv', 'amount']);"
+    - '  Log::info("Processing payment with details: ", $cardDetails);'
+    - "  return $this->gateway->charge($cardDetails);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm như thẻ credit và mã CVV vào log hệ thống
+      gây nguy cơ rò rỉ dữ liệu nghiêm trọng, cần loại bỏ hoặc che (mask) các trường
+      này trước khi log.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - public function deleteDocument($id) {
+    - "  $doc = Document::findOrFail($id);"
+    - "  $doc->delete();"
+    - "  return response()->json(['message' => 'Deleted successfully']);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_authorization
+    explanation: Hàm thực hiện xóa dữ liệu nhưng không kiểm tra xem user hiện tại
+      có quyền sở hữu hoặc thao tác trên document đó không (IDOR), cần kiểm tra authorization
+      trước khi xóa.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - foreach ($orders as $order) {
+    - "  $customerName = $order->customer->name;"
+    - "  $this->sendNotification($order, $customerName);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách đơn hàng mà không Eager Loading mối quan hệ customer
+      sẽ khiến ORM gọi thêm một truy vấn SQL cho mỗi vòng lặp (lỗi N+1 query), cần
+      dùng Order::with('customer')->where(...)->get().
+  difficulty: hard
+- content:
+    language: php
+    code_lines:
+    - "$user = User::find($request->input('user_id'));"
+    - "$userEmail = $user->email;"
+    - Mail::to($userEmail)->send(new WelcomeEmail());
+    - return response()->json(['status' => 'success']);
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_null_check
+    explanation: Hàm User::find() có thể trả về null nếu không tìm thấy user_id, việc
+      truy cập trực tiếp $user->email sẽ gây lỗi Crash Fatal Error; cần dùng findOrFail()
+      hoặc kiểm tra null trước khi đọc thuộc tính.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['user_id'];"
+    - $sql = "SELECT * FROM users WHERE id = " . $userId;
+    - "$result = $db->query($sql);"
+    - return $result->fetch_assoc();
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Ghép trực tiếp biến $userId vào câu truy vấn SQL gây ra lỗ hổng SQL
+      Injection; cần sử dụng Prepared Statement hoặc Binding parameters.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - "$report = [];"
+    - foreach ($orders as $order) {
+    - "    $report[] = ['id' => $order->id, 'customer' => $order->customer->name];"
+    - "}"
+    - return $report;
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách Order không eager load quan hệ customer dẫn tới
+      lỗi N+1 Query khi duyệt vòng lặp; cần thêm Order::with('customer')->... ở dòng
+      1.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$user = $authService->authenticate($email, $password);"
+    - if (!$user) {
+    - '    $logger->error("Login failed for email: {$email} with password: {$password}");'
+    - "    return response()->json(['error' => 'Invalid credentials'], 401);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi trực tiếp mật khẩu dạng plain-text vào file log gây rò rỉ dữ
+      liệu nhạy cảm; cần loại bỏ biến $password khỏi câu lệnh log.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$discountRate = $request->input('discount_rate');"
+    - if (!$discountRate) {
+    - "    $discountRate = $defaultConfig['discount_rate'];"
+    - "}"
+    - "$total = $subtotal * (1 - $discountRate);"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Dùng kiểm tra falsy (!$discountRate) khiến cho mức giảm giá hợp lệ
+      là 0 bị ghi đè thành giá trị mặc định; nên dùng is_null($discountRate) để kiểm
+      tra.
+  difficulty: hard
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentGateway->charge($amount);"
+    - "    $order->setStatus('paid');"
+    - "} catch (PaymentException $e) {"
+    - "    /* ignore error */"
+    - "}"
+    - "$order->save();"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ PaymentException nhưng bỏ qua không ghi log hay xử lý
+      khiến đơn hàng vẫn tiếp tục lưu dù thanh toán thất bại; cần xử lý lỗi hoặc throw
+      lại exception.
+  difficulty: easy

@@ -1,0 +1,288 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-22T19:19:05Z'
+language: php
+questions:
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['user_id'];Constraints;"
+    - ' $sql = "SELECT * FROM users WHERE id = " . $userId;'
+    - " $stmt = $pdo->query($sql);"
+    - " $user = $stmt->fetch();"
+    - " return $user;"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp tham số đầu vào user_id vào câu lệnh SQL gây ra lỗ
+      hổng SQL Injection. Cần sử dụng Prepared Statements với Parameter Binding để
+      xử lý dữ liệu an toàn.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - function handleLogin(Request $request) {
+    - "    $credentials = $request->only('email', 'password');"
+    - "    Log::info('User attempt to login', $credentials);"
+    - "    if (Auth::attempt($credentials)) { return redirect('/dashboard'); }"
+    - "    return back()->withErrors(['email' => 'Invalid credentials']);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi toàn bộ mảng credential bao gồm cả mật khẩu người dùng vào log
+      file gây nguy cơ rò rỉ thông tin nhạy cảm. Cần loại bỏ trường password trước
+      khi log.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - foreach ($orders as $order) {
+    - "    $customerName = $order->customer->name;"
+    - "    sendNotification($order, $customerName);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách đơn hàng không dùng Eager Loading (with('customer'))
+      khiến Eloquent phải chạy thêm 1 câu query lấy thông tin khách hàng cho từng
+      đơn hàng trong vòng lặp, dẫn đến lỗi N+1 Query.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$userComment = $_POST['comment'];"
+    - echo "<div class='comment-box'>" . $userComment . "</div>";
+    - saveCommentToDb($userComment);
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: xss
+    explanation: Hiển thị dữ liệu người dùng nhập trực tiếp ra giao diện HTML mà không
+      qua mã hóa/escape dẫn đến lỗ hổng Cross-Site Scripting (XSS). Cần dùng htmlspecialchars()
+      hoặc Blade syntax {{ }} để mã hóa.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentGateway->charge($amount);"
+    - "} catch (Exception $e) {"
+    - "    // Ignore error for now"
+    - "}"
+    - updateOrderStatus($orderId, 'paid');
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt Exception nhưng không xử lý hay log lại (nuốt exception), khiến
+      hệ thống vẫn tiếp tục cập nhật trạng thái đơn hàng thành đã thanh toán dù giao
+      dịch bị lỗi. Cần log lỗi và dừng luồng xử lý hoặc ném lại exception.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['user_id'];"
+    - $sql = "SELECT * FROM users WHERE id = " . $userId;
+    - "$stmt = $pdo->query($sql);"
+    - "$user = $stmt->fetch();"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến $userId từ đầu vào người dùng vào câu truy vấn
+      SQL gây ra lỗ hổng SQL Injection. Cần sử dụng Prepared Statement và bind parameter.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function authenticate($username, $password) {
+    - '    Log::info("User login attempt", [''username'' => $username, ''password''
+      => $password]);'
+    - "    $user = User::where('username', $username)->first();"
+    - "    return $user && Hash::check($password, $user->password);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log mật khẩu dạng rõ (plaintext) gây rò rỉ dữ liệu nhạy cảm vào
+      hệ thống log. Cần loại bỏ trường password khỏi context ghi log.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - foreach ($orders as $order) {
+    - "    $customerName = $order->customer->name;"
+    - "    echo $order->id . ': ' . $customerName;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách đơn hàng mà không eager load mối quan hệ customer
+      gây ra lỗi N+1 query. Cần sử dụng Order::with('customer')->where(...)->get().
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - 'public function getUserEmail(int $userId): string {'
+    - "    $user = User::find($userId);"
+    - "    return $user->email;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Phương thức User::find() có thể trả về null nếu không tìm thấy người
+      dùng, gây ra lỗi Fatal Error khi truy cập thuộc tính email. Cần kiểm tra null
+      trước khi truy cập.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentGateway->charge($amount);"
+    - "} catch (PaymentFailedException $e) {"
+    - "    // ignore exception"
+    - "}"
+    - "$order->markAsPaid();"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ thanh toán thất bại bị nuốt (swallowed) mà không xử lý hay
+      re-throw, khiến logic phía sau vẫn đánh dấu đơn hàng là đã thanh toán thành
+      công.
+  difficulty: hard
