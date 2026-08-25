@@ -20,13 +20,26 @@ module Questions
   class Refiller
     # Ngưỡng "đủ": bao nhiêu lượt đề so với một lượt chơi. Đúng questions_per_session là vừa
     # đủ MỘT lượt, tức chơi lại là gặp lại toàn bộ câu cũ (BR-32 phải fallback).
-    TARGET_MULTIPLIER = 3
+    #
+    # Nâng 3 -> 10 (owner chốt 2026-08-25): với multiplier 3, Bug Hunt và Estimate Poker
+    # (questions_per_session = 10) dừng ở 30 đề và ngân hàng đứng yên từ 2026-08-22 — job
+    # chạy xanh mỗi đêm nhưng báo nothing_to_do vì mọi mục tiêu đã chạm trần. 10 lượt đề cho
+    # mỗi lượt chơi để người chơi lại nhiều lần vẫn gặp đề mới.
+    TARGET_MULTIPLIER = 10
     QUESTIONS_PER_RUN = 10
-    # Một mục tiêu tốn nhiều nhất ceil(count/batch_size) + EXTRA_BATCH_ALLOWANCE request. Với
-    # QUESTIONS_PER_RUN = 10 và batch_size = 5 thì là 2 + 2 = 4; hai game kịch bản có
-    # batch_size = 2 nhưng goal chỉ 3 đề (questions_per_session = 1) nên count không tới 10,
-    # vẫn là ceil(3/2) + 2 = 4. Nên 3 mục tiêu = tối đa 12 request, còn dư trong hạn mức đo
-    # được 20/ngày cho một lần chạy tay trong cùng ngày.
+    # Một mục tiêu tốn nhiều nhất ceil(count/batch_size) + EXTRA_BATCH_ALLOWANCE request, với
+    # count = min(shortfall, QUESTIONS_PER_RUN).
+    #
+    # Game batch_size = 5 (Bug Hunt, Spec Detective, Estimate Poker): ceil(10/5) + 2 = 4.
+    # Hai game kịch bản batch_size = 2 (Incident Escape Room, PROD Roulette): từ khi
+    # TARGET_MULTIPLIER = 10 thì goal của chúng là 10 chứ không còn 3, nên count chạm được
+    # QUESTIONS_PER_RUN và chi phí xấu nhất thành ceil(10/2) + 2 = 7 request.
+    #
+    # Chỉ có ĐÚNG HAI game kịch bản, nên xấu nhất cho một lần chạy là 7 + 7 + 4 = 18 request —
+    # vẫn nằm trong hạn mức đo được 20/ngày (spec §20), nhưng chỉ còn dư 2. Trường hợp đó chỉ
+    # xảy ra khi hai game kịch bản đang thiếu nhiều hơn mọi mục tiêu Bug Hunt, vì mục tiêu
+    # được chọn theo shortfall giảm dần. Nếu sau này thêm game kịch bản thứ ba thì phải hạ
+    # MAX_TARGETS_PER_RUN hoặc QUESTIONS_PER_RUN, không thì lần chạy sẽ vượt hạn mức.
     #
     # Để 1 là quá chậm khi thiếu ở nhiều mục tiêu cùng lúc: 2026-08-21 tổng thiếu 87 đề trên
     # 6 mục tiêu, với 10 đề mỗi lần chạy thì cần hàng tuần mới bù xong.

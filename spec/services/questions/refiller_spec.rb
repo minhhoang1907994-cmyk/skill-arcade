@@ -8,7 +8,13 @@ RSpec.describe Questions::Refiller do
            questions_per_session: 2, steps_per_session: 2)
   end
 
-  # goal = questions_per_session * TARGET_MULTIPLIER = 2 * 3 = 6
+  # goal = questions_per_session * TARGET_MULTIPLIER. Tính từ hằng số chứ không viết số
+  # cứng: 2026-08-25 nâng multiplier 3 -> 10 và hai test "đã đủ đề" dựng sẵn 6 câu đã đổi
+  # nghĩa thành thiếu đề, mà không có gì trong test báo là chúng đang kiểm sai thứ.
+  def goal
+    game.questions_per_session * described_class::TARGET_MULTIPLIER
+  end
+
   def create_questions(count)
     count.times do |i|
       create(:question, game: game,
@@ -49,7 +55,7 @@ RSpec.describe Questions::Refiller do
 
   describe "trần 2 — chỉ sinh khi thiếu" do
     it "không gọi Gemini khi ngân hàng đã đạt ngưỡng" do
-      create_questions(6)
+      create_questions(goal)
       service, generated = refiller
 
       outcomes = service.call
@@ -59,7 +65,7 @@ RSpec.describe Questions::Refiller do
     end
 
     it "câu bị ẩn KHÔNG tính vào ngưỡng (BR-16)" do
-      create_questions(6)
+      create_questions(goal)
       Question.where(game: game).limit(2).update_all(hidden: true)
       service, generated = refiller(records: [ valid_record(1) ])
 
@@ -165,7 +171,7 @@ RSpec.describe Questions::Refiller do
       # Mục tiêu bị hoãn KHÔNG có outcome nào — không phải :skipped (đó là nghĩa "còn lượt
       # đang chơi"), chỉ đơn giản là để lần chạy sau.
       expect(outcomes.size).to eq(3)
-      # goal: spec_detective 15 > estimate_poker 6 > prod_roulette = escape_room 3.
+      # goal: spec_detective 50 > estimate_poker 20 > prod_roulette = escape_room 10.
       expect(generated).to include("spec_detective", "estimate_poker")
     end
 
