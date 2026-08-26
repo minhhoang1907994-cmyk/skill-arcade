@@ -67,7 +67,15 @@ jobs:
       # File YAML là bản ghi duy nhất cho biết đúng nội dung gì đã vào DB trong lần chạy này.
       # Commit lại để có git history soát hậu kiểm — Q4 đã bỏ bước người soát TRƯỚC khi
       # import, nên đây là chỗ duy nhất còn xem lại được.
+      #
+      # `!cancelled()` chứ không phải mặc định `success()`: Questions::Refiller nạp DB theo
+      # từng mục tiêu rồi mới trả outcome, nên một mục tiêu lỗi (vd Gemini 503) làm rake
+      # abort SAU KHI các mục tiêu khác đã INSERT xong. Với `success()` thì bước này bị bỏ
+      # qua và đề đã vào DB không còn file YAML nào đối chiếu — gặp thật ở run 32889416210
+      # (2026-08-25): bug_hunt/ruby và estimate_poker vào DB 10 câu mỗi bên nhưng mất git
+      # history. Bỏ qua khi cancel vì file YAML lúc đó có thể ghi dở.
       - name: Commit generated bank files
+        if: ${{ !cancelled() }}
         run: |
           if [ -z "$(git status --porcelain db/question_banks)" ]; then
             echo "Không có file đề mới."
