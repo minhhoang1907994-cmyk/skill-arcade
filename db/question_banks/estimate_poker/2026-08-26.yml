@@ -1,0 +1,254 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-08-26T21:33:11Z'
+questions:
+- content:
+    task_description: Thêm trường discount_code vào API tạo đơn hàng POST /api/v1/orders.
+    context: Hệ thống đã có sẵn service kiểm tra mã DiscountService.validateCode().
+      Chỉ cần kết nối logic và lưu chuỗi discount_code vào DB.
+  answer_key:
+    actual_hours: 1.5
+    breakdown:
+    - step: Tạo file database migration thêm cột discount_code vào bảng orders
+      hours: 0.25
+    - step: Cập nhật OrderDTO và validate input request
+      hours: 0.25
+    - step: Gọi DiscountService.validateCode() trong OrderService và gán giá trị lưu
+        DB
+      hours: 0.5
+    - step: Cập nhật unit test cho API POST /api/v1/orders
+      hours: 0.5
+    reasoning: Thời gian chủ yếu nằm ở việc bổ sung và kiểm tra lại bộ unit test để
+      đảm bảo không bỏ sót case mã giảm giá không hợp lệ.
+  difficulty: easy
+- content:
+    task_description: Thêm tính năng xuất danh sách người dùng ra file Excel trong
+      trang admin.
+    context: Dự án dùng Node.js/Express, đã cài sẵn thư viện exceljs và đã có API
+      lấy danh sách user phân trang.
+  answer_key:
+    actual_hours: 3.5
+    breakdown:
+    - step: Tạo endpoint REST API GET /api/v1/admin/users/export và gắn middleware
+        phân quyền admin
+      hours: 0.5
+    - step: Query lấy toàn bộ danh sách user thỏa điều kiện lọc từ database
+      hours: 0.75
+    - step: Dùng thư viện exceljs để tạo workbook, định dạng tiêu đề cột và điền dữ
+        liệu user
+      hours: 1.25
+    - step: Viết integration test cho endpoint export file
+      hours: 1.0
+    reasoning: Phần lớn thời gian dùng để dựng cấu trúc workbook, định dạng các cột
+      hiển thị và đổ dữ liệu vào file Excel.
+  difficulty: easy
+- content:
+    task_description: Tích hợp webhook nhận trạng thái thanh toán từ cổng ZaloPay.
+    context: Backend Java Spring Boot, DB PostgreSQL. Đã có sẵn luồng khởi tạo đơn
+      thanh toán ZaloPay.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Tạo API endpoint POST /api/v1/payments/zalopay/callback
+      hours: 0.5
+    - step: Viết logic xác thực chữ ký HMAC-SHA256 từ payload của ZaloPay
+      hours: 2.0
+    - step: Cập nhật trạng thái giao dịch trong DB và xử lý cơ chế idempotency chống
+        xử lý trùng callback
+      hours: 3.5
+    - step: Phát event vào RabbitMQ để gửi thông báo cho người dùng
+      hours: 2.0
+    - step: Viết unit test và integration test mock dữ liệu callback từ ZaloPay
+      hours: 4.0
+    reasoning: Phần lớn thời gian tập trung vào việc xử lý tính khép kín idempotency
+      nhằm tránh trùng lặp giao dịch và viết bộ test mock webhook đầy đủ.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi cơ chế lưu trữ session người dùng từ Memory sang
+      Redis cluster cho ứng dụng Chat.
+    context: Hệ thống WebSocket Gateway viết bằng NestJS đang lưu session trực tiếp
+      trên RAM của từng instance, gây ra lỗi khi scale-out đa instance.
+  answer_key:
+    actual_hours: 28.0
+    breakdown:
+    - step: Cấu hình kết nối Redis Cluster trong NestJS module
+      hours: 2.0
+    - step: Tích hợp package @socket.io/redis-adapter vào WebSocket Gateway hiện tại
+      hours: 4.0
+    - step: Refactor lại SessionManager để thực hiện CRUD thông tin session trên Redis
+        Hash
+      hours: 6.0
+    - step: Xử lý logic dọn dẹp session khi socket disconnect đột ngột hoặc hết hạn
+      hours: 4.0
+    - step: Viết kịch bản kiểm thử tải giả lập ngắt kết nối và kết nối lại trên nhiều
+        instance
+      hours: 6.0
+    - step: Cập nhật và sửa các unit test, integration test cũ bị vỡ do đổi lưu trữ
+        session
+      hours: 6.0
+    reasoning: Khối lượng công việc lớn nhất nằm ở việc refactor lại SessionManager
+      và cập nhật toàn bộ test suite hiện có cho tương thích với cơ chế lưu trữ mới.
+  difficulty: medium
+- content:
+    task_description: Xây dựng hệ thống Audit Log ghi nhận lịch sử thay đổi dữ liệu
+      cho các model chính.
+    context: Ứng dụng Django REST Framework + PostgreSQL. Cần tự động ghi vết mọi
+      hành động Create/Update/Delete trên 15 model quan trọng vào bảng audit_logs.
+  answer_key:
+    actual_hours: 52.0
+    breakdown:
+    - step: Thiết kế schema bảng audit_logs và tạo migration trong database
+      hours: 2.0
+    - step: Lập trình Django Signal listener cho post_save và post_delete để bắt sự
+        kiện thay đổi dữ liệu
+      hours: 6.0
+    - step: Viết hàm utility tính toán diff so sánh dữ liệu cũ và mới dưới dạng JSONB
+      hours: 8.0
+    - step: Trích xuất thông tin người thực hiện từ request middleware và gắn vào
+        log record
+      hours: 6.0
+    - step: Xây dựng API GET /api/v1/admin/audit-logs hỗ trợ lọc theo entity, user,
+        khoảng thời gian và phân trang
+      hours: 10.0
+    - step: Đánh index tối ưu truy vấn cho bảng audit_logs
+      hours: 4.0
+    - step: Viết unit test chi tiết bao phủ các thao tác CRUD trên 15 model và kiểm
+        thử API tra cứu log
+      hours: 16.0
+    reasoning: Thời gian tốn nhất là viết bộ unit test bao phủ đầy đủ các trường hợp
+      thay đổi dữ liệu phức tạp và tối ưu hàm so sánh diff JSON.
+  difficulty: hard
+- content:
+    task_description: Thêm trường middle_name vào API đăng ký người dùng hiện tại
+      và lưu vào cơ sở dữ liệu.
+    context: Dự án sử dụng Node.js, Prisma ORM và PostgreSQL. API POST /api/v1/users/register
+      và bảng User đã có sẵn.
+  answer_key:
+    actual_hours: 1.5
+    breakdown:
+    - step: Sửa file schema.prisma và chạy command tạo migration thêm cột middle_name
+      hours: 0.25
+    - step: Thêm validation cho middle_name vào DTO và Joi schema trong API register
+      hours: 0.25
+    - step: Cập nhật controller và service để nhận và lưu field middle_name
+      hours: 0.25
+    - step: Viết bổ sung unit test cho trường hợp đăng ký có và không có middle_name
+      hours: 0.5
+    - step: Sửa các góp ý nhỏ sau code review
+      hours: 0.25
+    reasoning: Phần lớn thời gian dùng để bổ sung các trường hợp test trong unit test
+      nhằm bảo đảm tính đúng đắn khi dữ liệu đầu vào có hoặc không có middle_name.
+  difficulty: easy
+- content:
+    task_description: Bổ sung tính năng gửi thông báo qua Telegram Bot khi có đơn
+      hàng chuyển sang trạng thái thành công.
+    context: Hệ thống Laravel PHP. Đã có sẵn SDK kết nối Telegram Bot cho chức năng
+      khác và đã có OrderShippedEvent.
+  answer_key:
+    actual_hours: 3.5
+    breakdown:
+    - step: Đọc SDK Telegram hiện có trong project và dựng template nội dung thông
+        báo
+      hours: 0.5
+    - step: Tạo OrderShippedListener lắng nghe sự kiện OrderShippedEvent
+      hours: 0.5
+    - step: Gọi Telegram SDK để gửi tin nhắn kèm cơ chế retry khi gặp lỗi kết nối
+        mạng
+      hours: 1.0
+    - step: Viết unit test và integration test mock API HTTP của Telegram
+      hours: 1.0
+    - step: Kiểm thử thủ công trên môi trường local với Telegram test bot và fix lỗi
+        phát sinh
+      hours: 0.5
+    reasoning: Thời gian tập trung chủ yếu vào việc xử lý cơ chế retry khi gọi API
+      bên ngoài và viết integration test mock HTTP request.
+  difficulty: easy
+- content:
+    task_description: Xuất danh sách giao dịch ra file Excel (.xlsx) kèm bộ lọc theo
+      thời gian và trạng thái.
+    context: Backend Spring Boot, Frontend React. Đã có sẵn API danh sách giao dịch
+      phân trang nhưng chưa có tính năng xuất file Excel.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Thêm thư viện Apache POI vào backend và dựng ExportService mẫu
+      hours: 2.0
+    - step: Viết API GET /api/v1/transactions/export hỗ trợ nhận filter và trả về
+        file stream
+      hours: 2.5
+    - step: Cấu hình style cho bảng Excel và xử lý đọc dữ liệu theo trang (paging)
+        để tránh lỗi OutOfMemory
+      hours: 3.5
+    - step: Thêm nút Xuất Excel trên màn hình danh sách React và kết nối API download
+        file
+      hours: 2.0
+    - step: Viết unit test cho ExportService và chỉnh sửa lại code sau review
+      hours: 2.0
+    reasoning: Thời gian tốn nhiều nhất ở khâu định dạng bảng tính Excel và tối ưu
+      truy vấn dữ liệu theo chunk/page để tránh quá tải bộ nhớ.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi cơ chế xác thực từ Session-based sang JWT Refresh
+      Token Rotation.
+    context: Backend viết bằng Go (Gin framework) kết hợp Redis và PostgreSQL. Hiện
+      đang dùng Redis lưu Session ID qua Cookie.
+  answer_key:
+    actual_hours: 28.0
+    breakdown:
+    - step: Đọc thiết kế luồng Refresh Token Rotation và thiết kế Auth Middleware
+        mới
+      hours: 3.0
+    - step: Viết helper sinh Access Token, Refresh Token và lưu trữ Refresh Token
+        vào Redis
+      hours: 4.0
+    - step: Cập nhật API /login, /logout và viết API mới /refresh-token xử lý xoay
+        vòng và thu hồi token
+      hours: 6.0
+    - step: Cập nhật lại Auth Middleware trên tất cả các router hiện có
+      hours: 4.0
+    - step: Xử lý chống race condition khi client gọi đồng thời nhiều request refresh
+        token bằng Redis lock
+      hours: 5.0
+    - step: Viết bộ unit test và integration test bao phủ toàn bộ luồng token hết
+        hạn, bị thu hồi và bị đánh cắp
+      hours: 6.0
+    reasoning: Phần lớn nỗ lực dành cho việc xử lý đồng thời (race condition) bằng
+      Redis lock và viết bài test bao phủ các kịch bản sự cố bảo mật.
+  difficulty: hard
+- content:
+    task_description: Xây dựng module Chat Real-time 1-1 giữa Khách hàng và Supporter.
+    context: Dự án sử dụng React ở Frontend và NestJS ở Backend. Dự án chưa có sẵn
+      hạ tầng WebSocket.
+  answer_key:
+    actual_hours: 54.0
+    breakdown:
+    - step: Thiết lập WebSocket Gateway với NestJS và tích hợp middleware xác thực
+        JWT
+      hours: 6.0
+    - step: Thiết kế cơ sở dữ liệu cho bảng conversations, messages, attachment_files
+        và tạo migration
+      hours: 4.0
+    - step: 'Lập trình xử lý các sự kiện WebSocket: join room, send message, typing
+        indicator, read receipt'
+      hours: 10.0
+    - step: Tích hợp Redis Pub/Sub Adapter cho WebSocket Gateway để chuẩn bị cho việc
+        scale ngang nhiều node server
+      hours: 8.0
+    - step: Phát triển giao diện Chat Window trên React bao gồm danh sách hội thoại,
+        khung chat, typing status và phân trang lịch sử tin nhắn
+      hours: 12.0
+    - step: Xây dựng REST API phụ trợ cho việc tải lịch sử tin nhắn cũ và upload file
+        đính kèm
+      hours: 6.0
+    - step: Viết integration test cho WebSocket gateway và xử lý lỗi tự kết nối lại
+        (reconnect) phía Frontend
+      hours: 8.0
+    reasoning: Phần lớn thời gian tập trung vào việc dựng UI tương tác thời gian thực
+      trên React và xử lý hạ tầng Redis Pub/Sub cho WebSocket Gateway trên NestJS.
+  difficulty: hard

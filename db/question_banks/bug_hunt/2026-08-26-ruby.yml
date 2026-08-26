@@ -1,0 +1,283 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-26T21:32:19Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(term)
+    - '  query = "SELECT * FROM users WHERE name LIKE ''%#{term}%''"'
+    - "  User.find_by_sql(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nội suy trực tiếp biến `term` vào chuỗi SQL gây ra lỗ hổng SQL Injection;
+      cần dùng dạng parameterized query `User.where('name LIKE ?', "%#{term}%")`.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def render_user_bios(department_id)
+    - "  users = User.where(department_id: department_id)"
+    - '  users.map { |user| "#{user.name}: #{user.profile.bio}" }'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Đoạn code bị lỗi N+1 query khi truy cập `user.profile` trong vòng
+      lặp; cần thêm `.includes(:profile)` ở câu truy vấn dòng 2.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(user, payment_params)
+    - '  Rails.logger.info("Processing payment for user #{user.id} with card: #{payment_params[:card_number]}")'
+    - "  PaymentGateway.charge(payment_params)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi trực tiếp số thẻ tín dụng (`card_number`) vào log vi phạm quy
+      tắc bảo mật dữ liệu nhạy cảm; cần ẩn thông tin nhạy cảm trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def sync_external_inventory(item_id)
+    - "  ExternalApi.update_stock(item_id)"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối `rescue` nuốt ngoại lệ mà không ghi log hay xử lý lỗi, khiến
+      việc phát hiện và truy vết lỗi khi gọi API ngoài bị thất bại.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_points(sender, receiver, amount)
+    - "  sender.update!(points: sender.points - amount)"
+    - "  receiver.update!(points: receiver.points + amount)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Thiếu khối giao dịch `ActiveRecord::Base.transaction do ... end`
+      bọc 2 thao tác cập nhật, có thể dẫn đến việc trừ điểm sender thành công nhưng
+      cộng điểm receiver bị lỗi làm mất bất biến dữ liệu.
+  difficulty: hard
+- content:
+    language: ruby
+    code_lines:
+    - def search_orders(user_input)
+    - "  status = user_input[:status]"
+    - '  Order.where("status = ''#{status}'' AND created_at >= ?", 30.days.ago)'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: 'Nối chuỗi trực tiếp giá trị status vào câu lệnh SQL gây ra lỗ hổng
+      SQL Injection. Cần truyền tham số dạng `where(status: status)` hoặc dùng placeholders
+      `where("status = ?", status)`.'
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def monthly_report
+    - "  orders = Order.where(created_at: Time.current.all_month)"
+    - "  orders.map do |order|"
+    - "    { id: order.id, customer_name: order.customer.name, amount: order.total
+      }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy cập `order.customer.name` trong vòng lặp gây ra lỗi N+1 query.
+      Cần sử dụng `.includes(:customer)` khi truy vấn `Order` để eager load dữ liệu
+      customer.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(params)
+    - '  Rails.logger.info("Processing payment for card: #{params[:card_number]} with
+      CVV: #{params[:cvv]}")'
+    - "  payment_gateway = PaymentGateway.new(params)"
+    - "  payment_gateway.charge!"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log trực tiếp số thẻ tín dụng và mã CVV vi phạm tiêu chuẩn bảo
+      mật dữ liệu nhạy cảm. Cần che (mask) thông tin hoặc loại bỏ khỏi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def update_notification_settings(user, is_enabled)
+    - "  is_enabled = is_enabled || true"
+    - "  user.setting.update!(notifications_enabled: is_enabled)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: 'Sử dụng `is_enabled || true` khiến giá trị `is_enabled` luôn luôn
+      thành `true` khi truyền vào `false`. Cần kiểm tra nil rõ ràng như `is_enabled.nil?
+      ? true : is_enabled`.'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_data(user)
+    - "  ExternalSyncService.call(user)"
+    - rescue => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: swallowed_exception
+    explanation: Khối `rescue` bắt ngoại lệ nhưng bỏ qua hoàn toàn mà không log hay
+      xử lý (swallowed exception), khiến việc phát hiện và debug lỗi tích hợp hệ thống
+      gặp khó khăn.
+  difficulty: easy
