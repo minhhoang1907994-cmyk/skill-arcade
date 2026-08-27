@@ -15,6 +15,9 @@ module Questions
   #    ceil(count/batch_size) + EXTRA_BATCH_ALLOWANCE request cho một mục tiêu, nên trần này
   #    là thứ giữ tổng request trong hạn mức đo được (20/ngày, spec §20).
   #
+  # Thứ tự ưu tiên khi số mục tiêu thiếu đề vượt trần: mục tiêu ĐANG CÓ ÍT ĐỀ NHẤT được bù
+  # trước, đo bằng playable tuyệt đối chứ không phải khoảng cách tới goal riêng — xem #call.
+  #
   # KHÔNG tự thêm ngôn ngữ mới cho Bug Hunt: chỉ refill ngôn ngữ đã có trong ngân hàng.
   # Ngôn ngữ mới xuất hiện trên UI phải là một quyết định, không phải tác dụng phụ của job.
   class Refiller
@@ -36,10 +39,13 @@ module Questions
     # QUESTIONS_PER_RUN và chi phí xấu nhất thành ceil(10/2) + 2 = 7 request.
     #
     # Chỉ có ĐÚNG HAI game kịch bản, nên xấu nhất cho một lần chạy là 7 + 7 + 4 = 18 request —
-    # vẫn nằm trong hạn mức đo được 20/ngày (spec §20), nhưng chỉ còn dư 2. Trường hợp đó chỉ
-    # xảy ra khi hai game kịch bản đang thiếu nhiều hơn mọi mục tiêu Bug Hunt, vì mục tiêu
-    # được chọn theo shortfall giảm dần. Nếu sau này thêm game kịch bản thứ ba thì phải hạ
-    # MAX_TARGETS_PER_RUN hoặc QUESTIONS_PER_RUN, không thì lần chạy sẽ vượt hạn mức.
+    # vẫn nằm trong hạn mức đo được 20/ngày (spec §20), nhưng chỉ còn dư 2.
+    #
+    # Từ 2026-08-27 mục tiêu được chọn theo playable tăng dần (#call), và hai game kịch bản
+    # luôn là hai mục tiêu ít đề nhất, nên trường hợp 18 request này thành trường hợp THƯỜNG
+    # GẶP chứ không còn là ngoại lệ như thời sắp theo shortfall. Trần vẫn đủ, nhưng nếu sau
+    # này thêm game kịch bản thứ ba thì phải hạ MAX_TARGETS_PER_RUN hoặc QUESTIONS_PER_RUN —
+    # 7 + 7 + 7 = 21 là vượt hạn mức.
     #
     # Để 1 là quá chậm khi thiếu ở nhiều mục tiêu cùng lúc: 2026-08-21 tổng thiếu 87 đề trên
     # 6 mục tiêu, với 10 đề mỗi lần chạy thì cần hàng tuần mới bù xong.
@@ -67,7 +73,8 @@ module Questions
     end
 
     def call
-      shortfalls = targets.select { |target| target.shortfall.positive? }
+      all_targets = targets
+      shortfalls = all_targets.select { |target| target.shortfall.positive? }
       return [ Outcome.new(label: "-", status: :nothing_to_do, detail: "mọi game đã đủ đề") ] if
         shortfalls.empty?
 
@@ -77,10 +84,26 @@ module Questions
       # đầu tiên sinh 0 đề mà vẫn báo xanh.
       blocked, eligible = shortfalls.partition { |target| sessions_open?(target) }
 
-      # Thiếu nhiều nhất được ưu tiên: game nào sắp không chơi được thì bù trước.
-      refilled = eligible.sort_by { |target| -target.shortfall }
+      # Mốc so sánh là mục tiêu ĐANG CÓ NHIỀU ĐỀ NHẤT, tính trên MỌI mục tiêu — kể cả cái đã
+      # đủ goal và cái đang bị chặn. Lấy max trên riêng `eligible` thì mốc tụt xuống đúng vào
+      # ngày các mục tiêu giàu bị chặn, và số ghi ra log sẽ khác nhau giữa hai ngày dù ngân
+      # hàng không đổi.
+      richest = all_targets.map(&:playable).max.to_i
+
+      # Ít đề nhất được ưu tiên (owner chốt 2026-08-27). Trước đây sắp theo shortfall giảm
+      # dần, tức theo khoảng cách tới GOAL RIÊNG của từng mục tiêu — mà goal =
+      # questions_per_session * TARGET_MULTIPLIER nên nó lệch 10 lần giữa các game (bug_hunt
+      # và estimate_poker 100, spec_detective 50, hai game kịch bản 10). Hệ quả đo được trên
+      # production 2026-08-27: bug_hunt/php còn 49 đề (shortfall 51) luôn xếp trên
+      # prod_roulette còn 3 đề (shortfall 7), nên từ 2026-08-25 cả 3 slot mỗi đêm đều về
+      # bug_hunt, còn prod_roulette chưa từng được sinh câu nào (ai_generated = 0).
+      #
+      # Sắp theo playable tăng dần thì mục tiêu nghèo nhất luôn đứng đầu, bất kể goal của nó
+      # to nhỏ ra sao. Tie-break: thiếu nhiều hơn trước, rồi tới label để thứ tự ổn định giữa
+      # các lần chạy — bằng điểm mà đổi thứ tự thì log hai ngày không đối chiếu được.
+      refilled = eligible.sort_by { |target| [ target.playable, -target.shortfall, target.label ] }
                          .first(@max_targets)
-                         .map { |target| refill(target) }
+                         .map { |target| refill(target, richest: richest) }
 
       # Vẫn báo ra mục tiêu bị chặn: im lặng thì không phân biệt được "hôm nay đủ đề rồi" với
       # "hôm nay không nạp được vì lúc nào cũng có người đang chơi".
@@ -112,7 +135,7 @@ module Questions
                           "(thiếu #{target.shortfall} đề)")
     end
 
-    def refill(target)
+    def refill(target, richest:)
       count = [ target.shortfall, @per_run ].min
       batch = @generator_builder.call(target.game, target.language).call(count: count)
 
@@ -125,9 +148,13 @@ module Questions
                             dir: @bank_dir)
       report = Importer.new(path: path).call
 
+      # Ghi cả playable và khoảng cách tới mục tiêu nhiều đề nhất vào log: đọc log là biết
+      # được chọn vì nghèo tới mức nào, không phải mở console query lại DB mới đối chiếu được.
       Outcome.new(label: target.label, status: :done,
                   detail: "#{report.created} mới, #{report.updated} cập nhật, " \
-                          "#{report.rejected.size} bị loại — #{path.basename}")
+                          "#{report.rejected.size} bị loại — #{path.basename} " \
+                          "(đang có #{target.playable} đề, ít hơn mục tiêu nhiều đề nhất " \
+                          "#{richest - target.playable} đề)")
     rescue Generator::UnsupportedGame, Gemini::Error, Importer::InvalidFile => e
       Outcome.new(label: target.label, status: :failed, detail: "#{e.class}: #{e.message}")
     end

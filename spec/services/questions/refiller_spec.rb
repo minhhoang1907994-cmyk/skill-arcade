@@ -171,7 +171,8 @@ RSpec.describe Questions::Refiller do
       # Mục tiêu bị hoãn KHÔNG có outcome nào — không phải :skipped (đó là nghĩa "còn lượt
       # đang chơi"), chỉ đơn giản là để lần chạy sau.
       expect(outcomes.size).to eq(3)
-      # goal: spec_detective 50 > estimate_poker 20 > prod_roulette = escape_room 10.
+      # Cả 4 mục tiêu playable = 0 nên tie-break quyết định: thiếu nhiều hơn trước —
+      # spec_detective 50 > estimate_poker 20 > prod_roulette = escape_room 10.
       expect(generated).to include("spec_detective", "estimate_poker")
     end
 
@@ -188,6 +189,49 @@ RSpec.describe Questions::Refiller do
 
     it "trần mặc định là 3 — giữ tổng request trong hạn mức 20/ngày" do
       expect(described_class::MAX_TARGETS_PER_RUN).to eq(3)
+    end
+  end
+
+  # Trạng thái thật trên production 2026-08-27: bug_hunt/php có 49 đề (goal 100, shortfall 51)
+  # còn prod_roulette có 3 đề (goal 10, shortfall 7). Sắp theo shortfall giảm dần thì
+  # prod_roulette không bao giờ được chọn — ai_generated của nó là 0 kể từ khi có Refiller.
+  describe "ưu tiên mục tiêu ĐANG CÓ ÍT ĐỀ NHẤT" do
+    let(:roulette) do
+      create(:game, slug: Game::PROD_ROULETTE, name: "PROD Roulette",
+             questions_per_session: 1, steps_per_session: 10)
+    end
+
+    def create_roulette_questions(count)
+      count.times do |i|
+        create(:question, game: roulette,
+               content: { "scenario" => "kịch bản #{i}-#{SecureRandom.hex(3)}" },
+               answer_key: { "recovery_node" => "recovered" })
+      end
+    end
+
+    before do
+      # estimate_poker: goal 100, có 49 -> thiếu 51 (mục tiêu GIÀU nhưng thiếu nhiều nhất).
+      game.update!(questions_per_session: 10, steps_per_session: 10)
+      create_questions(49)
+      # prod_roulette: goal 10, có 3 -> thiếu 7 (mục tiêu NGHÈO nhưng thiếu ít hơn).
+      create_roulette_questions(3)
+    end
+
+    it "chọn mục tiêu ít đề nhất dù nó thiếu ÍT hơn mục tiêu nhiều đề" do
+      service, generated = refiller(records: [ valid_record(1) ], max_targets: 1)
+
+      service.call
+
+      expect(generated).to eq([ "prod_roulette" ])
+    end
+
+    it "ghi khoảng cách tới mục tiêu nhiều đề nhất vào detail" do
+      service, = refiller(records: [ valid_record(1) ], max_targets: 1)
+
+      outcome = service.call.find { |o| o.label == "prod_roulette" }
+
+      expect(outcome.status).to eq(:done)
+      expect(outcome.detail).to include("đang có 3 đề", "ít hơn mục tiêu nhiều đề nhất 46 đề")
     end
   end
 

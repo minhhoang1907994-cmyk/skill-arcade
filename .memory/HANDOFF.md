@@ -1,10 +1,15 @@
 # Session Handoff
 
 ## Session gần nhất
-- Ngày: 2026-08-21
-- Việc mới nhất: **rà lại toàn bộ đáp án Estimate Poker + thêm bảng chi tiết giờ (BR-20b)**
-  — mục "Phiên 2026-08-21 (Estimate Poker)" ngay dưới. **Chưa commit.**
-- Việc trước đó: **sửa job refill chưa từng nạp được đề** (4 nguyên nhân) + nạp 40 đề vào
+- Ngày: 2026-08-27
+- Việc mới nhất: **đổi thứ tự ưu tiên refill sang "ít đề nhất trước"** — mục
+  "Phiên 2026-08-27" ngay dưới. **CHƯA COMMIT.**
+- Việc trước đó: **job refill đỏ vì Gemini 503 → sửa điều kiện bước commit + chạy lại**
+  — mục "Phiên 2026-08-26". Đã commit `c9b7f65` trên branch
+  `fix/refill-commit-bank-on-partial-failure`, đã merge vào `main` qua PR #5 (`569d834`).
+- Việc trước đó: **rà lại toàn bộ đáp án Estimate Poker + thêm bảng chi tiết giờ (BR-20b)**
+  — mục "Phiên 2026-08-21 (Estimate Poker)". **Chưa commit.**
+- Việc trước nữa: **sửa job refill chưa từng nạp được đề** (4 nguyên nhân) + nạp 40 đề vào
   PROD — mục "Phiên 2026-08-21". **Chưa commit.**
 - Việc trước nữa: **trang Hướng dẫn `/guide` (BR-41, spec 1.27)** + **sửa 2 bug đo thời gian
   và dialog (spec 1.26)** — mục "Phiên 2026-08-20 (chiều)". **Chưa commit.**
@@ -24,6 +29,135 @@
 - Open Question: chỉ còn **Q6** (KPI). Q9 (gửi text người chơi sang Google) **hết hiệu lực**
   — không còn text người chơi nào được gửi đi.
 
+
+### Phiên 2026-08-27 — thứ tự ưu tiên refill: "ít đề nhất trước". CHƯA COMMIT
+
+#### Triệu chứng
+Đếm trên DB Aiven (`defaultdb`) 2026-08-27, cột `source` từ `questions.group(:source).count`:
+
+| Game | Tổng | Playable | questions_per_session | manual | ai_generated |
+|---|---|---|---|---|---|
+| bug_hunt | 206 | 206 | 10 | 40 | 166 |
+| estimate_poker | 50 | 50 | 10 | 12 | 38 |
+| spec_detective | 15 | 15 | 5 | 6 | 9 |
+| incident_escape_room | 7 | 7 | 1 | 3 | 4 |
+| prod_roulette | 3 | 3 | 1 | 3 | **0** |
+
+Bug Hunt theo ngôn ngữ: java 57, javascript 50, ruby 50, php 49.
+
+`prod_roulette` **chưa từng** được AI sinh câu nào kể từ khi có `Questions::Refiller`
+(commit `25fe9da`, 2026-08-20). Git log `db/question_banks/` xác nhận từ 2026-08-25 tới nay
+chỉ có file `bug_hunt/*` được sinh.
+
+#### Nguyên nhân
+`Refiller#call` sắp mục tiêu theo `-shortfall` (khoảng cách tới **goal riêng** của mục tiêu),
+mà `goal = questions_per_session * TARGET_MULTIPLIER` nên goal lệch 10 lần giữa các game:
+bug_hunt 100/ngôn-ngữ, estimate_poker 100, spec_detective 50, hai game kịch bản 10.
+
+Hệ quả: `bug_hunt/php` còn 49 đề (shortfall 51) luôn xếp trên `prod_roulette` còn 3 đề
+(shortfall 7). Cộng với việc Bug Hunt chiếm 4/8 slot mục tiêu (phân theo ngôn ngữ) và
+`MAX_TARGETS_PER_RUN = 3`, Bug Hunt chiếm trọn cả 3 slot mỗi đêm.
+
+Lịch sử làm nặng thêm: trước khi `TARGET_MULTIPLIER` nâng 3 → 10 (commit `eea75ba`,
+2026-08-25), goal của `prod_roulette` là 1×3 = 3 và nó có đúng 3 câu manual từ seed ⇒
+shortfall 0 ⇒ không bao giờ vào hàng đợi. `spec_detective` cũng chạm đúng goal cũ 15 và
+dừng từ 2026-08-21.
+
+#### Đã sửa (`app/services/questions/refiller.rb`)
+Đổi tiêu chí chọn trong `#call`: sắp theo `playable` **tăng dần**, tie-break `-shortfall`
+rồi `label`. Mục tiêu ít đề nhất luôn đứng đầu bất kể goal to nhỏ.
+
+```ruby
+richest = all_targets.map(&:playable).max.to_i
+refilled = eligible.sort_by { |t| [ t.playable, -t.shortfall, t.label ] }
+                   .first(@max_targets)
+                   .map { |t| refill(t, richest: richest) }
+```
+
+- `richest` lấy max trên **mọi** mục tiêu (kể cả đã đủ goal và đang bị chặn). Lấy max trên
+  riêng `eligible` thì mốc tụt xuống đúng vào ngày các mục tiêu giàu bị chặn, số trong log
+  hai ngày khác nhau dù ngân hàng không đổi.
+- `Outcome.detail` của `:done` ghi thêm `(đang có N đề, ít hơn mục tiêu nhiều đề nhất M đề)`.
+- Sửa 2 comment đã thành sai: doc-comment lớp (thêm mục thứ tự ưu tiên) và block trên
+  `MAX_TARGETS_PER_RUN` — chỗ đó viết worst-case 18 request "chỉ xảy ra khi hai game kịch bản
+  thiếu nhiều hơn mọi mục tiêu Bug Hunt, vì mục tiêu được chọn theo shortfall giảm dần". Giờ
+  đó là trường hợp **thường gặp**.
+
+`spec/services/questions/refiller_spec.rb`: thêm describe "ưu tiên mục tiêu ĐANG CÓ ÍT ĐỀ
+NHẤT" dựng đúng tình huống production (estimate_poker 49 đề/thiếu 51 vs prod_roulette 3
+đề/thiếu 7) + assert nội dung `detail`. Sửa comment test cũ ở dòng ~174 (nó giải thích theo
+goal; giờ đúng là tie-break khi `playable` bằng nhau).
+
+#### Kết quả trên dữ liệu Aiven thật (read-only, `richest = 57`)
+Thứ tự mới: `prod_roulette` (3) → `incident_escape_room` (7) → `spec_detective` (15) →
+`bug_hunt/php` (49) → `bug_hunt/javascript` (50) = `bug_hunt/ruby` (50) = `estimate_poker`
+(50) → `bug_hunt/java` (57).
+
+Lần chạy tới chọn `prod_roulette, incident_escape_room, spec_detective` — chi phí 6 + 4 + 4
+= 14 request, trong hạn mức 20/ngày.
+
+#### Verify
+- ✅ `bundle exec rubocop` 2 file đã sửa — no offenses
+- ✅ `ruby -c` 2 file — Syntax OK
+- ✅ Thứ tự ưu tiên mới trên DB Aiven thật (script read-only, không gọi Gemini)
+- ⚠️ **`bundle exec rspec spec/services/questions/refiller_spec.rb` CHƯA CHẠY** — MySQL local
+  không kết nối được (`Can't connect to server on '127.0.0.1' (10061)`), Docker Desktop chưa
+  bật. Phải chạy trước khi commit:
+  `docker compose up -d db` → `bin/rails db:test:prepare` → `bundle exec rspec spec/services/questions/refiller_spec.rb`
+
+#### Còn để mở
+`prod_roulette` và `incident_escape_room` có `questions_per_session = 1` nên goal chỉ 10.
+Sau ~2 đêm chúng chạm 10 rồi rơi khỏi hàng đợi, Bug Hunt quay lại chiếm slot. Muốn ngân hàng
+hai game kịch bản lớn hơn thì phải tách goal khỏi `questions_per_session` (khai `refill_goal`
+riêng) — **chưa làm, ngoài phạm vi yêu cầu**.
+
+Cách chạy lệnh read-only lên DB Aiven (mật khẩu không vào history):
+`powershell -File script/aiven.ps1 -Command "runner <đường/dẫn/script.rb>"`
+
+### Phiên 2026-08-26 — job refill đỏ vì Gemini 503, mất file YAML đối chiếu
+
+#### Triệu chứng
+Run theo lịch `32889416210` (2026-08-25 19:24 UTC = 02:24 VN 26/08) **failure**:
+
+```
+[done]   bug_hunt/ruby:  10 mới, 0 cập nhật, 0 bị loại — 2026-08-25-ruby.yml
+[done]   estimate_poker: 10 mới, 0 cập nhật, 0 bị loại — 2026-08-25.yml
+[failed] bug_hunt/php:   Gemini::Client::RequestFailed: Gemini trả HTTP 503
+refill thất bại → exit 1
+```
+
+Gemini 503 là lỗi tạm thời phía Google, không phải lỗi code/config.
+
+#### Nguyên nhân gốc của thiệt hại thật sự (không phải cái 503)
+`Questions::Refiller#refill` nạp DB **theo từng mục tiêu** rồi mới trả `Outcome`
+(`app/services/questions/refiller.rb:130-133`). Một mục tiêu lỗi làm rake `abort` **SAU KHI**
+các mục tiêu khác đã INSERT xong. Bước `Commit generated bank files` để mặc định `success()`
+nên bị skip → 20 câu đã vào DB production mà **không có file YAML nào đối chiếu**.
+
+Đây đúng là cái bẫy mà comment trong `.github/workflows/questions-refill.yml:67-69` cảnh báo:
+Q4 đã bỏ bước người soát TRƯỚC khi import, nên file YAML là chỗ **duy nhất** còn hậu kiểm được.
+
+#### Đã sửa — `c9b7f65`
+`.github/workflows/questions-refill.yml:77` thêm `if: ${{ !cancelled() }}` cho bước commit.
+Vẫn commit khi job đỏ, nhưng bỏ qua khi cancel vì file YAML lúc đó có thể ghi dở.
+Rake vẫn giữ exit code khác 0 — scheduler vẫn báo đỏ như trước.
+
+#### Đã chạy lại — run `32925355845` (branch fix), success 1m52s
+```
+[done] bug_hunt/php:        10 mới, 0 cập nhật, 0 bị loại — 2026-08-26-php.yml
+[done] bug_hunt/java:        8 mới, 2 cập nhật, 0 bị loại — 2026-08-26-java.yml
+[done] bug_hunt/javascript: 10 mới, 0 cập nhật, 0 bị loại — 2026-08-26-javascript.yml
+```
+Bước commit chạy đúng thiết kế mới → `cb134c2` (3 file YAML, 880 dòng) trên branch fix.
+
+#### 🔴 CÒN TREO — đọc trước khi làm tiếp
+1. Branch `fix/refill-commit-bank-on-partial-failure` **CHƯA merge vào `main`**. Cron chạy
+   trên `main` nên **vẫn dùng bản cũ** cho tới khi merge. Merge remote là việc của owner.
+2. 20 câu của run 2026-08-25 (`bug_hunt/ruby`, `estimate_poker`) **vĩnh viễn không có file
+   YAML** — file nằm trong container runner đã bị xoá. Fix chỉ chặn tái diễn, không khôi phục
+   được. Nếu cần hậu kiểm 20 câu đó thì phải đọc thẳng từ DB production.
+3. Branch fix chứa lẫn commit CI fix (`c9b7f65`) và commit đề của bot (`cb134c2`) — do chạy
+   workflow_dispatch trên chính branch đó. Cân nhắc khi review PR.
 
 ### Phiên 2026-08-21 (Estimate Poker) — rà đáp án + bảng chi tiết giờ. CHƯA COMMIT
 
@@ -1218,6 +1352,17 @@ dev           -> van dung 12345678 (da tra lai sau khi test)
 
 ## Việc tiếp theo
 **Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác.**
+
+### 🔴 Trước khi commit thay đổi phiên 2026-08-27
+`spec/services/questions/refiller_spec.rb` chưa chạy được vì MySQL local không lên (Docker
+Desktop chưa bật). Bật Docker rồi chạy, chỉ commit khi xanh:
+```
+docker compose up -d db
+bin/rails db:test:prepare
+bundle exec rspec spec/services/questions/refiller_spec.rb
+```
+Đang ở branch `main` — phải tạo branch mới trước khi commit
+(vd `fix/refill-priority-fewest-questions-first`).
 
 ### 🔴 Gấp — production đang lỗi sau khi deploy v2.0
 `render.yaml` không khai `autoDeploy` nên Render mặc định tự deploy khi push `main`. Code mới
