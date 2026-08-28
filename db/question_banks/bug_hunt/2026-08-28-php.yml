@@ -1,0 +1,284 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-08-28T01:24:23Z'
+language: php
+questions:
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_POST['user_id'];"
+    - $sql = "SELECT * FROM users WHERE id = " . $userId;
+    - "$result = $db->query($sql);"
+    - return $result->fetch_assoc();
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp dữ liệu đầu vào từ $_POST vào câu lệnh SQL gây ra lỗ
+      hổng SQL Injection; nên sử dụng Prepared Statements.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function login(Request $request) {
+    - "    $credentials = $request->only(['email', 'password']);"
+    - "    Log::info('Login attempt:', $credentials);"
+    - "    return Auth::attempt($credentials);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm (mật khẩu) vào file log hệ thống; cần loại
+      bỏ trường password trước khi log.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - 'function getUserCity(int $id): string {'
+    - "    $user = User::find($id);"
+    - "    return $user->address->city;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Truy cập trực tiếp property $user->address mà không kiểm tra $user
+      hoặc $user->address có tồn tại không (null), dễ gây ra Null Pointer Exception.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'paid')->get();"
+    - foreach ($orders as $order) {
+    - "    $customerName = $order->customer->name;"
+    - "    echo $customerName;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: n_plus_one
+    explanation: Không dùng Eager Loading làm phát sinh vấn đề N+1 query khi gọi $order->customer
+      trong vòng lặp; cần dùng Order::with('customer')->where(...)->get().
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentService->charge($order->total);"
+    - "} catch (\\Exception $e) {"
+    - "    // Ignore exception"
+    - "}"
+    - return redirect('/success');
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ nhưng bỏ qua không xử lý hay log lại, dẫn đến chương
+      trình vẫn báo thanh toán thành công ngay cả khi có lỗi.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['user_id'];"
+    - $query = "SELECT * FROM users WHERE id = " . $userId;
+    - "$result = $db->query($query);"
+    - return $result->fetch_assoc();
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Việc nối trực tiếp biến $userId từ $_GET vào câu truy vấn SQL gây
+      ra lỗi SQL Injection. Cần sử dụng Prepared Statement để ràng buộc tham số an
+      toàn.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function login(Request $request) {
+    - "    $credentials = $request->only('email', 'password');"
+    - "    Log::info('User login attempt payload: ', $credentials);"
+    - "    if (Auth::attempt($credentials)) { return redirect('/dashboard'); }"
+    - "    return back()->withErrors(['email' => 'Invalid credentials']);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log trực tiếp biến $credentials sẽ làm lộ mật khẩu chưa mã hóa
+      của người dùng trong log file. Cần ẩn thông tin password trước khi ghi log.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$user = User::find($userId);"
+    - "$userProfile = $user->profile;"
+    - "$avatarUrl = $userProfile->avatar_url;"
+    - return response()->json(['avatar' => $avatarUrl]);
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Nếu người dùng chưa thiết lập hồ sơ, $userProfile sẽ là null, dẫn
+      đến lỗi Fatal Error khi truy cập thuộc tính avatar_url. Cần kiểm tra null trước
+      khi sử dụng.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentGateway->charge($order->total_amount);"
+    - "    $order->update(['status' => 'paid']);"
+    - "} catch (\\Exception $e) {"
+    - "    return false;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ khi thanh toán bị nuốt chửng (swallowed exception) mà không
+      hề log lại hay xử lý chi tiết, gây khó khăn cho việc tra cứu nguyên nhân thất
+      bại. Cần log lại $e->getMessage() trước khi return.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - foreach ($orders as $order) {
+    - "$customerName = $order->customer->name;"
+    - "$this->sendNotification($order, $customerName);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: Truy cập quan hệ $order->customer bên trong vòng lặp khiến hệ thống
+      phải thực hiện thêm 1 truy vấn database cho mỗi đơn hàng (vấn đề N+1). Cần nạp
+      trước dữ liệu bằng Order::with('customer')->... từ câu truy vấn ban đầu.
+  difficulty: hard

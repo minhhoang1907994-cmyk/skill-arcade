@@ -1,0 +1,323 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-08-28T01:23:54Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá 10% cho khách hàng thân thiết khi thanh
+      toán.
+    - Khách hàng thân thiết được định nghĩa là người đã hoàn thành ít nhất 5 đơn hàng
+      trong 30 ngày qua.
+    - Nếu tổng giá trị đơn hàng sau khi giảm giá dưới 100.000 VNĐ, hệ thống vẫn áp
+      dụng phí vận chuyển mặc định là 30.000 VNĐ.
+    - Tốc độ xử lý áp dụng mã giảm giá phải thật nhanh để tránh người dùng hủy đơn.
+    - Nếu hệ thống gặp sự cố tải cao, giao dịch sẽ được đưa vào hàng đợi xử lý sau.
+    clarifying_options:
+    - key: a
+      label: Tốc độ xử lý phải dưới bao nhiêu mili-giây và định ngưỡng tải cao là
+        bao nhiêu request/giây?
+    - key: b
+      label: Khách hàng phải mua bao nhiêu đơn hàng trong 30 ngày thì mới được coi
+        là khách hàng thân thiết?
+    - key: c
+      label: Làm thế nào để giao diện trang thanh toán nhìn đẹp mắt và thu hút hơn?
+    - key: d
+      label: Đối tác giao hàng nào sẽ chịu trách nhiệm giao các đơn hàng bị trễ?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a là tốt nhất vì nó chốt được con số kỹ thuật cụ thể cho
+      hai điểm mơ hồ về hiệu năng (thời gian phản hồi tối đa và ngưỡng tải cao), trong
+      khi phương án b hỏi lại điều đã ghi rõ, c quá mơ hồ và d nằm ngoài phạm vi yêu
+      cầu.
+  difficulty: easy
+- content:
+    statements:
+    - Hệ thống chấm điểm tín dụng sẽ tự động duyệt các khoản vay nhỏ dưới 20 triệu
+      VNĐ.
+    - Các khoản vay trên 20 triệu VNĐ cần được chuyển sang cho nhân viên thẩm định
+      hồ sơ.
+    - Hồ sơ cần có đầy đủ chứng minh thu nhập phù hợp trước khi gửi phê duyệt.
+    - Thời gian phản hồi kết quả cho khách hàng nên càng sớm càng tốt để tăng tỷ lệ
+      chốt hợp đồng.
+    - Nếu phát hiện gian lận, tài khoản sẽ bị tạm khóa trong một thời gian.
+    clarifying_options:
+    - key: a
+      label: Chứng minh thu nhập phù hợp gồm chứng từ cụ thể nào, SLA phản hồi tối
+        đa mấy giờ, và tài khoản bị khóa bao lâu?
+    - key: b
+      label: Hạn mức tối đa để hệ thống tự động phê duyệt khoản vay nhỏ là bao nhiêu
+        tiền?
+    - key: c
+      label: Làm sao để nhân viên thẩm định làm việc hiệu quả và vui vẻ hơn?
+    - key: d
+      label: Quy trình tuyển dụng nhân viên thẩm định hồ sơ của công ty diễn ra như
+        thế nào?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a làm rõ trực tiếp danh mục hồ sơ bắt buộc, khung thời
+      gian cam kết SLA và thời hạn khóa tài khoản bằng tiêu chuẩn định lượng, còn
+      phương án b trùng lặp thông tin đã có, c mang tính cảm quan và d không thuộc
+      phạm vi phần mềm.
+  difficulty: medium
+- content:
+    statements:
+    - Bệnh nhân có thể đặt lịch khám bệnh trực tuyến trước tối đa 30 ngày.
+    - Nếu bệnh nhân hủy lịch trước 24 giờ, hệ thống sẽ hoàn 100% tiền phí đặt cọc.
+    - Trường hợp bệnh nhân đến trễ, hệ thống sẽ tự động xử lý phù hợp.
+    - Các bác sĩ có thể nhận thông báo lịch khám mới nếu cần.
+    - Đơn hàng dịch vụ khám phải được lưu trữ an toàn.
+    clarifying_options:
+    - key: a
+      label: Quá bao nhiêu phút trễ thì hủy lịch, điều kiện nào để bật thông báo bác
+        sĩ, và tiêu chuẩn an toàn lưu trữ là gì?
+    - key: b
+      label: Bệnh nhân hủy lịch trước bao nhiêu giờ thì mới nhận lại được tiền đặt
+        cọc?
+    - key: c
+      label: Làm thế nào để ứng dụng giao diện đặt lịch khám trở nên thân thiện hơn
+        với người già?
+    - key: d
+      label: Bệnh viện có cung cấp xe cấp cứu miễn phí cho bệnh nhân đặt lịch trực
+        tuyến không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a đưa ra các câu hỏi đóng giải quyết triệt để quy tắc phạt
+      trễ giờ, điều kiện gửi thông báo và tiêu chuẩn bảo mật dữ liệu, vượt trội so
+      với b (hỏi thông tin đã rõ), c (mơ hồ chủ quan) và d (ngoài phạm vi hệ thống).
+  difficulty: medium
+- content:
+    statements:
+    - Khi số lượng tồn kho của sản phẩm xuống dưới 10 đơn vị, hệ thống sẽ phát cảnh
+      báo cho thủ kho.
+    - Email cảnh báo tồn kho sẽ được gửi đến địa chỉ kho_manager@company.com trong
+      vòng 5 phút.
+    - Nếu mặt hàng thuộc nhóm hàng hot, tần suất cảnh báo sẽ được tăng lên hợp lý.
+    - Các mặt hàng quá hạn lưu kho cần được thanh lý kịp thời để giải phóng không
+      gian.
+    clarifying_options:
+    - key: a
+      label: Tiêu chuẩn định nghĩa 'hàng hot', tần suất gửi email mới là bao lâu/lần,
+        và sau bao nhiêu ngày lưu kho thì tính là quá hạn?
+    - key: b
+      label: Địa chỉ email nhận cảnh báo khi tồn kho xuống dưới 10 đơn vị là gì?
+    - key: c
+      label: Làm cách nào để tối ưu hóa việc sắp xếp hàng hóa trong kho bãi một cách
+        tốt nhất?
+    - key: d
+      label: Xe tải của công ty vận tải có được lắp thiết bị định vị GPS không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: a
+    explanation: Phương án a quy đổi chính xác các khái niệm chung chung như 'hàng
+      hot', 'hợp lý', 'quá hạn' thành quy tắc và mốc thời gian đo lường được, tốt
+      hơn hẳn b (hỏi câu đã có đáp án), c (chung chung) và d (không liên quan nghiệp
+      vụ kho).
+  difficulty: hard
+- content:
+    statements:
+    - Học viên phải hoàn thành 80% số bài giảng video mới được mở khóa bài thi cuối
+      khóa.
+    - Bài thi cuối khóa gồm 30 câu hỏi trắc nghiệm với thời gian làm bài là 45 phút.
+    - Nếu học viên trượt bài thi, hệ thống cho phép thi lại sau một thời gian ngắn.
+    - Hệ thống sẽ tự động đề xuất các khóa học phù hợp dựa trên kết quả thi.
+    - Giảng viên có thể nhận tiền thù lao nếu đạt yêu cầu đánh giá tốt từ học viên.
+    clarifying_options:
+    - key: a
+      label: Thời gian giãn cách thi lại là bao nhiêu giờ, logic đề xuất dựa trên
+        luật nào, và điểm đánh giá giảng viên tối thiểu là bao nhiêu sao?
+    - key: b
+      label: Học viên cần xem bao nhiêu phần trăm bài giảng video thì mới được làm
+        bài thi cuối khóa?
+    - key: c
+      label: Làm sao để các khóa học thu hút được nhiều học viên đăng ký hơn?
+    - key: d
+      label: Trường đại học đối tác có công nhận chứng chỉ của khóa học này không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a đặt câu hỏi chi tiết về thời gian giãn cách, thuật toán
+      gợi ý và ngưỡng điểm thù lao cụ thể, thay vì hỏi lại điều kiện đã rõ ở câu b,
+      đưa ra câu hỏi tư vấn chung chung ở c hay câu hỏi ngoại vi ở d.
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống cần cho phép người dùng hủy đơn hàng trực tiếp trên ứng dụng di động.
+    - Đơn hàng chỉ được hủy khi chưa chuyển sang trạng thái PROCESSING hoặc SHIPPED.
+    - Khi đơn hàng hủy thành công, hệ thống phải hoàn tiền lại cho khách hàng thật
+      nhanh.
+    - Số lượng sản phẩm trong đơn hàng bị hủy sẽ được cộng trả lại vào kho khả dụng
+      theo đúng product_id.
+    - Hệ thống gửi thông báo Push Notification thông báo hủy đơn nếu cần thiết.
+    clarifying_options:
+    - key: a
+      label: Điều kiện trạng thái nào thì đơn hàng mới được phép hủy?
+    - key: b
+      label: Thời gian hoàn tiền cụ thể là bao lâu (ví dụ trong 24h) và xử lý qua
+        cổng thanh toán tự động hay thủ công?
+    - key: c
+      label: Làm sao để giao diện ứng dụng di động nhìn đẹp mắt và thu hút hơn khi
+        người dùng bấm hủy đơn?
+    - key: d
+      label: Công ty nên hợp tác với đơn vị vận chuyển bên thứ ba nào để giao hàng
+        hiệu quả hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b làm rõ trực tiếp quy tắc thời gian và cơ chế hoàn tiền
+      ở câu 3, trong khi a hỏi lại điều đã rõ ở câu 2, c mơ hồ về giao diện và d nằm
+      ngoài phạm vi nghiệp vụ hủy đơn.
+  difficulty: medium
+- content:
+    statements:
+    - Khách hàng nhập mã voucher tại trang checkout để nhận ưu đãi đơn hàng.
+    - Mã voucher chỉ áp dụng cho đơn hàng có tổng giá trị tối thiểu từ 500.000 VNĐ.
+    - Hệ thống sẽ áp dụng mức phần trăm giảm giá phù hợp dựa trên phân hạng tài khoản
+      khách hàng.
+    - Mỗi tài khoản chỉ được sử dụng mỗi mã voucher tối đa 1 lần.
+    - Khi áp dụng voucher thất bại, hệ thống phản hồi cho người dùng sau một thời
+      gian hợp lý.
+    clarifying_options:
+    - key: a
+      label: Giá trị đơn hàng tối thiểu bao nhiêu thì mới đủ điều kiện dùng mã voucher?
+    - key: b
+      label: Mức phần trăm giảm giá cụ thể cho từng phân hạng tài khoản (Bạc, Vàng,
+        Kim Cương) là bao nhiêu %?
+    - key: c
+      label: Chúng ta có nên chạy thêm chương trình quảng cáo mã voucher trên mạng
+        xã hội không?
+    - key: d
+      label: Làm thế nào để hệ thống nâng cao trải nghiệm người dùng tổng thể một
+        cách tốt nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b quy định rõ tỷ lệ phần trăm giảm giá cho từng hạng tài
+      khoản ở câu 3, trong khi a hỏi lại thông tin đã có ở câu 2, c chệch sang mảng
+      tiếp thị và d quá chung chung.
+  difficulty: easy
+- content:
+    statements:
+    - Người dùng có thể yêu cầu đặt lại mật khẩu qua email đăng ký bằng chức năng
+      Forgot Password.
+    - Hệ thống tạo một đoạn mã reset_token có thời hạn hiệu lực chính xác là 15 phút.
+    - Email chứa đường dẫn đổi mật khẩu cần được gửi đi thật nhanh để tránh người
+      dùng chờ lâu.
+    - Nếu người dùng nhập sai mật khẩu quá số lần quy định, tài khoản sẽ bị tạm khóa.
+    - Thời gian khóa tài khoản user_id kéo dài trong 30 phút kể từ thời điểm vi phạm.
+    - Hệ thống thực hiện ghi log bảo mật cẩn thận để phục vụ truy vết sau này.
+    clarifying_options:
+    - key: a
+      label: Mã reset_token được tạo ra có thời gian hiệu lực trong bao nhiêu phút?
+    - key: b
+      label: Số lần nhập sai mật khẩu liên tiếp tối đa cho phép trước khi tài khoản
+        bị tạm khóa là bao nhiêu lần?
+    - key: c
+      label: Giao diện trang đặt lại mật khẩu có nên thay đổi màu sắc nút bấm thành
+        màu đỏ không?
+    - key: d
+      label: Làm sao để quy trình bảo mật của ứng dụng đạt tiêu chuẩn an toàn cao
+        nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 6
+    best_option_key: b
+    explanation: Phương án b làm rõ con số ngưỡng nhập sai mật khẩu ở câu 4, trong
+      khi a hỏi lặp lại dữ kiện ở câu 2, c tập trung chi tiết UI không quan trọng
+      và d quá mơ hồ vĩ mô.
+  difficulty: hard
+- content:
+    statements:
+    - Chức năng cảnh báo kho sẽ tự động kiểm tra số lượng tồn kho quantity của từng
+      sản phẩm.
+    - Khi số lượng tồn kho giảm xuống dưới ngưỡng an toàn, hệ thống sẽ gửi email cho
+      quản trị viên.
+    - Email cảnh báo chứa danh sách product_id, product_name và số lượng tồn kho hiện
+      tại.
+    - Tần suất gửi email cảnh báo là 1 lần duy nhất mỗi 24 giờ cho mỗi sản phẩm.
+    - Nếu kho hàng được cập nhật thêm số lượng, hệ thống sẽ chuyển trạng thái cảnh
+      báo một cách phù hợp.
+    clarifying_options:
+    - key: a
+      label: Ngưỡng an toàn về số lượng tồn kho để kích hoạt email cảnh báo được định
+        nghĩa bằng con số cố định hay cấu hình riêng cho từng product_id?
+    - key: b
+      label: Nội dung email cảnh báo kho gồm những thông tin chi tiết nào của sản
+        phẩm?
+    - key: c
+      label: Doanh nghiệp có nên nhập thêm các mặt hàng mới để tăng doanh thu không?
+    - key: d
+      label: Làm thế nào để quy trình quản lý kho hàng đạt hiệu quả tối ưu nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 5
+    best_option_key: a
+    explanation: Phương án a làm rõ điều kiện kích hoạt cảnh báo ở câu 2, trong khi
+      b trùng lặp với câu 3, c chệch sang kế hoạch kinh doanh và d mang tính câu hỏi
+      chung chung không đo lường được.
+  difficulty: medium
+- content:
+    statements:
+    - Người dùng có vai trò Accountant có thể xuất báo cáo doanh thu theo khoảng thời
+      gian tùy chọn.
+    - File báo cáo được xuất dưới định dạng Excel (.xlsx) chứa các cột transaction_id,
+      amount, và created_at.
+    - Quá trình xử lý xuất báo cáo dung lượng lớn phải hoàn thành trong thời gian
+      ngắn.
+    - Nếu dữ liệu báo cáo vượt quá số lượng bản ghi cho phép, hệ thống sẽ chia thành
+      nhiều file trong thư mục zip.
+    - Tệp báo cáo sau khi khởi tạo sẽ được lưu trữ trên S3 trong đúng 7 ngày trước
+      khi tự động xóa.
+    - Hệ thống gửi thông báo hoàn tất qua email nếu thấy cần thiết.
+    clarifying_options:
+    - key: a
+      label: File báo cáo xuất ra dưới định dạng gì và bao gồm những thông tin cột
+        nào?
+    - key: b
+      label: Số lượng bản ghi tối đa trên một file Excel trước khi hệ thống tách thành
+        các file lẻ trong tệp zip là bao nhiêu?
+    - key: c
+      label: Bộ phận kế toán có nên trang bị thêm máy tính cấu hình cao hơn để tải
+        báo cáo không?
+    - key: d
+      label: Làm sao để dữ liệu báo cáo tài chính giúp doanh nghiệp tăng trưởng gấp
+        đôi?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 6
+    best_option_key: b
+    explanation: Phương án b chốt con số ngưỡng giới hạn bản ghi cụ thể cho logic
+      tách file ở câu 4, trong khi a lặp lại dữ kiện câu 2, c ngoài phạm vi phần mềm
+      và d mang tính định hướng không thể lập trình.
+  difficulty: hard
