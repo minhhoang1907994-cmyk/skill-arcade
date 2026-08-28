@@ -3,7 +3,10 @@
 ## Session gần nhất
 - Ngày: 2026-08-27
 - Việc mới nhất: **đổi thứ tự ưu tiên refill sang "ít đề nhất trước"** — mục
-  "Phiên 2026-08-27" ngay dưới. **CHƯA COMMIT.**
+  "Phiên 2026-08-27" ngay dưới. Đã commit `aaa6124` (v3.2) **trực tiếp trên `main`**, chưa push.
+  Cùng lúc `921362e` merge `origin/main` về, mang thêm `d7bfdd6` (3 file bank 2026-08-26:
+  `bug_hunt/2026-08-26-java-2.yml`, `bug_hunt/2026-08-26-ruby.yml`,
+  `estimate_poker/2026-08-26.yml`) — số đề trong bảng dưới đếm TRƯỚC khi các file này vào DB.
 - Việc trước đó: **job refill đỏ vì Gemini 503 → sửa điều kiện bước commit + chạy lại**
   — mục "Phiên 2026-08-26". Đã commit `c9b7f65` trên branch
   `fix/refill-commit-bank-on-partial-failure`, đã merge vào `main` qua PR #5 (`569d834`).
@@ -30,7 +33,7 @@
   — không còn text người chơi nào được gửi đi.
 
 
-### Phiên 2026-08-27 — thứ tự ưu tiên refill: "ít đề nhất trước". CHƯA COMMIT
+### Phiên 2026-08-27 — thứ tự ưu tiên refill: "ít đề nhất trước". ĐÃ COMMIT `aaa6124` (v3.2)
 
 #### Triệu chứng
 Đếm trên DB Aiven (`defaultdb`) 2026-08-27, cột `source` từ `questions.group(:source).count`:
@@ -96,14 +99,14 @@ Thứ tự mới: `prod_roulette` (3) → `incident_escape_room` (7) → `spec_d
 Lần chạy tới chọn `prod_roulette, incident_escape_room, spec_detective` — chi phí 6 + 4 + 4
 = 14 request, trong hạn mức 20/ngày.
 
-#### Verify
+#### Verify — đã xanh hết
 - ✅ `bundle exec rubocop` 2 file đã sửa — no offenses
 - ✅ `ruby -c` 2 file — Syntax OK
 - ✅ Thứ tự ưu tiên mới trên DB Aiven thật (script read-only, không gọi Gemini)
-- ⚠️ **`bundle exec rspec spec/services/questions/refiller_spec.rb` CHƯA CHẠY** — MySQL local
-  không kết nối được (`Can't connect to server on '127.0.0.1' (10061)`), Docker Desktop chưa
-  bật. Phải chạy trước khi commit:
-  `docker compose up -d db` → `bin/rails db:test:prepare` → `bundle exec rspec spec/services/questions/refiller_spec.rb`
+- ✅ `bundle exec rspec spec/services/questions/refiller_spec.rb` — **19 examples, 0 failures**
+  (gồm 2 test mới: "chọn mục tiêu ít đề nhất dù nó thiếu ÍT hơn mục tiêu nhiều đề" và
+  "ghi khoảng cách tới mục tiêu nhiều đề nhất vào detail")
+- ✅ `bundle exec rspec` toàn suite — **304 examples, 0 failures**
 
 #### Còn để mở
 `prod_roulette` và `incident_escape_room` có `questions_per_session = 1` nên goal chỉ 10.
@@ -1353,16 +1356,15 @@ dev           -> van dung 12345678 (da tra lai sau khi test)
 ## Việc tiếp theo
 **Chỉ còn Q6 (KPI) là Open Question. Phần còn lại là việc thao tác.**
 
-### 🔴 Trước khi commit thay đổi phiên 2026-08-27
-`spec/services/questions/refiller_spec.rb` chưa chạy được vì MySQL local không lên (Docker
-Desktop chưa bật). Bật Docker rồi chạy, chỉ commit khi xanh:
+### Lưu ý môi trường dev trên máy này
+`bin/rails` không chạy được trực tiếp trong PowerShell
+(`Cannot run a document in the middle of a pipeline`) — gọi `ruby bin/rails <task>`.
+MySQL test chạy bằng Docker Desktop, container `skill_arcade_db` (host port 3307):
 ```
 docker compose up -d db
-bin/rails db:test:prepare
-bundle exec rspec spec/services/questions/refiller_spec.rb
+ruby bin/rails db:test:prepare
+bundle exec rspec
 ```
-Đang ở branch `main` — phải tạo branch mới trước khi commit
-(vd `fix/refill-priority-fewest-questions-first`).
 
 ### 🔴 Gấp — production đang lỗi sau khi deploy v2.0
 `render.yaml` không khai `autoDeploy` nên Render mặc định tự deploy khi push `main`. Code mới
