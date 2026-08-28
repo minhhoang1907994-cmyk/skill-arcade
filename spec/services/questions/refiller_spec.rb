@@ -8,11 +8,11 @@ RSpec.describe Questions::Refiller do
            questions_per_session: 2, steps_per_session: 2)
   end
 
-  # goal = questions_per_session * TARGET_MULTIPLIER. Tính từ hằng số chứ không viết số
-  # cứng: 2026-08-25 nâng multiplier 3 -> 10 và hai test "đã đủ đề" dựng sẵn 6 câu đã đổi
-  # nghĩa thành thiếu đề, mà không có gì trong test báo là chúng đang kiểm sai thứ.
+  # goal là số tuyệt đối, chung cho mọi mục tiêu. Tính từ hằng số chứ không viết số cứng:
+  # 2026-08-25 nâng multiplier 3 -> 10 và hai test "đã đủ đề" dựng sẵn 6 câu đã đổi nghĩa
+  # thành thiếu đề, mà không có gì trong test báo là chúng đang kiểm sai thứ.
   def goal
-    game.questions_per_session * described_class::TARGET_MULTIPLIER
+    described_class::GOAL_PER_TARGET
   end
 
   def create_questions(count)
@@ -171,15 +171,20 @@ RSpec.describe Questions::Refiller do
       # Mục tiêu bị hoãn KHÔNG có outcome nào — không phải :skipped (đó là nghĩa "còn lượt
       # đang chơi"), chỉ đơn giản là để lần chạy sau.
       expect(outcomes.size).to eq(3)
-      # Cả 4 mục tiêu playable = 0 nên tie-break quyết định: thiếu nhiều hơn trước —
-      # spec_detective 50 > estimate_poker 20 > prod_roulette = escape_room 10.
-      expect(generated).to include("spec_detective", "estimate_poker")
+      # Cả 4 mục tiêu playable = 0, và từ khi goal là số tuyệt đối chung thì shortfall của
+      # chúng cũng bằng nhau, nên tie-break cuối cùng quyết định: label theo thứ tự chữ cái.
+      # Pin đúng danh sách chứ không chỉ đếm — thứ tự phải ổn định giữa các lần chạy để log
+      # hai ngày còn đối chiếu được.
+      expect(generated).to eq([ "estimate_poker", "incident_escape_room", "prod_roulette" ])
     end
 
     it "trần đọc từ tham số max_targets" do
       create(:game, slug: Game::SPEC_DETECTIVE, name: "Spec Detective",
              questions_per_session: 5, steps_per_session: 5)
-      game
+      # estimate_poker có đề, spec_detective không — mục tiêu nghèo hơn phải là cái duy nhất
+      # được chọn. Để cả hai cùng 0 đề thì chúng hoà điểm và test hoá ra chỉ kiểm thứ tự chữ
+      # cái, không kiểm được trần.
+      create_questions(1)
       service, generated = refiller(records: [ valid_record(1) ], max_targets: 1)
 
       service.call
@@ -210,10 +215,12 @@ RSpec.describe Questions::Refiller do
     end
 
     before do
-      # estimate_poker: goal 100, có 49 -> thiếu 51 (mục tiêu GIÀU nhưng thiếu nhiều nhất).
+      # estimate_poker: mục tiêu GIÀU, có 49 đề.
       game.update!(questions_per_session: 10, steps_per_session: 10)
       create_questions(49)
-      # prod_roulette: goal 10, có 3 -> thiếu 7 (mục tiêu NGHÈO nhưng thiếu ít hơn).
+      # prod_roulette: mục tiêu NGHÈO, có 3 đề. Thời goal còn nhân theo
+      # questions_per_session thì goal của nó là 10 -> shortfall 7, thua shortfall 51 của
+      # estimate_poker nên không bao giờ được chọn.
       create_roulette_questions(3)
     end
 
@@ -232,6 +239,46 @@ RSpec.describe Questions::Refiller do
 
       expect(outcome.status).to eq(:done)
       expect(outcome.detail).to include("đang có 3 đề", "ít hơn mục tiêu nhiều đề nhất 46 đề")
+    end
+  end
+
+  # Đo được trên production 2026-08-28: goal cũ = questions_per_session * 10 nên
+  # incident_escape_room (questions_per_session = 1) chạm 10 đề là hết thiếu và rớt khỏi hàng
+  # đợi, trong khi bug_hunt/php đang có 49 đề vẫn được nạp tiếp.
+  describe "goal là số tuyệt đối, không nhân theo questions_per_session" do
+    let(:roulette) do
+      create(:game, slug: Game::PROD_ROULETTE, name: "PROD Roulette",
+             questions_per_session: 1, steps_per_session: 10)
+    end
+
+    def create_roulette_questions(count)
+      count.times do |i|
+        create(:question, game: roulette,
+               content: { "scenario" => "kịch bản #{i}-#{SecureRandom.hex(3)}" },
+               answer_key: { "recovery_node" => "recovered" })
+      end
+    end
+
+    it "game questions_per_session = 1 có 10 đề vẫn còn thiếu, vẫn được chọn" do
+      create_roulette_questions(10)
+      create_questions(49)
+
+      service, generated = refiller(records: [ valid_record(1) ], max_targets: 1)
+
+      service.call
+
+      expect(generated).to eq([ "prod_roulette" ])
+    end
+
+    it "goal bằng nhau giữa game phân ngôn ngữ và game kịch bản" do
+      create_roulette_questions(1)
+
+      service, = refiller(records: [ valid_record(1) ], max_targets: 2)
+
+      outcome = service.call.find { |o| o.label == "prod_roulette" }
+
+      expect(outcome.detail).to include("đang có 1 đề")
+      expect(described_class::GOAL_PER_TARGET).to eq(100)
     end
   end
 

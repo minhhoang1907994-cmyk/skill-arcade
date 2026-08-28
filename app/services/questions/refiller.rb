@@ -21,22 +21,31 @@ module Questions
   # KHÔNG tự thêm ngôn ngữ mới cho Bug Hunt: chỉ refill ngôn ngữ đã có trong ngân hàng.
   # Ngôn ngữ mới xuất hiện trên UI phải là một quyết định, không phải tác dụng phụ của job.
   class Refiller
-    # Ngưỡng "đủ": bao nhiêu lượt đề so với một lượt chơi. Đúng questions_per_session là vừa
-    # đủ MỘT lượt, tức chơi lại là gặp lại toàn bộ câu cũ (BR-32 phải fallback).
+    # Ngưỡng "đủ" của MỌI mục tiêu (game, ngôn ngữ). Là số TUYỆT ĐỐI, cố ý KHÔNG nhân theo
+    # questions_per_session.
     #
-    # Nâng 3 -> 10 (owner chốt 2026-08-25): với multiplier 3, Bug Hunt và Estimate Poker
-    # (questions_per_session = 10) dừng ở 30 đề và ngân hàng đứng yên từ 2026-08-22 — job
-    # chạy xanh mỗi đêm nhưng báo nothing_to_do vì mọi mục tiêu đã chạm trần. 10 lượt đề cho
-    # mỗi lượt chơi để người chơi lại nhiều lần vẫn gặp đề mới.
-    TARGET_MULTIPLIER = 10
+    # Trước 2026-08-28 goal = questions_per_session * 10, nên goal lệch 10 lần giữa các game:
+    # bug_hunt và estimate_poker 100, spec_detective 50, hai game kịch bản 10. Hai game kịch
+    # bản vì thế bị coi là "đủ đề" ngay khi có 10 câu và rớt khỏi hàng đợi, nhường slot cho
+    # bug_hunt vốn đã có 49-57 đề mỗi ngôn ngữ. Đo được ngày 2026-08-28: incident_escape_room
+    # chạm 10 đề ở lần chạy đầu thì lần chạy sau bug_hunt/php (49 đề) được chọn thay nó.
+    #
+    # Goal chung nghĩa là mục tiêu nghèo nhất ở lại hàng đợi tới khi bằng những mục tiêu khác
+    # (owner chốt 2026-08-28). questions_per_session = 1 không còn làm một game bị coi là đủ
+    # đề sớm hơn game khác 10 lần.
+    #
+    # Hệ quả phụ: goal đã bằng nhau thì sắp theo playable tăng dần và sắp theo shortfall giảm
+    # dần cho ra CÙNG thứ tự (shortfall = GOAL_PER_TARGET - playable). Tiêu chí playable ở
+    # #call giữ nguyên vì nó vẫn đúng nếu sau này goal lại khác nhau giữa các mục tiêu.
+    GOAL_PER_TARGET = 100
     QUESTIONS_PER_RUN = 10
     # Một mục tiêu tốn nhiều nhất ceil(count/batch_size) + EXTRA_BATCH_ALLOWANCE request, với
     # count = min(shortfall, QUESTIONS_PER_RUN).
     #
     # Game batch_size = 5 (Bug Hunt, Spec Detective, Estimate Poker): ceil(10/5) + 2 = 4.
-    # Hai game kịch bản batch_size = 2 (Incident Escape Room, PROD Roulette): từ khi
-    # TARGET_MULTIPLIER = 10 thì goal của chúng là 10 chứ không còn 3, nên count chạm được
-    # QUESTIONS_PER_RUN và chi phí xấu nhất thành ceil(10/2) + 2 = 7 request.
+    # Hai game kịch bản batch_size = 2 (Incident Escape Room, PROD Roulette): goal của chúng
+    # là GOAL_PER_TARGET như mọi mục tiêu khác, nên count chạm được QUESTIONS_PER_RUN và chi
+    # phí xấu nhất thành ceil(10/2) + 2 = 7 request.
     #
     # Chỉ có ĐÚNG HAI game kịch bản, nên xấu nhất cho một lần chạy là 7 + 7 + 4 = 18 request —
     # vẫn nằm trong hạn mức đo được 20/ngày (spec §20), nhưng chỉ còn dư 2.
@@ -91,9 +100,9 @@ module Questions
       richest = all_targets.map(&:playable).max.to_i
 
       # Ít đề nhất được ưu tiên (owner chốt 2026-08-27). Trước đây sắp theo shortfall giảm
-      # dần, tức theo khoảng cách tới GOAL RIÊNG của từng mục tiêu — mà goal =
-      # questions_per_session * TARGET_MULTIPLIER nên nó lệch 10 lần giữa các game (bug_hunt
-      # và estimate_poker 100, spec_detective 50, hai game kịch bản 10). Hệ quả đo được trên
+      # dần, tức theo khoảng cách tới GOAL RIÊNG của từng mục tiêu — mà goal khi đó =
+      # questions_per_session * 10 nên nó lệch 10 lần giữa các game (bug_hunt và
+      # estimate_poker 100, spec_detective 50, hai game kịch bản 10). Hệ quả đo được trên
       # production 2026-08-27: bug_hunt/php còn 49 đề (shortfall 51) luôn xếp trên
       # prod_roulette còn 3 đề (shortfall 7), nên từ 2026-08-25 cả 3 slot mỗi đêm đều về
       # bug_hunt, còn prod_roulette chưa từng được sinh câu nào (ai_generated = 0).
@@ -123,8 +132,7 @@ module Questions
     def build_target(game, language)
       playable = Question.playable.where(game: game).in_language(language).count
 
-      Target.new(game: game, language: language, playable: playable,
-                 goal: game.questions_per_session * TARGET_MULTIPLIER)
+      Target.new(game: game, language: language, playable: playable, goal: GOAL_PER_TARGET)
     end
 
     def skipped(target)
