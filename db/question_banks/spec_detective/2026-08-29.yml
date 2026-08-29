@@ -1,0 +1,326 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-08-29T21:35:40Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá cho đơn hàng mua lần đầu của khách
+      hàng mới.
+    - Nếu giá trị đơn hàng đủ lớn, khách hàng sẽ được miễn phí vận chuyển toàn quốc.
+    - Các sản phẩm thuộc danh mục Điện tử sẽ có thời hạn đổi trả trong vòng 30 ngày
+      kể từ khi nhận hàng.
+    - Đối với khách hàng VIP, hệ thống sẽ ưu tiên xử lý đơn hàng nhanh chóng nhất
+      có thể.
+    - Khi số lượng tồn kho của một mặt hàng giảm xuống dưới 5 sản phẩm, hệ thống phải
+      gửi email cảnh báo cho quản trị viên.
+    clarifying_options:
+    - key: a
+      label: Mức giá trị đơn hàng tối thiểu cụ thể để được miễn phí vận chuyển là
+        bao nhiêu?
+    - key: b
+      label: Thời hạn đổi trả của các sản phẩm thuộc danh mục Điện tử là bao nhiêu
+        ngày?
+    - key: c
+      label: Làm sao để hệ thống xử lý tất cả đơn hàng nhanh hơn hiện tại?
+    - key: d
+      label: Giao diện email cảnh báo tồn kho nên dùng tông màu nào cho bắt mắt?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: a
+    explanation: Phương án a chốt được con số giá trị đơn hàng cụ thể ở câu 2 để lập
+      trình, trong khi b hỏi lại thông tin đã rõ, c quá chung chung không đo lường
+      được và d bàn về thẩm mỹ ngoài phạm vi nghiệp vụ.
+  difficulty: easy
+- content:
+    statements:
+    - Khi tài xế bấm nút sẵn sàng nhận chuyến, ứng dụng sẽ cập nhật vị trí GPS mỗi
+      10 giây một lần.
+    - Đơn hàng mới sẽ được ưu tiên gán cho tài xế ở gần nhà hàng nhất trong khu vực.
+    - Nếu tài xế không phản hồi trong khoảng thời gian quy định, đơn hàng sẽ tự động
+      chuyển sang cho tài xế tiếp theo.
+    - Tài xế bị khách hàng đánh giá 1 sao sẽ bị tạm khóa tài khoản trong 24 giờ.
+    - Hệ thống phải đảm bảo ứng dụng chạy mượt mà và không bị lag trong giờ cao điểm.
+    clarifying_options:
+    - key: a
+      label: Tần suất ứng dụng cập nhật vị trí GPS của tài xế là bao nhiêu giây một
+        lần?
+    - key: b
+      label: Thời gian tối đa (tính theo giây) cho tài xế phản hồi chấp nhận đơn trước
+        khi chuyển sang tài xế khác là bao nhiêu?
+    - key: c
+      label: Có nên thiết kế lại nút bấm nhận chuyến để tài xế dễ thao tác hơn không?
+    - key: d
+      label: Làm thế nào để tất cả các tài xế đều luôn cảm thấy hài lòng với ứng dụng?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b xác định được ngưỡng thời gian timeout cụ thể ở câu 3
+      để xây dựng luồng xử lý, trong khi a hỏi điều đã có sẵn, c thiên về UI/UX và
+      d là mục tiêu cảm tính không thể nghiệm thu.
+  difficulty: medium
+- content:
+    statements:
+    - Khách hàng nộp hồ sơ vay vốn cần tải lên ảnh chụp hai mặt CCCD và bản sao kê
+      lương 3 tháng gần nhất.
+    - Hệ thống sẽ kiểm tra điểm tín dụng CIC, nếu điểm từ 650 trở lên thì hồ sơ chuyển
+      sang bước phê duyệt tự động.
+    - Với các khoản vay có rủi ro cao, hệ thống phải yêu cầu bổ sung thêm hồ sơ kiểm
+      chứng.
+    - Kết quả phê duyệt khoản vay sẽ được thông báo qua SMS cho khách hàng trong thời
+      gian sớm nhất.
+    - Nếu khoản vay bị từ chối, khách hàng chỉ có thể nộp lại hồ sơ sau 30 ngày kể
+      từ ngày nhận thông báo.
+    clarifying_options:
+    - key: a
+      label: Điểm tín dụng CIC tối thiểu bao nhiêu thì hồ sơ vay được tự động phê
+        duyệt?
+    - key: b
+      label: Tiêu chí cụ thể để xếp loại khoản vay rủi ro cao là gì và cần bổ sung
+        thêm những loại giấy tờ nào?
+    - key: c
+      label: SMS thông báo kết quả vay nên dùng dịch vụ của nhà mạng nào để tiết kiệm
+        chi phí?
+    - key: d
+      label: Làm sao để tăng mức độ hài lòng của khách hàng khi đăng ký vay vốn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: b
+    explanation: Phương án b định nghĩa rõ điều kiện biên và danh mục hồ sơ ở câu
+      3, vượt trội hơn a vốn hỏi lại thông tin đã ghi rõ, c đi sâu vào kỹ thuật hạ
+      tầng và d quá mơ hồ.
+  difficulty: medium
+- content:
+    statements:
+    - Học viên hoàn thành tất cả 10 bài kiểm tra trắc nghiệm với điểm trung bình tối
+      thiểu 7.0 sẽ được cấp chứng chỉ.
+    - Nếu học viên có hành vi gian lận trong quá trình làm bài, hệ thống sẽ xử lý
+      nghiêm khắc theo quy định.
+    - Khóa học có hiệu lực truy cập trong vòng 365 ngày kể từ ngày thanh toán thành
+      công.
+    - Đối với các bài tập tự luận, giảng viên cần chấm điểm và trả kết quả cho học
+      viên trong thời gian phù hợp.
+    - Hệ thống sẽ tự động gửi email nhắc nhở học viên nếu họ không truy cập khóa học
+      trong 14 ngày liên tiếp.
+    - Video bài giảng phải phát ổn định và đáp ứng chất lượng cao nhất cho người học.
+    clarifying_options:
+    - key: a
+      label: Thời hạn tối đa (tính theo ngày) để giảng viên hoàn thành chấm bài tự
+        luận và trả kết quả là bao lâu?
+    - key: b
+      label: Sau bao nhiêu ngày học viên không truy cập thì hệ thống mới gửi email
+        nhắc nhở?
+    - key: c
+      label: Làm sao để học viên luôn duy trì động lực và không bỏ dở khóa học?
+    - key: d
+      label: Nên chọn thiết bị quay phim của hãng nào để thu video bài giảng chất
+        lượng cao nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    - 6
+    best_option_key: a
+    explanation: Phương án a đặt ra hạn định thời gian chấm bài rõ ràng cho câu 4
+      để làm quy tắc hệ thống, trong khi b trùng lặp thông tin đã ghi ở câu 5, c mang
+      tính định hướng đào tạo và d lạc sang trang thiết bị.
+  difficulty: hard
+- content:
+    statements:
+    - Bệnh nhân có thể hủy lịch khám trực tuyến miễn phí trước thời điểm hẹn ít nhất
+      24 giờ.
+    - Nếu bệnh nhân hủy lịch khám muộn hơn quy định, hệ thống sẽ trừ một khoản phí
+      phạt hợp lý.
+    - Bác sĩ có quyền hoãn lịch khám trong trường hợp cấp cứu đột xuất nhưng phải
+      thông báo ngay cho bệnh nhân.
+    - Mỗi ca khám bệnh qua video call kéo dài tối đa 30 phút.
+    - Toàn bộ đơn thuốc điện tử do bác sĩ kê sẽ tự động lưu vào cơ sở dữ liệu MySQL
+      của hệ thống.
+    clarifying_options:
+    - key: a
+      label: Thời lượng tối đa của một ca khám bệnh qua video call là bao nhiêu phút?
+    - key: b
+      label: Mức phí phạt cụ thể (theo phần trăm tiền khám hoặc số tiền cố định) khi
+        hủy lịch muộn là bao nhiêu?
+    - key: c
+      label: Có nên tích hợp thêm công nghệ AI để hỗ trợ bác sĩ chẩn đoán bệnh không?
+    - key: d
+      label: Bệnh nhân có cảm thấy vui vẻ khi bị trừ tiền phạt hủy lịch khám không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 3
+    best_option_key: b
+    explanation: Phương án b làm rõ công thức tính tiền phạt ở câu 2 để coder thực
+      thi, trong khi a trùng khớp với câu 4 đã viết rõ, c gợi ý tính năng mới nằm
+      ngoài yêu cầu hiện tại và d hỏi về cảm xúc cá nhân.
+  difficulty: easy
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá cho các đơn hàng của khách hàng.
+    - Mỗi tài khoản chỉ được áp dụng tối đa 1 mã giảm giá cho mỗi đơn hàng có giá
+      trị từ 500.000 VNĐ trở lên.
+    - Nếu đơn hàng bị hủy, hệ thống phải hoàn lại mã giảm giá cho khách hàng nhanh
+      chóng.
+    - Với các mã giảm giá theo phần trăm, số tiền giảm tối đa không được vượt quá
+      hạn mức phù hợp để tránh thất thoát.
+    - Thời gian hết hạn của mã giảm giá được tính theo giờ UTC+7 và hiển thị rõ ở
+      trang thanh toán.
+    clarifying_options:
+    - key: a
+      label: Hạn mức giảm tối đa cụ thể cho mã giảm giá theo phần trăm là bao nhiêu
+        VNĐ?
+    - key: b
+      label: Mỗi đơn hàng có được dùng 2 mã giảm giá cùng lúc hay không?
+    - key: c
+      label: Hệ thống có nên gửi email thông báo khi mã giảm giá sắp hết hạn không?
+    - key: d
+      label: Làm sao để giao diện trang thanh toán trông đẹp mắt và thu hút hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: a
+    explanation: Phương án a làm rõ con số hạn mức giảm tối đa bị mơ hồ ở câu 4, trong
+      khi b hỏi lại điều đã rõ ở câu 2, c thêm tính năng ngoài phạm vi, và d quá chung
+      chung.
+  difficulty: easy
+- content:
+    statements:
+    - Khách hàng thực hiện chuyển tiền internet banking phải xác thực bằng mã OTP
+      gửi qua SMS.
+    - Mã OTP sẽ có hiệu lực trong vòng 60 giây kể từ khi hệ thống phát hành.
+    - Nếu nhập sai OTP quá số lần quy định, tài khoản thanh toán sẽ tạm thời bị khóa
+      tính năng giao dịch.
+    - Khi tài khoản bị khóa, hệ thống sẽ tự động gửi email thông báo cho khách hàng
+      ngay lập tức.
+    - Khách hàng có thể yêu cầu gửi lại OTP nếu chưa nhận được, nhưng không được yêu
+      cầu quá thường xuyên.
+    - Mọi lịch sử giao dịch và xác thực OTP phải được lưu log trong bảng auth_logs
+      với thời gian tối thiểu 180 ngày.
+    clarifying_options:
+    - key: a
+      label: Mã OTP có thể gửi qua ứng dụng Authenticator thay vì SMS được không?
+    - key: b
+      label: Email thông báo khóa tài khoản nên thiết kế giao diện HTML ra sao?
+    - key: c
+      label: Số lần nhập sai OTP tối đa cho phép là bao nhiêu lần trước khi khóa tài
+        khoản?
+    - key: d
+      label: Thời gian hiệu lực của mã OTP là bao nhiêu giây?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: c
+    explanation: Phương án c chốt được ngưỡng số lần nhập sai cụ thể cho câu 3, trong
+      khi d hỏi lại thông tin đã rõ ở câu 2, a đề xuất thay đổi phương thức xác thực
+      ngoài yêu cầu ban đầu, và b đi sâu vào chi tiết thiết kế giao diện.
+  difficulty: medium
+- content:
+    statements:
+    - Khi hành khách đặt xe, hệ thống sẽ tìm kiếm tài xế gần nhất trong bán kính 3
+      km.
+    - Nếu tìm thấy tài xế, ứng dụng gửi thông báo chuyến đi và chờ tài xế phản hồi
+      trong 15 giây.
+    - Trường hợp tài xế từ chối hoặc không phản hồi, hệ thống sẽ chuyển chuyến đi
+      cho tài xế phù hợp tiếp theo.
+    - Giá cước chuyến đi được tính dựa trên quãng đường thực tế nhân với đơn giá 12.000
+      VNĐ/km.
+    - Vào giờ cao điểm, cước phí sẽ được tự động tăng lên mức hợp lý để thu hút thêm
+      tài xế.
+    clarifying_options:
+    - key: a
+      label: Tiêu chí cụ thể để xác định 'tài xế phù hợp tiếp theo' ở câu 3 là gì
+        và thứ tự ưu tiên ra sao?
+    - key: b
+      label: Bán kính tìm kiếm tài xế ban đầu là bao nhiêu kilomet?
+    - key: c
+      label: Thời gian chờ tài xế phản hồi chuyến đi là bao nhiêu giây?
+    - key: d
+      label: Ứng dụng có nên tích hợp bản đồ Google Maps thay vì bản đồ mặc định không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a giải quyết điểm mơ hồ quan trọng nhất trong thuật toán
+      điều xe ở câu 3, trong khi b và c hỏi lại thông tin đã có ở câu 1 và 2, còn
+      d bàn về công nghệ ngoài phạm vi logic.
+  difficulty: medium
+- content:
+    statements:
+    - Học viên có thể nộp bài tập trực tuyến dưới dạng tệp PDF với dung lượng tối
+      đa 25MB.
+    - Sau khi nộp, hệ thống ghi nhận thời gian nộp bài vào cột submitted_at trong
+      cơ sở dữ liệu.
+    - Nếu nộp trễ hạn, bài làm vẫn được tiếp nhận nhưng học viên sẽ bị trừ điểm theo
+      quy định nếu cần.
+    - Giảng viên có thể chấm điểm bài làm trên thang điểm 100 và để lại lời nhận xét.
+    - Bài tập đạt yêu cầu nếu điểm số từ 60/100 trở lên và được giảng viên duyệt.
+    - Trường hợp bài nộp bị từ chối, học viên được phép nộp lại sau khi chỉnh sửa
+      phù hợp.
+    clarifying_options:
+    - key: a
+      label: Dung lượng tệp PDF tối đa được phép nộp là bao nhiêu MB?
+    - key: b
+      label: Công thức hoặc quy tắc cụ thể tính số điểm bị trừ khi nộp trễ hạn là
+        gì?
+    - key: c
+      label: Hệ thống có nên dùng trí tuệ nhân tạo AI để tự động chấm bài tập PDF
+        không?
+    - key: d
+      label: Giao diện chấm bài của giảng viên có nên hỗ trợ chế độ màn hình tối Dark
+        Mode không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 6
+    best_option_key: b
+    explanation: Phương án b chốt được quy tắc tính điểm phạt trễ hạn ở câu 3 bằng
+      công thức rõ ràng, trong khi a hỏi lại thông tin ở câu 1, c đề xuất tính năng
+      phức tạp ngoài phạm vi, và d chỉ là sở thích giao diện.
+  difficulty: hard
+- content:
+    statements:
+    - Nhân viên kho thực hiện quét mã QR sản phẩm khi xuất kho để giảm tồn kho tương
+      ứng trong bảng inventory.
+    - Khi số lượng tồn kho giảm xuống bằng hoặc dưới ngưỡng tồn tối thiểu là 10 sản
+      phẩm, hệ thống tự động tạo đề xuất nhập hàng.
+    - Đề xuất nhập hàng phải được quản lý duyệt trong thời gian sớm nhất có thể.
+    - Nếu kho hàng quá tải, hệ thống sẽ ngăn việc nhập kho và thông báo lý do phù
+      hợp.
+    - Mọi thao tác thay đổi số lượng tồn kho đều phải ghi lại bản ghi nhật ký với
+      user_id và timestamp.
+    clarifying_options:
+    - key: a
+      label: Ngưỡng tồn kho tối thiểu để tự động tạo đề xuất nhập hàng là bao nhiêu?
+    - key: b
+      label: Làm sao để giao diện quét mã QR của nhân viên trông chuyên nghiệp hơn?
+    - key: c
+      label: Điều kiện kỹ thuật cụ thể nào xác định kho hàng bị 'quá tải' để kích
+        hoạt chặn nhập kho?
+    - key: d
+      label: Có nên tự động gửi tin nhắn SMS cho nhà cung cấp ngay khi đề xuất nhập
+        hàng được duyệt không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: c
+    explanation: Phương án c định nghĩa rõ điều kiện hệ thống cần kiểm tra để xử lý
+      trường hợp chặn nhập kho ở câu 4, trong khi a hỏi lại điều đã rõ ở câu 2, b
+      mơ hồ về mặt thẩm mỹ, và d thêm tích hợp bên thứ ba.
+  difficulty: hard
