@@ -1,0 +1,2474 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: incident_escape_room
+model: gemini-3.6-flash
+generated_at: '2026-08-30T21:54:37Z'
+questions:
+- content:
+    scenario: Dịch vụ Payment Service bị ngắt kết nối liên tục (Pod OOMKilled) sau
+      bản release v2.4.0 lúc 10:00 sáng. Khách hàng báo lỗi 500 khi thanh toán.
+    initial_logs: "[ERROR] 2023-10-25 10:15:02.123 - Kubernetes Event: Pod payment-service-7f89d-x4z2
+      java.lang.OutOfMemoryError: Java heap space. Container killed with exit code
+      137."
+    nodes:
+    - key: q1_n1
+      prompt: Pod liên tục restart với Exit Code 137 do hết bộ nhớ Heap. Bạn muốn
+        kiểm tra thông tin gì đầu tiên?
+      options:
+      - key: q1_n1_o1
+        label: Xem Grafana dashboard về JVM Heap usage và GC activity.
+      - key: q1_n1_o2
+        label: Restart toàn bộ Kubernetes cluster.
+      - key: q1_n1_o3
+        label: Tăng RAM cho Pod từ 2GB lên 8GB ngay lập tức.
+    - key: q1_n2
+      prompt: Grafana cho thấy Heap memory tăng tuyến tính dốc đứng kể từ lúc deploy
+        release v2.4.0. GC chạy liên tục nhưng không giải phóng được bộ nhớ. Bạn sẽ
+        làm gì tiếp theo?
+      options:
+      - key: q1_n2_o1
+        label: Trigger lấy Heap Dump hoặc phân tích Heap Dump từ pod vừa crash.
+      - key: q1_n2_o2
+        label: Kiểm tra CPU utilization của các Worker Node.
+      - key: q1_n2_o3
+        label: Xoá Pod thủ công liên tục bằng lệnh kubectl delete pod.
+    - key: q1_n3
+      prompt: Phân tích Heap Dump cho thấy hơn 70% bộ nhớ bị chiếm bởi hàng triệu
+        object byte[] nằm trong PDFExportService. Bạn làm gì tiếp?
+      options:
+      - key: q1_n3_o1
+        label: Kiểm tra Commit history của file PDFExportService.java trong release
+          v2.4.0.
+      - key: q1_n3_o2
+        label: Khởi động lại dịch vụ cơ sở dữ liệu PostgreSQL.
+      - key: q1_n3_o3
+        label: Tắt tạm thời tính năng xuất PDF trên API Gateway.
+    - key: q1_n4
+      prompt: Commit mới nhất cho thấy dev vừa đổi cách xuất PDF sang lưu in-memory
+        ByteArrayOutputStream mà không close stream. Tỷ lệ lỗi 500 đang tăng cao.
+        Quyết định hành động khẩn cấp là gì?
+      options:
+      - key: q1_n4_o1
+        label: Thực hiện Rollback Deployment về phiên bản v2.3.9 lập tức.
+      - key: q1_n4_o2
+        label: Sửa code trực tiếp trên Pod production.
+      - key: q1_n4_o3
+        label: Chờ dev tạo PR mới, review, build CI/CD và deploy bản v2.4.1.
+    - key: q1_n5
+      prompt: Bạn ra lệnh rollback bằng `kubectl rollout undo deployment/payment-service`.
+        Bạn cần kiểm tra điều gì để xác nhận rollback thành công?
+      options:
+      - key: q1_n5_o1
+        label: Kiểm tra kubectl rollout status và theo dõi tỷ lệ lỗi 5xx trên APM.
+      - key: q1_n5_o2
+        label: Đóng tất cả ticket hỗ trợ khách hàng ngay lập tức.
+      - key: q1_n5_o3
+        label: Ping IP của Pod để xem Pod đã phản hồi chưa.
+    - key: q1_n6
+      prompt: Trạng thái Pod đã về v2.3.9, RAM duy trì ổn định ở 35%, lỗi 500 biến
+        mất. Bước xử lý gốc rễ (Root Cause Resolution) cho tính năng PDF trong v2.4.1
+        nên là gì?
+      options:
+      - key: q1_n6_o1
+        label: Yêu cầu Dev dùng try-with-resources và ghi ra disk/S3 theo dạng stream.
+      - key: q1_n6_o2
+        label: Chỉ cần tăng RAM pod lên 16GB rồi re-deploy v2.4.0.
+      - key: q1_n6_o3
+        label: Giới hạn dung lượng PDF được xuất tối đa 1 trang.
+    - key: q1_n7
+      prompt: Bản fix v2.4.1 đã được tạo PR kèm Unit Test. Bạn tiến hành bước kiểm
+        thử nào trước khi cho lên Production?
+      options:
+      - key: q1_n7_o1
+        label: Chạy qua Staging environment và test giả lập 1000 request xuất PDF
+          đồng thời.
+      - key: q1_n7_o2
+        label: Deploy thẳng lên Production vì đã qua Unit Test.
+      - key: q1_n7_o3
+        label: Thử nghiệm thủ công 1 file PDF duy nhất trên máy local.
+    - key: q1_n8
+      prompt: Bản test Staging thành công, không đọng Memory. Bạn deploy v2.4.1 lên
+        Production và làm gì tiếp theo?
+      options:
+      - key: q1_n8_o1
+        label: Theo dõi metrics trong 30 phút, viết Post-mortem và thêm cảnh báo Heap
+          usage.
+      - key: q1_n8_o2
+        label: Tắt ngay hệ thống logging để đỡ tốn dung lượng storage.
+      - key: q1_n8_o3
+        label: Rời khỏi ca trực ngay lập tức không cần theo dõi thêm.
+  answer_key:
+    option_effects:
+      q1_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n2
+        explanation: 'Chẩn đoán chính xác: Xem JVM metrics để xác nhận rò rỉ bộ nhớ
+          (Memory Leak) và tần suất GC.'
+      q1_n1_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q1_n1
+        explanation: 'Hành động nguy hại: Reboot toàn bộ cluster gây gián đoạn tất
+          cả dịch vụ khác mà không sửa được gốc rễ.'
+      q1_n1_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q1_n2
+        explanation: 'Tốn thời gian: Tăng RAM chỉ làm chậm thời điểm crash nếu có
+          Memory Leak, không giải quyết vấn đề.'
+      q1_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n3
+        explanation: 'Đúng quy trình: Heap Dump sẽ cho biết chính xác Class hoặc Object
+          nào đang chiếm giữ bộ nhớ.'
+      q1_n2_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: q1_n3
+        explanation: 'Ít hiệu quả: CPU cao là hậu quả của việc Full GC chạy liên tục,
+          không phải nguyên nhân chính.'
+      q1_n2_o3:
+        points: 0
+        minutes_cost: 10
+        next_node: q1_n2
+        explanation: 'Xử lý sai: Xoá pod thủ công khiến Kubernetes tạo pod mới và
+          tiếp tục bị crash sau vài phút.'
+      q1_n3_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n4
+        explanation: 'Định vị chính xác: Phân tích commit gần nhất giúp phát hiện
+          ngay dòng code gây rò rỉ.'
+      q1_n3_o2:
+        points: 0
+        minutes_cost: 12
+        next_node: q1_n3
+        explanation: 'Sai lầm: Lỗi thuộc về JVM heap của ứng dụng, khởi động lại DB
+          làm gián đoạn hệ thống vô ích.'
+      q1_n3_o3:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_n4
+        explanation: Giảm tải tạm thời tốt nhưng chưa giải quyết triệt để pod đang
+          bị hỏng bộ nhớ.
+      q1_n4_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n5
+        explanation: 'Quyết định khẩn cấp chuẩn xác: Rollback là cách nhanh nhất phục
+          hồi dịch vụ cho người dùng.'
+      q1_n4_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q1_n4
+        explanation: 'Vi phạm quy trình nghiêm trọng: Không được sửa hotfix trực tiếp
+          trên container đang running.'
+      q1_n4_o3:
+        points: 5
+        minutes_cost: 10
+        next_node: q1_n5
+        explanation: 'Tốn quá nhiều thời gian: Khách hàng phải chịu lỗi 500 trong
+          lúc chờ CI/CD build lại.'
+      q1_n5_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n6
+        explanation: 'Đúng quy trình: Xác nhận trạng thái rollout và kiểm tra chỉ
+          số lỗi giảm về 0 trên APM.'
+      q1_n5_o2:
+        points: 0
+        minutes_cost: 10
+        next_node: q1_n5
+        explanation: 'Xử lý ẩu: Đóng ticket khi chưa xác nhận hệ thống thực sự phục
+          hồi.'
+      q1_n5_o3:
+        points: 5
+        minutes_cost: 4
+        next_node: q1_n6
+        explanation: Chỉ kiểm tra mức hạ tầng đơn giản, không phản ánh chính xác nghiệp
+          vụ ứng dụng.
+      q1_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n7
+        explanation: 'Giải pháp gốc rễ chuẩn: Dùng try-with-resources để auto close
+          stream và ghi dạng chunking/stream.'
+      q1_n6_o2:
+        points: 0
+        minutes_cost: 10
+        next_node: q1_n6
+        explanation: 'Tránh né vấn đề: Memory leak sẽ ăn hết RAM bất kể bạn cấp bao
+          nhiêu.'
+      q1_n6_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q1_n7
+        explanation: Hạn chế tính năng không cần thiết nếu thiết kế streaming tốt
+          có thể xử lý file lớn.
+      q1_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n8
+        explanation: 'Kiểm thử tải chuẩn: Giả lập tải cao ở Staging để đảm bảo Memory
+          phẳng và không rò rỉ.'
+      q1_n7_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q1_n7
+        explanation: 'Rủi ro cực cao: Thiếu kiểm thử tải đối với các lỗi liên quan
+          đến bộ nhớ/concurrency.'
+      q1_n7_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q1_n8
+        explanation: Test 1 request không phản ánh được tình trạng tranh chấp tài
+          nguyên và tích tụ bộ nhớ.
+      q1_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_rec
+        explanation: 'Hoàn tất chuyên nghiệp: Đảm bảo vận hành ổn định, rút kinh nghiệm
+          và bổ sung alert.'
+      q1_n8_o2:
+        points: 0
+        minutes_cost: 10
+        next_node: q1_n8
+        explanation: 'Mất khả năng giám sát: Tắt log làm mù hệ thống khi sự cố mới
+          phát sinh.'
+      q1_n8_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q1_rec
+        explanation: 'Thiếu cẩn trọng: Cần quan sát thêm sau deployment mới để phòng
+          ngừa tái phát.'
+    recovery_node: q1_rec
+  difficulty: medium
+- content:
+    scenario: Hệ thống E-commerce bị nghẽn toàn bộ khi chương trình Flash Sale bắt
+      đầu lúc 12:00. Khách hàng gặp lỗi 504 Gateway Timeout khi nhấn Đặt hàng.
+    initial_logs: "[WARN] 2023-11-11 12:01:15.892 [Checkout-Service] HikariPool-1
+      - Connection is not available, request timed out after 30000ms. Active Connections:
+      100/100, Idle: 0, Waiting: 450."
+    nodes:
+    - key: q2_n1
+      prompt: HikariCP Connection Pool bị cạn kiệt (100/100 active connections, 450
+        waiting). Bạn kiểm tra điều gì đầu tiên?
+      options:
+      - key: q2_n1_o1
+        label: Kiểm tra danh sách truy vấn đang chạy và bị khóa trong PostgreSQL via
+          pg_stat_activity.
+      - key: q2_n1_o2
+        label: Tăng maximum-pool-size của HikariCP lên 1000 trong file config và restart
+          ngay.
+      - key: q2_n1_o3
+        label: Khởi động lại ngay lập tức dịch vụ NGINX reverse proxy.
+    - key: q2_n2
+      prompt: Trích xuất pg_stat_activity thấy hơn 80 connection dừng ở trạng thái
+        active với câu lệnh `SELECT * FROM inventory WHERE product_id = $1 FOR UPDATE`.
+        Bạn làm gì tiếp?
+      options:
+      - key: q2_n2_o1
+        label: Kiểm tra query execution plan và chỉ mục (index) trên bảng inventory.
+      - key: q2_n2_o2
+        label: Reboot máy chủ Database chính (Primary PostgreSQL).
+      - key: q2_n2_o3
+        label: Tắt hoàn toàn chương trình Flash Sale trên giao diện.
+    - key: q2_n3
+      prompt: Phân tích cho thấy cột product_id trong bảng inventory thiếu Index,
+        dẫn đến Sequential Scan kết hợp Lock Row làm đơ hàng trăm query. Giải pháp
+        ứng phó khẩn cấp là gì?
+      options:
+      - key: q2_n3_o1
+        label: Bật Rate Limiting ở API Gateway và ngắt các connection bị treo lâu
+          bằng pg_cancel_backend.
+      - key: q2_n3_o2
+        label: Chạy lệnh CREATE INDEX idx_inventory_product_id ON inventory(product_id)
+          trực tiếp.
+      - key: q2_n3_o3
+        label: Xóa sạch dữ liệu bảng inventory để query chạy nhanh hơn.
+    - key: q2_n4
+      prompt: Lưu lượng tạm thời hạ nhiệt nhờ Rate Limiting và connection treo đã
+        ngắt. Bạn cần tạo Index an toàn trên DB Production đang có tải. Lệnh đúng
+        là gì?
+      options:
+      - key: q2_n4_o1
+        label: Thực thi CREATE INDEX CONCURRENTLY idx_inventory_product_id ON inventory(product_id);
+      - key: q2_n4_o2
+        label: Thực thi DROP TABLE inventory rồi CREATE TABLE lại.
+      - key: q2_n4_o3
+        label: Thực thi CREATE INDEX trong một Transaction lớn cùng lệnh UPDATE.
+    - key: q2_n5
+      prompt: Index dạng CONCURRENTLY đã tạo xong. Active Connections giảm xuống còn
+        15/100. Bạn làm gì tiếp theo?
+      options:
+      - key: q2_n5_o1
+        label: Mở dần Rate Limiting ở API Gateway theo từng nấc để đón traffic thật.
+      - key: q2_n5_o2
+        label: Mở 100% traffic ngay lập tức mà không giám sát.
+      - key: q2_n5_o3
+        label: Xóa toàn bộ cache Redis của hệ thống.
+    - key: q2_n6
+      prompt: Traffic đã trở lại bình thường, latency đặt hàng giảm từ 30s xuống 120ms.
+        Bộ chỉ số (metrics) nào cần được giám sát chặt chẽ lúc này?
+      options:
+      - key: q2_n6_o1
+        label: Theo dõi HikariCP Pool usage, DB Read/Write IOPS và tỷ lệ HTTP 200
+          thành công.
+      - key: q2_n6_o2
+        label: Chỉ xem dung lượng ổ đĩa còn trống của Mail Server.
+      - key: q2_n6_o3
+        label: Đếm số lượng log WARN của ứng dụng Frontend.
+    - key: q2_n7
+      prompt: Hệ thống đã phục hồi hoàn toàn. Giải pháp dài hạn nào để ngăn chặn việc
+        quên tạo Index trong tương lai?
+      options:
+      - key: q2_n7_o1
+        label: Bổ sung Migration Linter trong CI/CD để phát hiện missing index tự
+          động.
+      - key: q2_n7_o2
+        label: Cấm lập trình viên sử dụng khóa ngoại và lệnh SELECT FOR UPDATE.
+      - key: q2_n7_o3
+        label: Tăng cấu hình RAM và CPU của máy chủ Database gấp 10 lần.
+    - key: q2_n8
+      prompt: Bước cuối cùng trong quy trình xử lý sự cố P1 này là gì?
+      options:
+      - key: q2_n8_o1
+        label: Họp Post-mortem theo tinh thần Blameless, viết timeline sự cố và cập
+          nhật playbook.
+      - key: q2_n8_o2
+        label: Tìm nhân viên quên tạo Index để phạt tài chính.
+      - key: q2_n8_o3
+        label: Bỏ qua báo cáo vì hệ thống đã chạy bình thường trở lại.
+  answer_key:
+    option_effects:
+      q2_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n2
+        explanation: 'Đúng trọng tâm: Kiểm tra pg_stat_activity giúp nhận biết các
+          query đang chiếm connection và bị block.'
+      q2_n1_o2:
+        points: 0
+        minutes_cost: 12
+        next_node: q2_n1
+        explanation: 'Tồi tệ: Tăng connection pool lên 1000 khi DB đang bị nghẽn Lock
+          sẽ làm DB sập hoàn toàn do quá tải CPU/RAM.'
+      q2_n1_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q2_n2
+        explanation: 'Không hiệu quả: Nguyên nhân là bottleneck ở DB Connection Pool,
+          không phải do NGINX.'
+      q2_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n3
+        explanation: 'Phân tích chuẩn: EXPLAIN ANALYZE hoặc kiểm tra schema giúp xác
+          định nguyên nhân chậm do thiếu Index.'
+      q2_n2_o2:
+        points: 0
+        minutes_cost: 20
+        next_node: q2_n2
+        explanation: 'Sai lầm nghiêm trọng: Reboot DB trong lúc cao điểm gây ngắt
+          kết nối đột ngột và rủi ro hỏng dữ liệu.'
+      q2_n2_o3:
+        points: 5
+        minutes_cost: 8
+        next_node: q2_n3
+        explanation: Gây thiệt hại kinh doanh nặng nề khi chưa thử các giải pháp kỹ
+          thuật khác.
+      q2_n3_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n4
+        explanation: 'Ứng phó xuất sắc: Rate Limiting bảo vệ DB khỏi sập hẳn, đồng
+          thời giải phóng connection bị đơ.'
+      q2_n3_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q2_n3
+        explanation: 'Rất nguy hiểm: Lệnh CREATE INDEX thông thường sẽ LOCK toàn bộ
+          bảng inventory, khiến mọi giao dịch bị đơ.'
+      q2_n3_o3:
+        points: 0
+        minutes_cost: 25
+        next_node: q2_n3
+        explanation: 'Phá hoại dữ liệu: Mất mát dữ liệu hàng tồn kho nghiêm trọng.'
+      q2_n4_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n5
+        explanation: 'Thao tác chuẩn Production: Dùng CONCURRENTLY giúp đánh Index
+          mà không lock ghi/đọc bảng.'
+      q2_n4_o2:
+        points: 0
+        minutes_cost: 20
+        next_node: q2_n4
+        explanation: 'Thảm họa: Xóa bảng gây mất dữ liệu hệ thống.'
+      q2_n4_o3:
+        points: 5
+        minutes_cost: 10
+        next_node: q2_n5
+        explanation: Tạo Index trong Transaction kéo dài thời gian lock và dễ dẫn
+          đến Deadlock.
+      q2_n5_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n6
+        explanation: 'Kiểm soát an toàn: Mở tải từ từ giúp kiểm tra sức chịu đựng
+          của DB sau khi fix.'
+      q2_n5_o2:
+        points: 5
+        minutes_cost: 5
+        next_node: q2_n6
+        explanation: Mở tải ồ ạt có thể gây ra Thundering Herd Problem nếu còn nghẽn
+          ở điểm khác.
+      q2_n5_o3:
+        points: 0
+        minutes_cost: 10
+        next_node: q2_n5
+        explanation: 'Sai lầm: Xóa cache sẽ đẩy thêm 100% request xuống DB vừa mới
+          phục hồi.'
+      q2_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n7
+        explanation: 'Chính xác: Giám sát toàn diện cả DB Pool, tài nguyên đĩa/mạng
+          và throughput nghiệp vụ.'
+      q2_n6_o2:
+        points: 0
+        minutes_cost: 10
+        next_node: q2_n6
+        explanation: 'Sai đối tượng: Dung lượng disk mail server không liên quan đến
+          sự cố checkout.'
+      q2_n6_o3:
+        points: 5
+        minutes_cost: 4
+        next_node: q2_n7
+        explanation: Chỉ xem log frontend không phản ánh đúng tình trạng sức khỏe
+          hệ thống Backend/DB.
+      q2_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n8
+        explanation: 'Cải tiến quy trình chuẩn: Tự động hóa kiểm tra missing index
+          bằng linter ngay từ khâu CI/CD.'
+      q2_n7_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q2_n7
+        explanation: 'Cấm đoán vô lý: SELECT FOR UPDATE là cần thiết cho tính đúng
+          đắn dữ liệu khi trừ hàng tồn kho.'
+      q2_n7_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q2_n8
+        explanation: 'Tốn chi phí: Tăng phần cứng không giải quyết được bài toán Full
+          Table Scan do thiếu Index.'
+      q2_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_rec
+        explanation: Văn hóa Blameless Post-mortem giúp đội ngũ học hỏi từ sự cố và
+          nâng cao độ tin cậy hệ thống.
+      q2_n8_o2:
+        points: 0
+        minutes_cost: 15
+        next_node: q2_n8
+        explanation: 'Văn hóa độc hại: Phạt cá nhân chỉ làm giấu lỗi trong tương lai
+          chứ không khắc phục quy trình.'
+      q2_n8_o3:
+        points: 5
+        minutes_cost: 5
+        next_node: q2_rec
+        explanation: Bỏ qua bài học sự cố khiến lỗi tương tự rất dễ lặp lại trong
+          kỳ Flash Sale tới.
+    recovery_node: q2_rec
+  difficulty: hard
+- content:
+    scenario: Hệ thống thanh toán của ứng dụng e-commerce bị nghẽn mạng đột ngột.
+      Người dùng liên tục gặp lỗi 504 Gateway Timeout khi thực hiện thanh toán. Đội
+      CSKH báo cáo hàng nghìn giao dịch bị gián đoạn.
+    initial_logs: |-
+      [ERROR] RedisConnectionException: Unable to connect to Redis server. Connection pool exhausted.
+      [WARN] Payment-Service HTTP 504 on POST /api/v1/payments/process - duration: 30000ms
+      [METRIC] Redis Latency: 850ms (Normal: <5ms) | CPU: 100%
+    nodes:
+    - key: s1_n1
+      prompt: 'Bước 1: Bạn nhận cảnh báo Redis connection pool exhausted và HTTP 504.
+        Bước kiểm tra đầu tiên của bạn là gì?'
+      options:
+      - key: q1_n1_o1
+        label: Kiểm tra metric Redis latency, memory utilization và slow log
+      - key: q1_n1_o2
+        label: Khởi động lại (restart) toàn bộ các pod Payment Service ngay lập tức
+      - key: q1_n1_o3
+        label: Tăng dung lượng RAM trên DB PostgreSQL chính
+    - key: s1_n2
+      prompt: 'Bước 2: Log Redis cho thấy key ''promotions_active_list'' bị hit liên
+        tục 50,000 req/s. Latency tăng vọt. Bạn xử lý sao?'
+      options:
+      - key: q1_n2_o1
+        label: Kiểm tra TTL và cơ chế cập nhật cache của key 'promotions_active_list'
+      - key: q1_n2_o2
+        label: Chạy lệnh FLUSHALL trên Redis để xóa toàn bộ bộ nhớ cache
+      - key: q1_n2_o3
+        label: Sửa code ứng dụng để tắt bớt log trong Payment Service
+    - key: s1_n3
+      prompt: 'Bước 3: Key ''promotions_active_list'' vừa bị hết hạn (TTL expire)
+        dẫn đến Cache Stampede / Hotkey. Hàng vạn request đâm trực tiếp vào Database.
+        Bạn chặn đợt nghẽn này thế nào?'
+      options:
+      - key: q1_n3_o1
+        label: Áp dụng cơ chế Mutex Lock / Singleflight trong code để chỉ 1 request
+          rebuild cache
+      - key: q1_n3_o2
+        label: Tăng max connection pool size của Redis trong app config lên 1000
+      - key: q1_n3_o3
+        label: Thực hiện Auto-scaling Pod Payment Service từ 5 lên 50 pods
+    - key: s1_n4
+      prompt: 'Bước 4: Trong lúc chuẩn bị deploy fix code, Database bị treo do vô
+        số query SELECT * FROM promotions. Bạn cứu DB bằng cách nào ngay lập tức?'
+      options:
+      - key: q1_n4_o1
+        label: Tự tay Warm-up cache lại key 'promotions_active_list' bằng script /
+          Redis CLI
+      - key: q1_n4_o2
+        label: Kill toàn bộ connection đang kết nối vào Database
+      - key: q1_n4_o3
+        label: Drop index trên bảng promotions để giảm bù tải
+    - key: s1_n5
+      prompt: 'Bước 5: Cache được warm-up tạm thời, DB đã bớt tải. Giờ bạn cần áp
+        dụng giải pháp chống Hotkey lâu dài nào?'
+      options:
+      - key: q1_n5_o1
+        label: Deploy bản hotfix dùng Probabilistic Early Expiration và Mutex Lock
+      - key: q1_n5_o2
+        label: Set TTL cho key 'promotions_active_list' thành vô hạn (không bao giờ
+          expire)
+      - key: q1_n5_o3
+        label: Chuyển dữ liệu Redis sang lưu trữ bằng Memcached
+    - key: s1_n6
+      prompt: 'Bước 6: Code mới đã được deploy. Tuy nhiên một số connection pool cũ
+        ở Payment Service vẫn bị kẹt dính. Bạn làm gì tiếp theo?'
+      options:
+      - key: q1_n6_o1
+        label: Thực hiện Rolling Restart các pod Payment Service để làm sạch connection
+      - key: q1_n6_o2
+        label: Đợi 30 phút để connection pool tự động giải phóng timeout
+      - key: q1_n6_o3
+        label: Reboot máy chủ Redis Server
+    - key: s1_n7
+      prompt: 'Bước 7: Pod đã restart xong. Hệ thống dần ổn định. Bạn làm gì để kiểm
+        tra lại toàn bộ sức khỏe hệ thống?'
+      options:
+      - key: q1_n7_o1
+        label: 'Kiểm tra Grafana dashboard: Redis Latency, DB CPU và tỉ lệ HTTP status
+          200 vs 504'
+      - key: q1_n7_o2
+        label: Gửi email thông báo cho toàn công ty là sự cố đã xử lý xong mà chưa
+          check metric
+      - key: q1_n7_o3
+        label: Tắt bớt 50% số lượng pod Payment Service để tiết kiệm chi phí
+    - key: s1_n8
+      prompt: 'Bước 8: Mọi chỉ số đã về mức bình thường. Hành động cuối cùng của bạn
+        để hoàn tất quy trình khắc phục sự cố là gì?'
+      options:
+      - key: q1_n8_o1
+        label: Tạo Post-Mortem incident report và đề xuất phương án Caching Strategy
+          lâu dài
+      - key: q1_n8_o2
+        label: Đóng ticket sự cố mà không ghi lại nguyên nhân hay bài học kinh nghiệm
+      - key: q1_n8_o3
+        label: Xóa toàn bộ file log sự cố trên server để giải phóng ổ đĩa
+    - key: s1_rec
+      prompt: Chúc mừng! Bạn đã khắc phục thành công sự cố Cache Stampede và đưa hệ
+        thống khôi phục trạng thái hoạt động bình thường.
+      options:
+      - key: q1_rec_o1
+        label: Hoàn tất bài tập
+  answer_key:
+    option_effects:
+      q1_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_n2
+        explanation: Chính xác. Kiểm tra metric giúp xác định chính xác Redis đang
+          bị overload do traffic hay do hết bộ nhớ.
+      q1_n1_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: s1_n2
+        explanation: Restart pod làm tạm giải phóng connection pool nhưng không giải
+          quyết gốc rễ vấn đề Redis.
+      q1_n1_o3:
+        points: 0
+        minutes_cost: 6
+        next_node: s1_n2
+        explanation: Sai lầm. Vấn đề nằm ở Redis cache, tăng RAM DB lúc này không
+          giải quyết được nghẽn kết nối Redis.
+      q1_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_n3
+        explanation: Chính xác. Xác định key bị hot/frequent access giúp phân tích
+          chính xác hiện tượng Cache Stampede.
+      q1_n2_o2:
+        points: 0
+        minutes_cost: 8
+        next_node: s1_n3
+        explanation: Rất nguy hiểm! FLUSHALL xóa sạch toàn bộ cache khiến 100% traffic
+          đâm thẳng vào DB, gây sập DB.
+      q1_n2_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_n3
+        explanation: Tắt log không giúp giảm tải traffic cực lớn đang gọi vào Redis.
+      q1_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s1_n4
+        explanation: Chính xác! Mutex/Singleflight giúp chỉ 1 request đi vào DB query
+          và rebuild cache, các req khác chờ kết quả từ cache đó.
+      q1_n3_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_n4
+        explanation: Tăng pool size giúp giảm lỗi connection nhưng lại gây thêm tải
+          nặng cho Redis đang 100% CPU.
+      q1_n3_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_n4
+        explanation: Tăng pod làm tăng gấp nhiều lần số connection đâm vào Redis/DB,
+          khiến sự cố trầm trọng hơn.
+      q1_n4_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s1_n5
+        explanation: Chính xác. Chủ động re-populate hotkey vào Redis ngay lập tức
+          giúp chặn đứng dòng request đâm vào DB.
+      q1_n4_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: s1_n5
+        explanation: Kill connection chỉ ngắt tạm thời, dòng request mới sẽ tiếp tục
+          tràn vào ngay lập tức.
+      q1_n4_o3:
+        points: 0
+        minutes_cost: 7
+        next_node: s1_n5
+        explanation: Drop index làm query SELECT chậm đi hàng trăm lần, khiến DB hoàn
+          toàn gục ngã.
+      q1_n5_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s1_n6
+        explanation: Chuẩn xác. Dùng Early Expiration hoặc Mutex Lock ngăn chặn hoàn
+          toàn Cache Stampede trong tương lai.
+      q1_n5_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_n6
+        explanation: Set TTL vĩnh viễn tránh được hết hạn nhưng nguy cơ dữ liệu khuyến
+          mãi bị stale (cũ/sai lệch) không được cập nhật.
+      q1_n5_o3:
+        points: 0
+        minutes_cost: 10
+        next_node: s1_n6
+        explanation: Đổi hạ tầng cache tốn thời gian và không giải quyết được bản
+          chất của Hotkey/Cache Stampede.
+      q1_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_n7
+        explanation: Chính xác. Rolling restart giúp refresh lại kết nối sạch sẽ mà
+          không làm gián đoạn dịch vụ.
+      q1_n6_o2:
+        points: 5
+        minutes_cost: 6
+        next_node: s1_n7
+        explanation: Đợi tự giải phóng mất nhiều thời gian trong khi người dùng vẫn
+          gặp lỗi.
+      q1_n6_o3:
+        points: 0
+        minutes_cost: 8
+        next_node: s1_n7
+        explanation: Reboot Redis Master gây rớt toàn bộ cache của hệ thống, làm gián
+          đoạn các dịch vụ khác.
+      q1_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_n8
+        explanation: Tuyệt vời. Kiểm tra số liệu thực tế trên Dashboard giúp xác nhận
+          hệ thống đã thực sự phục hồi.
+      q1_n7_o2:
+        points: 5
+        minutes_cost: 2
+        next_node: s1_n8
+        explanation: Thông báo vội vã khi chưa xác nhận metric có thể gây báo động
+          giả nếu sự cố bùng phát lại.
+      q1_n7_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_n8
+        explanation: Tắt pod lúc traffic chưa giảm hoàn toàn có thể gây ra nghẽn lại.
+      q1_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_rec
+        explanation: Chính xác! Viết Post-Mortem rút kinh nghiệm là bước bắt buộc
+          trong quy trình Incident Management.
+      q1_n8_o2:
+        points: 5
+        minutes_cost: 1
+        next_node: s1_rec
+        explanation: Bỏ qua ghi chép sẽ khiến đội ngũ không thể phòng ngừa sự cố tương
+          tự.
+      q1_n8_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: s1_rec
+        explanation: Xóa log tiêu hủy bằng chứng phục vụ cho việc điều traPost-Mortem.
+      q1_rec_o1:
+        points: 0
+        minutes_cost: 0
+        next_node: s1_rec
+        explanation: Hoàn thành bài tập.
+    recovery_node: s1_rec
+  difficulty: medium
+- content:
+    scenario: Dịch vụ xử lý tài liệu PDF ('pdf-worker') trên Kubernetes cluster liên
+      tục bị restart. Hàng đợi RabbitMQ tích tụ hơn 150,000 công việc chưa được xử
+      lý, gây đình trệ toàn bộ tính năng xuất báo cáo.
+    initial_logs: |-
+      kubectl get pods:
+      pdf-worker-86f7b9c-4x2z1   0/1   CrashLoopBackOff   12 (30s ago)
+      [REASON] OOMKilled - Exit Code 137 - Memory limit exceeded (1024MiB)
+      RabbitMQ Queue 'pdf_jobs': 152,410 unacknowledged/ready messages
+    nodes:
+    - key: s2_n1
+      prompt: 'Bước 1: Pod `pdf-worker` liên tục bị `OOMKilled` (Exit code 137). Bạn
+        bắt đầu điều tra từ đâu?'
+      options:
+      - key: q2_n1_o1
+        label: Dùng `kubectl describe pod` và kiểm tra cấu hình `resources.limits.memory`
+      - key: q2_n1_o2
+        label: Tăng số lượng Replica của Deployment `pdf-worker` từ 3 lên 20 pod ngay
+      - key: q2_n1_o3
+        label: Purge (xóa sạch) hàng đợi `pdf_jobs` trên RabbitMQ
+    - key: s2_n2
+      prompt: 'Bước 2: Pod bị giới hạn 1GB RAM và sập ngay khi xử lý các file PDF
+        lớn. Bạn xử lý ứng cứu khẩn cấp như thế nào?'
+      options:
+      - key: q2_n2_o1
+        label: Tạm thời tăng `limits.memory` lên 2GiB cho Deployment để giảm nhịp
+          crash
+      - key: q2_n2_o2
+        label: Restart cụm RabbitMQ Cluster
+      - key: q2_n2_o3
+        label: Tắt Liveness Probe và Readiness Probe của Pod
+    - key: s2_n3
+      prompt: 'Bước 3: Sau khi tăng RAM lên 2GB, Pod chạy được lâu hơn nhưng RAM vẫn
+        tăng liên tục theo thời gian không giảm (Memory Leak). Làm sao tìm nguyên
+        nhân leak?'
+      options:
+      - key: q2_n3_o1
+        label: Tạo Heap Dump / Memory Profile của ứng dụng Worker khi đang xử lý file
+      - key: q2_n3_o2
+        label: Đổi Base Image của Container từ Alpine sang Ubuntu
+      - key: q2_n3_o3
+        label: Tăng CPU limit từ 1 Core lên 4 Cores
+    - key: s2_n4
+      prompt: 'Bước 4: Heap Dump cho thấy thư viện PDF render tạo nhiều Buffer object
+        nhưng không xả tài nguyên (chưa gọi `destroy stream` / `gc`). Bạn xử lý ra
+        sao?'
+      options:
+      - key: q2_n4_o1
+        label: Viết Hotfix code đảm bảo đóng File Stream và giải phóng Buffer sau
+          khi render
+      - key: q2_n4_o2
+        label: Tạo CronJob cứ 5 phút restart Pod một lần để xả bộ nhớ
+      - key: q2_n4_o3
+        label: Viết lại toàn bộ Worker bằng ngôn ngữ lập trình khác
+    - key: s2_n5
+      prompt: 'Bước 5: Trong lúc đợi CI/CD build Docker image mới, RabbitMQ vẫn ngập
+        150k task. Làm sao tránh Worker mới lên lại bị kéo ngợp RAM?'
+      options:
+      - key: q2_n5_o1
+        label: Cấu hình Prefetch Count = 5 trên RabbitMQ Consumer để giới hạn số task
+          lấy về
+      - key: q2_n5_o2
+        label: Tăng max connection trong cấu hình RabbitMQ
+      - key: q2_n5_o3
+        label: Tắt RabbitMQ Server trong 1 tiếng
+    - key: s2_n6
+      prompt: 'Bước 6: Docker image hotfix đã ready. Bạn tiến hành cập nhật ứng dụng
+        như thế nào?'
+      options:
+      - key: q2_n6_o1
+        label: Update image version mới cho Deployment và theo dõi memory graph trên
+          Grafana
+      - key: q2_n6_o2
+        label: Dùng `kubectl exec` chép trực tiếp file code sửa vào Pod đang chạy
+      - key: q2_n6_o3
+        label: Xóa toàn bộ Deployment và tạo lại từ đầu
+    - key: s2_n7
+      prompt: 'Bước 7: Pod mới hoạt động ổn định, RAM đứng ở mức 300MB. Tuy nhiên
+        150k task tồn đọng tiêu thụ khá chậm. Bạn đẩy nhanh tiến độ thế nào?'
+      options:
+      - key: q2_n7_o1
+        label: Tạm thời Scale up số lượng Replica của Deployment lên 15 pods
+      - key: q2_n7_o2
+        label: Để nguyên 2 pods chạy từ từ cho đến khi hết 150k tasks
+      - key: q2_n7_o3
+        label: Reboot toàn bộ Kubernetes Worker Nodes
+    - key: s2_n8
+      prompt: 'Bước 8: Hàng đợi RabbitMQ đã giảm về 0 tasks. Dịch vụ khôi phục hoàn
+        toàn. Bạn dọn dẹp hạ tầng thế nào?'
+      options:
+      - key: q2_n8_o1
+        label: Scale down số Replica về mức chuẩn (3 pods) và điều chỉnh lại resource
+          requests/limits hợp lý
+      - key: q2_n8_o2
+        label: Giữ nguyên 15 pods chạy vĩnh viễn để phòng ngừa
+      - key: q2_n8_o3
+        label: Xóa cấu hình resource limit trong Kubernetes
+    - key: s2_rec
+      prompt: Chúc mừng! Bạn đã xử lý triệt để sự cố Memory Leak & OOMKilled trên
+        Kubernetes, giúp hàng đợi RabbitMQ giải tỏa an toàn.
+      options:
+      - key: q2_rec_o1
+        label: Hoàn tất bài tập
+  answer_key:
+    option_effects:
+      q2_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_n2
+        explanation: Chính xác. `kubectl describe` giúp xác nhận lý do OOMKilled và
+          thông số RAM limit hiện tại.
+      q2_n1_o2:
+        points: 0
+        minutes_cost: 3
+        next_node: s2_n2
+        explanation: Tăng pod khi chưa tìm nguyên nhân sẽ khiến các pod mới cùng bị
+          OOMKilled, tốn tài nguyên node.
+      q2_n1_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_n2
+        explanation: Xóa queue làm mất mát dữ liệu báo cáo của người dùng, không thể
+          chấp nhận được.
+      q2_n2_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s2_n3
+        explanation: Tốt. Tăng limit tạm thời giúp Worker giữ kết nối lâu hơn để tiếp
+          tục điều tra nguyên nhân sâu xa.
+      q2_n2_o2:
+        points: 5
+        minutes_cost: 5
+        next_node: s2_n3
+        explanation: Vấn đề ở Pod Worker xử lý file chứ không phải ở RabbitMQ Cluster.
+      q2_n2_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: s2_n3
+        explanation: Tắt Probe không chặn được kernel kill pod khi vượt quá giới hạn
+          RAM limit.
+      q2_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s2_n4
+        explanation: Chính xác! Heap Dump/Profile là công cụ chuẩn nhất để phát hiện
+          leak nguồn bộ nhớ trong code.
+      q2_n3_o2:
+        points: 5
+        minutes_cost: 6
+        next_node: s2_n4
+        explanation: Đổi OS base image không giải quyết được lỗi leak memory trong
+          ứng dụng.
+      q2_n3_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: s2_n4
+        explanation: Tăng CPU không giúp khắc phục tình trạng thiếu bộ nhớ (RAM Memory
+          Leak).
+      q2_n4_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s2_n5
+        explanation: Chuẩn xác. Đóng stream và unref buffer giúp garbage collector
+          thu hồi bộ nhớ triệt để.
+      q2_n4_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: s2_n5
+        explanation: Restart định kỳ chỉ là giải pháp tình huống xấu, làm đứt đoạn
+          các task đang xử lý.
+      q2_n4_o3:
+        points: 0
+        minutes_cost: 15
+        next_node: s2_n5
+        explanation: Viết lại ứng dụng tốn quá nhiều thời gian, làm gián đoạn hệ thống
+          kéo dài.
+      q2_n5_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_n6
+        explanation: Chính xác! Prefetch Count hạn chế số message worker ôm cùng lúc,
+          tránh bị tràn bộ nhớ đột ngột.
+      q2_n5_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_n6
+        explanation: Tăng connection không kiểm soát được lượng message đổ về cho
+          từng worker.
+      q2_n5_o3:
+        points: 0
+        minutes_cost: 6
+        next_node: s2_n6
+        explanation: Tắt RabbitMQ khiến các dịch vụ producer không thể gửi thêm task
+          mới.
+      q2_n6_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s2_n7
+        explanation: Chính xác. Rolling update giúp cập nhật mượt mà và việc theo
+          dõi Grafana xác nhận fix thành công.
+      q2_n6_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_n7
+        explanation: Không được sửa trực tiếp code trên Pod vì sẽ mất khi pod bị restart
+          hoặc recreate.
+      q2_n6_o3:
+        points: 5
+        minutes_cost: 4
+        next_node: s2_n7
+        explanation: Xóa Deployment gây downtime không cần thiết thay vì dùng Rolling
+          Update.
+      q2_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_n8
+        explanation: Rất tốt. Giờ đây code đã ổn định, scale up pods sẽ tiêu thụ 150k
+          tasks cực kỳ nhanh chóng.
+      q2_n7_o2:
+        points: 5
+        minutes_cost: 8
+        next_node: s2_n8
+        explanation: Để 2 pods xả 150k tasks sẽ mất nhiều giờ, khiến khách hàng phải
+          chờ báo cáo quá lâu.
+      q2_n7_o3:
+        points: 0
+        minutes_cost: 10
+        next_node: s2_n8
+        explanation: Reboot Worker Nodes gây gián đoạn toàn bộ dịch vụ khác chạy chung
+          trên cluster.
+      q2_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_rec
+        explanation: Chính xác! Tối ưu lại tài nguyên sau khi xả nghẽn giúp tránh
+          lãng phí chi phí cloud.
+      q2_n8_o2:
+        points: 5
+        minutes_cost: 2
+        next_node: s2_rec
+        explanation: Giữ thừa pods khi queue đã trống gây lãng phí lớn chi phí Kubernetes
+          cluster.
+      q2_n8_o3:
+        points: 0
+        minutes_cost: 2
+        next_node: s2_rec
+        explanation: Xóa resource limit sẽ khiến pod có thể chiếm dụng toàn bộ tài
+          nguyên node nếu xảy ra sự cố khác.
+      q2_rec_o1:
+        points: 0
+        minutes_cost: 0
+        next_node: s2_rec
+        explanation: Hoàn thành bài tập.
+    recovery_node: s2_rec
+  difficulty: hard
+- content:
+    scenario: Hệ thống Payment Gateway báo lỗi HTTP 500 hàng loạt khi người dùng thực
+      hiện thanh toán. Tỷ lệ lỗi tăng đột biến lên 45% trong vòng 5 phút qua.
+    initial_logs: |-
+      [2023-10-24 10:15:02] ERROR [payment-service] [http-nio-8080-exec-12] c.e.p.c.PaymentController: Failed to process checkout. Exception: io.lettuce.core.RedisConnectionException: Connection pool exhausted, cannot acquire connection within timeout 3000ms
+      [2023-10-24 10:15:03] ERROR [payment-service] [http-nio-8080-exec-18] c.e.p.s.RedisCacheService: Could not get resource from pool. Active: 100, Idle: 0, MaxTotal: 100
+    nodes:
+    - key: S1_N1
+      prompt: 'Bước 1: Bạn vừa nhận cảnh báo khẩn cấp từ hệ thống giám sát. Hành động
+        đầu tiên của bạn là gì?'
+      options:
+      - key: S1_O1_1
+        label: Kiểm tra Metric HTTP status code và Error Rate trên Grafana dashboard
+          để xác định quy mô sự cố.
+      - key: S1_O1_2
+        label: Restart toàn bộ Kubernetes Cluster lập tức để giải phóng tài nguyên.
+      - key: S1_O1_3
+        label: SSH trực tiếp vào server app để xem thông số CPU/RAM tổng thể.
+    - key: S1_N2
+      prompt: 'Bước 2: Metric cho thấy lỗi chỉ tập trung ở service Payment Gateway.
+        Bạn cần làm gì để thu hẹp nguyên nhân?'
+      options:
+      - key: S1_O2_1
+        label: Lọc log của Payment Gateway theo keyword 'Connection pool' và 'Timeout'.
+      - key: S1_O2_2
+        label: Đọc toàn bộ file access log của Nginx Reverse Proxy từ đầu ngày.
+      - key: S1_O2_3
+        label: Xóa toàn bộ database cache trong PostgreSQL.
+    - key: S1_N3
+      prompt: 'Bước 3: Log chỉ ra Redis Connection Pool bị cạn kiệt (100/100 active
+        connections). Bạn kiểm tra Redis ra sao?'
+      options:
+      - key: S1_O3_1
+        label: Kiểm tra biểu đồ Redis Active Connections và Client Connections trên
+          Grafana.
+      - key: S1_O3_2
+        label: Tăng ngay dung lượng RAM cho Redis Instance trên Cloud Console.
+      - key: S1_O3_3
+        label: Tắt Redis Server để ứng dụng tự nhảy sang dùng Database.
+    - key: S1_N4
+      prompt: 'Bước 4: Grafana cho thấy Redis CPU chỉ 15%, RAM mới dùng 30% nhưng
+        Connection Count chạm mốc max 100 và không hề giảm. Điều này báo hiệu vấn
+        đề gì?'
+      options:
+      - key: S1_O4_1
+        label: Rò rỉ connection (Connection Leak) - code không đóng hoặc nhả connection
+          về pool sau khi dùng.
+      - key: S1_O4_2
+        label: Tăng maxclients của Redis server lên 10,000 ngay lập tức.
+      - key: S1_O4_3
+        label: Thực hiện lệnh FLUSHALL trên Redis để xóa bớt dữ liệu.
+    - key: S1_N5
+      prompt: 'Bước 5: Bạn nghi ngờ có bug rò rỉ connection trong code mới deploy.
+        Bạn thực hiện kiểm tra như thế nào?'
+      options:
+      - key: S1_O5_1
+        label: Kiểm tra Git commit lịch sử gần nhất liên quan đến Redis Cache Helper.
+      - key: S1_O5_2
+        label: Chạy lại bộ Unit Test của module Payment trên môi trường Local.
+      - key: S1_O5_3
+        label: Rollback toàn bộ Database Schema về phiên bản tuần trước.
+    - key: S1_N6
+      prompt: 'Bước 6: Phát hiện commit 2 tiếng trước thiếu khối try-finally/try-with-resources
+        khi gọi Redis client. Cách khắc phục nhanh nhất là gì?'
+      options:
+      - key: S1_O6_1
+        label: Tăng tạm max-active connection pool trong config và viết Hotfix bổ
+          sung try-finally để release connection.
+      - key: S1_O6_2
+        label: Scale out Pods của Payment Gateway từ 3 lên 30 Pods mà không sửa code.
+      - key: S1_O6_3
+        label: Chuyển tạm toàn bộ lưu lượng thanh toán sang cổng API thanh toán dự
+          phòng.
+    - key: S1_N7
+      prompt: 'Bước 7: Code Hotfix đã sẵn sàng và được kiểm thử nhanh trên Staging.
+        Quy trình deploy lên Production như thế nào là an toàn?'
+      options:
+      - key: S1_O7_1
+        label: Deploy theo chiến lược Canary 10% traffic, theo dõi Connection Pool
+          metric trước khi rollout 100%.
+      - key: S1_O7_2
+        label: Deploy đồng loạt 100% Pods cùng lúc vào giữa giờ cao điểm.
+      - key: S1_O7_3
+        label: Rollback bản build về phiên bản từ 3 tháng trước.
+    - key: S1_N8
+      prompt: 'Bước 8: Bản Hotfix đã hoàn tất deployment. Bạn kiểm tra lại hệ thống
+        như thế nào để đóng sự cố?'
+      options:
+      - key: S1_O8_1
+        label: Xác nhận Redis Connection Count ổn định ở mức thấp, Error Rate về 0%
+          và HTTP 200 khôi phục.
+      - key: S1_O8_2
+        label: Đóng Ticket sự cố ngay mà không cần kiểm tra thêm metric.
+      - key: S1_O8_3
+        label: Xóa bớt Pods ứng dụng để tiết kiệm chi phí server.
+  answer_key:
+    option_effects:
+      S1_O1_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S1_N2
+        explanation: Chính xác. Kiểm tra Dashboard tổng quan giúp xác định đúng phạm
+          vi ảnh hưởng.
+      S1_O1_2:
+        points: 0
+        minutes_cost: 8
+        next_node: S1_N1
+        explanation: Sai lầm. Restart toàn bộ cluster vô tình gây gián đoạn các dịch
+          vụ khác đang hoạt động bình thường.
+      S1_O1_3:
+        points: 5
+        minutes_cost: 3
+        next_node: S1_N2
+        explanation: Xem thông số chung giúp biết trạng thái máy chủ nhưng tốn thời
+          gian hơn việc xem dashboard tổng hợp.
+      S1_O2_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S1_N3
+        explanation: Chính xác. Lọc log theo keyword lỗi giúp khoanh vùng nguyên nhân
+          nhanh nhất.
+      S1_O2_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S1_N3
+        explanation: Access log chỉ cho biết HTTP status code chứ không rõ lỗi chi
+          tiết từ code bên trong.
+      S1_O2_3:
+        points: 0
+        minutes_cost: 7
+        next_node: S1_N2
+        explanation: Thao tác sai và nguy hiểm. Lỗi đang nằm ở Redis connection pool
+          chứ không phải DB cache.
+      S1_O3_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S1_N4
+        explanation: Chính xác. Metric kết nối giúp xác định sự cố do quá tải thật
+          hay do treo kết nối.
+      S1_O3_2:
+        points: 5
+        minutes_cost: 5
+        next_node: S1_N4
+        explanation: Tăng RAM không giải quyết được vấn đề cạn kiệt connection pool.
+      S1_O3_3:
+        points: 0
+        minutes_cost: 6
+        next_node: S1_N3
+        explanation: Tắt Redis gây nghẽn nghiêm trọng Database chính dưới tải cao.
+      S1_O4_1:
+        points: 10
+        minutes_cost: 2
+        next_node: S1_N5
+        explanation: Phân tích chính xác. Dấu hiệu connection tăng tối đa nhưng CPU/RAM
+          thấp là điển hình của Connection Leak.
+      S1_O4_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S1_N5
+        explanation: Tăng maxclients chỉ kéo dài thời gian trước khi pool tiếp tục
+          bị lấp đầy bởi connection rò rỉ.
+      S1_O4_3:
+        points: 0
+        minutes_cost: 6
+        next_node: S1_N4
+        explanation: FLUSHALL xóa sạch dữ liệu cache nhưng không đóng các kết nối
+          đang bị rò rỉ.
+      S1_O5_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S1_N6
+        explanation: Chính xác. Kiểm tra git blame ở đoạn code xử lý Redis giúp tìm
+          ra ngay đoạn code không đóng connection.
+      S1_O5_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S1_N6
+        explanation: Unit test thông thường ít khi phát hiện lỗi connection leak do
+          lượng request test quá nhỏ.
+      S1_O5_3:
+        points: 0
+        minutes_cost: 8
+        next_node: S1_N5
+        explanation: Lỗi ở ứng dụng gọi Redis, không liên quan đến Database Schema.
+      S1_O6_1:
+        points: 10
+        minutes_cost: 2
+        next_node: S1_N7
+        explanation: Quyết định chuẩn xác. Tăng tạm config giúp giảm áp lực ngay,
+          kết hợp code hotfix đúng nguyên nhân.
+      S1_O6_2:
+        points: 0
+        minutes_cost: 7
+        next_node: S1_N6
+        explanation: Scale out Pods khi đang bị leak connection sẽ khiến số lượng
+          kết nối tới Redis bùng nổ, làm sập luôn Redis server.
+      S1_O6_3:
+        points: 5
+        minutes_cost: 5
+        next_node: S1_N7
+        explanation: Chuyển cổng thanh toán tốn nhiều cấu hình rủi ro và tốn thời
+          gian không cần thiết.
+      S1_O7_1:
+        points: 10
+        minutes_cost: 3
+        next_node: S1_N8
+        explanation: Chính xác. Deploy Canary giúp giảm thiểu rủi ro nếu bản hotfix
+          có phát sinh tác động phụ.
+      S1_O7_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S1_N8
+        explanation: Deploy 100% cùng lúc trong giờ cao điểm có thể gây gián đoạn
+          kết nối ngắn hạn cho toàn bộ người dùng.
+      S1_O7_3:
+        points: 0
+        minutes_cost: 9
+        next_node: S1_N7
+        explanation: Rollback quá sâu làm mất nhiều tính năng kinh doanh mới và không
+          cần thiết.
+      S1_O8_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S1_RECOVERY
+        explanation: Tuyệt vời! Bạn đã xác nhận đầy đủ các chỉ số an toàn và khắc
+          phục sự cố thành công.
+      S1_O8_2:
+        points: 5
+        minutes_cost: 3
+        next_node: S1_RECOVERY
+        explanation: Thiếu bước xác nhận metric, nhưng sự cố thực tế đã được giải
+          quyết xong.
+      S1_O8_3:
+        points: 0
+        minutes_cost: 6
+        next_node: S1_N8
+        explanation: Xóa Pod quá sớm khi hệ thống chưa ổn định hoàn toàn có thể gây
+          nghẽn tải trở lại.
+    recovery_node: S1_RECOVERY
+  difficulty: medium
+- content:
+    scenario: Trong sự kiện Flash Sale, hệ thống đặt hàng báo lỗi HTTP 504 Gateway
+      Timeout liên tục. Khách hàng không thể bấm hoàn tất đơn hàng.
+    initial_logs: |-
+      [2023-11-11 00:02:11] WARN [order-service] [HikariPool-1 - Connection is not available, request timed out after 30000ms]
+      [2023-11-11 00:02:15] ERROR [order-service] [http-nio-8080-exec-45] c.e.o.s.OrderService: Transaction rolled back. org.postgresql.util.PSQLException: ERROR: deadlock detected
+        Detail: Process 14205 waits for ShareLock on transaction 88412; blocked by process 14210.
+        Process 14210 waits for ExclusiveLock on tuple (42,11) of relation 'inventory'; blocked by process 14205.
+    nodes:
+    - key: S2_N1
+      prompt: 'Bước 1: Cảnh báo 504 bùng nổ trong chương trình Flash Sale. Bạn bắt
+        đầu kiểm tra từ đâu?'
+      options:
+      - key: S2_O1_1
+        label: Mở APM Traces để phân tích thời gian phản hồi và truy vấn chậm nhất
+          ở API checkout.
+      - key: S2_O1_2
+        label: Tăng Nginx timeout từ 60 giây lên 300 giây để chờ request hoàn tất.
+      - key: S2_O1_3
+        label: Kiểm tra băng thông đường truyền mạng của Load Balancer.
+    - key: S2_N2
+      prompt: 'Bước 2: APM cho thấy kết nối tới PostgreSQL Database bị treo hoàn toàn,
+        HikariCP connection pool cạn kiệt. Bạn kiểm tra DB ra sao?'
+      options:
+      - key: S2_O2_1
+        label: Truy vấn pg_stat_activity để xem các query đang ở trạng thái active
+          và waiting lock.
+      - key: S2_O2_2
+        label: Tăng maximum-pool-size của HikariCP lên 500 ngay trong cấu hình ứng
+          dụng.
+      - key: S2_O2_3
+        label: Reboot máy chủ PostgreSQL để giải phóng tài nguyên.
+    - key: S2_N3
+      prompt: 'Bước 3: pg_stat_activity cho thấy hàng chục tiến trình đang chờ Lock
+        lẫn nhau trên bảng ''inventory'' và ''order_item''. Bạn làm gì tiếp theo?'
+      options:
+      - key: S2_O3_1
+        label: Truy vấn pg_locks kết hợp pg_stat_activity để vẽ cây phụ thuộc lock
+          giữa các PID.
+      - key: S2_O3_2
+        label: Chạy lệnh VACUUM FULL toàn bộ Database.
+      - key: S2_O3_3
+        label: Kill tất cả active connection tới PostgreSQL bằng pg_terminate_backend.
+    - key: S2_N4
+      prompt: 'Bước 4: Bạn phát hiện Transaction A giữ Lock ''inventory'' rồi xin
+        Lock ''order_item'', trong khi Transaction B giữ Lock ''order_item'' rồi xin
+        Lock ''inventory''. Vấn đề gốc rễ là gì?'
+      options:
+      - key: S2_O4_1
+        label: Xung đột thứ tự khóa tài nguyên (Out-of-order locking) gây ra Deadlock
+          tuần hoàn.
+      - key: S2_O4_2
+        label: Thiếu Index trên bảng inventory làm câu lệnh UPDATE bị chậm.
+      - key: S2_O4_3
+        label: Số lượng Read Replica không đủ đáp ứng lượt đọc.
+    - key: S2_N5
+      prompt: 'Bước 5: Làm sao để triệt tiêu vĩnh viễn nguy cơ Deadlock thứ tự khóa
+        này trong mã nguồn?'
+      options:
+      - key: S2_O5_1
+        label: 'Áp dụng chiến lược Lock theo thứ tự cố định (Resource Ordering): Luôn
+          lock các item theo ID tăng dần.'
+      - key: S2_O5_2
+        label: Bỏ hoàn toàn DB Transaction, bật Auto-commit cho từng câu SQL.
+      - key: S2_O5_3
+        label: Thêm từ khóa FOR UPDATE cho tất cả câu SELECT trong toàn hệ thống.
+    - key: S2_N6
+      prompt: 'Bước 6: Trong lúc chờ viết code fix, bạn cần hành động ngay lập tức
+        để hệ thống thông suốt trở lại. Bạn chọn cách nào?'
+      options:
+      - key: S2_O6_1
+        label: Terminate các PID đang bị deadlock bằng pg_cancel_backend và bật Rate
+          Limiting tạm thời ở API Gateway.
+      - key: S2_O6_2
+        label: Tắt hoàn toàn tính năng Flash Sale để ngừng nhận đơn mới.
+      - key: S2_O6_3
+        label: Xóa tất cả Ràng buộc Khóa ngoại (Foreign Keys) trên cơ sở dữ liệu.
+    - key: S2_N7
+      prompt: 'Bước 7: Bản sửa code sắp xếp thứ tự lock tài nguyên đã hoàn thành.
+        Bạn triển khai bản vá như thế nào?'
+      options:
+      - key: S2_O7_1
+        label: Tạo bản Hotfix build qua CI/CD pipeline và thực hiện Rolling Update
+          từng phần.
+      - key: S2_O7_2
+        label: Sửa trực tiếp file jar/class trên server Production không cần qua CI/CD.
+      - key: S2_O7_3
+        label: Chạy script SQL cập nhật dữ liệu thủ công trong DB trước khi deploy.
+    - key: S2_N8
+      prompt: 'Bước 8: Deploy hoàn tất. Bạn đánh giá hiệu quả phục hồi hệ thống ra
+        sao?'
+      options:
+      - key: S2_O8_1
+        label: Theo dõi DB Active Connections, Deadlock Count và latency API checkout
+          trên Grafana trong 5 phút.
+      - key: S2_O8_2
+        label: Tắt công cụ giám sát để đỡ tốn CPU server.
+      - key: S2_O8_3
+        label: Gửi email thông báo khắc phục thành công mà không cần kiểm tra metric.
+  answer_key:
+    option_effects:
+      S2_O1_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S2_N2
+        explanation: Chính xác. APM Traces giúp định vị ngay bottleneck nằm ở tầng
+          DB hay Application.
+      S2_O1_2:
+        points: 0
+        minutes_cost: 7
+        next_node: S2_N1
+        explanation: Tăng timeout làm các kết nối bị treo lâu hơn, khiến hệ thống
+          cạn kiệt socket nhanh hơn.
+      S2_O1_3:
+        points: 5
+        minutes_cost: 3
+        next_node: S2_N2
+        explanation: Kiểm tra băng thông không sai nhưng không đúng bản chất khi lỗi
+          trả về là 504 do backend xử lý chậm.
+      S2_O2_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S2_N3
+        explanation: Chính xác. pg_stat_activity là công cụ số 1 để soi các query
+          đang bị nghẽn trong Postgres.
+      S2_O2_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S2_N3
+        explanation: Tăng connection pool khi DB đang bị Lock chỉ khiến số lượng thread
+          bị khóa tăng lên gấp bội.
+      S2_O2_3:
+        points: 0
+        minutes_cost: 9
+        next_node: S2_N2
+        explanation: Reboot DB giữa lúc Flash Sale làm gián đoạn toàn bộ hệ thống
+          và nguy cơ mất mát transaction đang dở dang.
+      S2_O3_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S2_N4
+        explanation: Chính xác. Bảng pg_locks cung cấp thông tin chi tiết về tiến
+          trình nào đang giữ lock và tiến trình nào đang chờ.
+      S2_O3_2:
+        points: 0
+        minutes_cost: 10
+        next_node: S2_N3
+        explanation: VACUUM FULL sẽ khóa toàn bộ bảng, khiến sự cố trở nên tồi tệ
+          hơn gấp nhiều lần.
+      S2_O3_3:
+        points: 5
+        minutes_cost: 4
+        next_node: S2_N4
+        explanation: Kill sạch connection tạm thời giải phóng nghẽn nhưng sẽ ngay
+          lập tức bị lại khi traffic đổ vào.
+      S2_O4_1:
+        points: 10
+        minutes_cost: 2
+        next_node: S2_N5
+        explanation: Chuẩn xác! Thứ tự xin khóa không đồng nhất giữa các transaction
+          là nguyên nhân kinh điển gây Deadlock.
+      S2_O4_2:
+        points: 0
+        minutes_cost: 6
+        next_node: S2_N4
+        explanation: Lỗi ở đây là Deadlock do thứ tự lock, không phải do thiếu index
+          truy vấn chậm.
+      S2_O4_3:
+        points: 5
+        minutes_cost: 4
+        next_node: S2_N5
+        explanation: Read Replica chỉ phục vụ các truy vấn SELECT, không giải quyết
+          được xung đột WRITE lock.
+      S2_O5_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S2_N6
+        explanation: 'Tuyệt vời. Sắp xếp tài nguyên theo thứ tự ưu tiên (vd: ID tăng
+          dần) ngăn chặn triệt để vòng lặp phụ thuộc lock.'
+      S2_O5_2:
+        points: 0
+        minutes_cost: 8
+        next_node: S2_N5
+        explanation: Bỏ Transaction sẽ dẫn đến bất tin cậy dữ liệu (Data Inconsistency)
+          nghiêm trọng khi đặt hàng.
+      S2_O5_3:
+        points: 5
+        minutes_cost: 5
+        next_node: S2_N6
+        explanation: Lạm dụng FOR UPDATE làm giảm hiệu năng hệ thống không cần thiết.
+      S2_O6_1:
+        points: 10
+        minutes_cost: 2
+        next_node: S2_N7
+        explanation: Quyết định xử lý sự cố rất tốt! Giải phóng lock nghẽn và giới
+          hạn tải để hệ thống phục hồi từng bước.
+      S2_O6_2:
+        points: 5
+        minutes_cost: 4
+        next_node: S2_N7
+        explanation: Tắt Flash sale giúp hết lỗi nhưng gây thiệt hại doanh thu trực
+          tiếp cho doanh nghiệp.
+      S2_O6_3:
+        points: 0
+        minutes_cost: 9
+        next_node: S2_N6
+        explanation: Xóa Foreign Key làm hỏng tính toàn vẹn dữ liệu và không sửa được
+          bản chất lỗi deadlock.
+      S2_O7_1:
+        points: 10
+        minutes_cost: 3
+        next_node: S2_N8
+        explanation: Chính xác. Luôn luôn dùng CI/CD và Rolling update để đảm bảo
+          tính nhất quán của code.
+      S2_O7_2:
+        points: 0
+        minutes_cost: 7
+        next_node: S2_N7
+        explanation: Sửa code trực tiếp trên Production vô cùng rủi ro và vi phạm
+          quy trình vận hành.
+      S2_O7_3:
+        points: 5
+        minutes_cost: 5
+        next_node: S2_N8
+        explanation: Chạy script tay tốn thời gian và dễ nhầm lẫn dữ liệu trong lúc
+          cao điểm.
+      S2_O8_1:
+        points: 10
+        minutes_cost: 1
+        next_node: S2_RECOVERY
+        explanation: Rất xuất sắc! Theo dõi đa chiều giúp xác nhận sự cố Deadlock
+          đã được giải quyết triệt để.
+      S2_O8_2:
+        points: 0
+        minutes_cost: 6
+        next_node: S2_N8
+        explanation: Tắt monitoring làm hệ thống bị 'mù' thông tin nếu sự cố tái diễn.
+      S2_O8_3:
+        points: 5
+        minutes_cost: 3
+        next_node: S2_RECOVERY
+        explanation: Sự cố đã hết nhưng thông báo khi chưa verify metric là chưa chuẩn
+          quy trình SRE.
+    recovery_node: S2_RECOVERY
+  difficulty: hard
+- content:
+    scenario: Sự cố cổng thanh toán bị treo dây chuyền. Khách hàng thực hiện giao
+      dịch bị lỗi 504 Gateway Timeout liên tục. Hệ thống ghi nhận tỷ lệ lỗi lên tới
+      65% trên toàn bộ Payment Service.
+    initial_logs: |-
+      [ERROR] HikariPool-1 - Connection is not available, request timed out after 30000ms.
+      [WARN] Active connections: 50/50, Idle: 0, Waiting: 142.
+      [ERROR] org.springframework.transaction.CannotCreateTransactionException: Could not open JPA EntityManager for transaction.
+    nodes:
+    - key: q1_node1
+      prompt: Hệ thống báo lỗi 504 Gateway Timeout liên tục tại Payment Service. Bạn
+        sẽ làm gì đầu tiên để chẩn đoán?
+      options:
+      - key: q1_opt1
+        label: Kiểm tra DB active connections và danh sách long-running queries trên
+          cơ sở dữ liệu.
+      - key: q1_opt2
+        label: Restart ngay lập tức tất cả instance của Payment Service.
+      - key: q1_opt3
+        label: Tăng thêm RAM/CPU cho Pod Payment Service trên Kubernetes.
+    - key: q1_node2
+      prompt: Kết quả kiểm tra cho thấy Hikari Connection Pool bị cạn kiệt (50/50
+        active connections) và 140+ request đang xếp hàng chờ connection. Bước tiếp
+        theo là gì?
+      options:
+      - key: q1_opt4
+        label: Trích xuất Thread Dump của Payment Service để xem các thread đang nghẽn
+          ở đâu.
+      - key: q1_opt5
+        label: Sửa ConfigMap tăng maximumPoolSize của HikariPool từ 50 lên 200.
+      - key: q1_opt6
+        label: Chạy lệnh kill toàn bộ connection DB đang mở từ phía PostgreSQL.
+    - key: q1_node3
+      prompt: Thread dump chỉ ra hàng loạt thread bị block ở ThirdPartyPayClient.callWebhook()
+        nằm bên trong phương thức có annotation @Transactional. Đánh giá nguyên nhân?
+      options:
+      - key: q1_opt7
+        label: 'Xác định lỗi thiết kế: Gọi API HTTP bên ngoài trong DB Transaction
+          làm giữ DB connection quá lâu.'
+      - key: q1_opt8
+        label: Do Database Isolation Level đang để ở mức quá cao.
+      - key: q1_opt9
+        label: Do timeout của ThirdPartyPayClient quá ngắn nên cần tăng lên 60 giây.
+    - key: q1_node4
+      prompt: Cần hành động ứng phó khẩn cấp để xả nghẽn cho hệ thống trong khi chờ
+        sửa code. Phương án nào tối ưu?
+      options:
+      - key: q1_opt10
+        label: Bật Feature Flag ngắt synchronous webhook callback, chuyển tạm sang
+          xử lý qua Async Queue.
+      - key: q1_opt11
+        label: Thêm annotation @Async trực tiếp vào hàm gọi webhook mà không thay
+          đổi @Transactional.
+      - key: q1_opt12
+        label: Bật chế độ bảo trì toàn bộ ứng dụng để ngắt kết nối người dùng.
+    - key: q1_node5
+      prompt: Sau khi bật Feature Flag Async Queue, lượng waiting connection giảm
+        mạnh. Bạn thực hiện kiểm tra nào để đảm bảo hệ thống đã an toàn?
+      options:
+      - key: q1_opt13
+        label: Theo dõi Hikari metrics và HTTP status code 200/500 trên dashboard
+          Grafana.
+      - key: q1_opt14
+        label: Xóa toàn bộ Cache Redis của hệ thống thanh toán.
+      - key: q1_opt15
+        label: Tăng số lượng Pod replica lên gấp 3 lần ngay lập tức.
+    - key: q1_node6
+      prompt: Hệ thống đã tạm ổn định. Giờ cần chuẩn bị bản Hotfix code để khắc phục
+        triệt để. Giải pháp refactor nào đúng?
+      options:
+      - key: q1_opt16
+        label: Tách API call ra ngoài @Transactional và bọc bằng Circuit Breaker với
+          TimeLimiter.
+      - key: q1_opt17
+        label: Giữ nguyên @Transactional nhưng bọc API call trong khối try-catch.
+      - key: q1_opt18
+        label: Chuyển toàn bộ cơ sở dữ liệu sang NoSQL để tránh giới hạn connection.
+    - key: q1_node7
+      prompt: Bản Hotfix đã được code và build xong Docker Image. Quy trình triển
+        khai sản phẩm an toàn là gì?
+      options:
+      - key: q1_opt19
+        label: Deploy Rolling Update / Canary deploy vào Kubernetes Production cluster.
+      - key: q1_opt20
+        label: Chạy trực tiếp script SQL trên DB Master trước khi deploy app.
+      - key: q1_opt21
+        label: Restart đồng loạt tất cả các Node Worker trong cụm Kubernetes.
+    - key: q1_node8
+      prompt: Hotfix đã lên Production thành công, latency trả về bình thường (<200ms),
+        DB active connection ở mức 15%. Bước hoàn tất sự cố là gì?
+      options:
+      - key: q1_opt22
+        label: Tắt dần Feature Flag tạm thời, xác nhận hệ thống hoàn toàn ổn định
+          và đóng incident.
+      - key: q1_opt23
+        label: Giữ nguyên Feature Flag tạm thời mà không cần kiểm tra lại.
+      - key: q1_opt24
+        label: Rollback lại phiên bản code cũ ban đầu.
+    - key: q1_recovery
+      prompt: Sự cố đã được khắc phục hoàn toàn. Hệ thống thanh toán đã hoạt động
+        ổn định trở lại.
+      options:
+      - key: q1_opt25
+        label: Xác nhận hoàn tất bài tập.
+  answer_key:
+    option_effects:
+      q1_opt1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_node2
+        explanation: Chính xác! Kiểm tra connection pool và long-running queries giúp
+          xác định ngay tình trạng nghẽn tài nguyên cơ sở dữ liệu.
+      q1_opt2:
+        points: 5
+        minutes_cost: 4
+        next_node: q1_node2
+        explanation: Restart giúp giải phóng connection tạm thời nhưng không giải
+          quyết gốc rễ vấn đề, connection sẽ bị đầy lại nhanh chóng.
+      q1_opt3:
+        points: 0
+        minutes_cost: 6
+        next_node: q1_node2
+        explanation: Tăng tài nguyên Pod không giải quyết được việc cạn kiệt DB Connection
+          Pool.
+      q1_opt4:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_node3
+        explanation: Chính xác! Thread Dump phản ánh chính xác các thread đang bị
+          ngưng trệ tại đâu trong mã nguồn.
+      q1_opt5:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_node3
+        explanation: Tăng pool size khi chưa biết nguyên nhân sẽ làm nghẽn DB server
+          nặng hơn.
+      q1_opt6:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_node3
+        explanation: Kill connection bừa bãi gây gãy giao dịch của người dùng và làm
+          lọt dữ liệu dở dang.
+      q1_opt7:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_node4
+        explanation: 'Chuẩn xác! Mẫu anti-pattern phổ biến: Gọi network I/O bên ngoài
+          trong DB Transaction làm chiếm giữ DB connection lâu.'
+      q1_opt8:
+        points: 0
+        minutes_cost: 4
+        next_node: q1_node4
+        explanation: Sai. Isolation level không phải là nguyên nhân chính gây đơ thread
+          khi chờ HTTP response bên ngoài.
+      q1_opt9:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_node4
+        explanation: Tăng HTTP timeout chỉ làm thread bị block lâu hơn, khiến connection
+          pool cạn kiệt nghiêm trọng hơn.
+      q1_opt10:
+        points: 10
+        minutes_cost: 2
+        next_node: q1_node5
+        explanation: Xuất sắc! Chuyển sang Async xử lý bất đồng bộ ngắt sự phụ thuộc
+          thời gian thực, giải phóng ngay DB connection.
+      q1_opt11:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_node5
+        explanation: 'Đó là lỗi Spring AOP proxying: Gọi hàm @Async từ cùng class
+          hoặc trong transaction sẽ không có tác dụng bất đồng bộ.'
+      q1_opt12:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_node5
+        explanation: Bật bảo trì giúp chặn lỗi nhưng gây gián đoạn toàn bộ kinh doanh
+          không cần thiết.
+      q1_opt13:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_node6
+        explanation: Đúng chuẩn! Kiểm tra Grafana dashboard xác nhận số connection
+          hạ nhiệt và error rate giảm.
+      q1_opt14:
+        points: 0
+        minutes_cost: 4
+        next_node: q1_node6
+        explanation: Xóa Redis cache không liên quan và có thể gây cache miss làm
+          sập DB.
+      q1_opt15:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_node6
+        explanation: Tăng Pod khi nghẽn DB chỉ làm quá tải thêm DB Server.
+      q1_opt16:
+        points: 10
+        minutes_cost: 2
+        next_node: q1_node7
+        explanation: Tối ưu nhất! Tách HTTP client ra khỏi Transaction và có Circuit
+          Breaker bảo vệ hệ thống.
+      q1_opt17:
+        points: 0
+        minutes_cost: 4
+        next_node: q1_node7
+        explanation: Try-catch không giúp giải phóng DB Connection nếu lệnh đó vẫn
+          nằm trong phạm vi @Transactional.
+      q1_opt18:
+        points: 0
+        minutes_cost: 7
+        next_node: q1_node7
+        explanation: Đổi DB đòi hỏi thay đổi kiến trúc lớn, không thể làm trong một
+          bản hotfix khẩn cấp.
+      q1_opt19:
+        points: 10
+        minutes_cost: 2
+        next_node: q1_node8
+        explanation: Triển khai Rolling Update giúp thay thế pod cũ bằng pod mới mà
+          không gián đoạn dịch vụ.
+      q1_opt20:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_node8
+        explanation: Vấn đề ở ứng dụng, không cần can thiệp DDL/DML trực tiếp trên
+          DB Master.
+      q1_opt21:
+        points: 0
+        minutes_cost: 8
+        next_node: q1_node8
+        explanation: Restart Worker Node gây ngắt kết nối của nhiều dịch vụ khác không
+          liên quan.
+      q1_opt22:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_recovery
+        explanation: Rất tốt! Khôi phục trạng thái chuẩn, gỡ bỏ cấu hình tạm và kết
+          thúc xử lý sự cố.
+      q1_opt23:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_recovery
+        explanation: Để nguyên cấu hình tạm thời có thể ảnh hưởng tới tính nhất quán
+          dữ liệu lâu dài.
+      q1_opt24:
+        points: 0
+        minutes_cost: 6
+        next_node: q1_node7
+        explanation: Rollback lại code lỗi sẽ khiến sự cố tái diễn ngay lập tức.
+      q1_opt25:
+        points: 10
+        minutes_cost: 0
+        next_node: q1_recovery
+        explanation: Hoàn tất.
+    recovery_node: q1_recovery
+  difficulty: medium
+- content:
+    scenario: Dịch vụ Quản lý Đơn hàng (Order Service) bị sập dây chuyền. CPU của
+      Redis Cluster Node 1 nhảy vọt lên 100%. Latency API đặt hàng tăng từ 30ms lên
+      15,000ms.
+    initial_logs: |-
+      [CRITICAL] Redis cluster node redis-01 CPU usage at 100%.
+      [ERROR] io.lettuce.core.RedisCommandTimeoutException: Command timed out after 5000ms.
+      [WARN] OrderService - Request queue depth exceeded limit (1000/1000).
+    nodes:
+    - key: q2_node1
+      prompt: Redis Master CPU chạm mốc 100%, làm nghẽn toàn bộ dịch vụ đặt hàng.
+        Bước phân tích đầu tiên của bạn là gì?
+      options:
+      - key: q2_opt1
+        label: Mở Redis CLI chạy SLOWLOG GET 10 để tìm câu lệnh đang tốn CPU.
+      - key: q2_opt2
+        label: Restart ngay lập tức instance Redis Master bị 100% CPU.
+      - key: q2_opt3
+        label: Scale out tăng gấp đôi số lượng Pod Order Service.
+    - key: q2_node2
+      prompt: Slowlog xuất hiện lệnh 'KEYS order:user:*' được thực hiện liên tục với
+        tần suất hàng chục lần/giây. Bạn đánh giá thế nào?
+      options:
+      - key: q2_opt4
+        label: Lệnh KEYS là O(N), chạy đơn luồng trên Redis làm khoá toàn bộ các command
+          khác.
+      - key: q2_opt5
+        label: Do Redis bị thiếu bộ nhớ RAM nên lệnh KEYS chạy chậm.
+      - key: q2_opt6
+        label: Do Redis Master chưa bật chế độ AOF Persistence.
+    - key: q2_node3
+      prompt: Kiểm tra log ứng dụng xác định lệnh KEYS đến từ CronJob 'OrderSyncWorker'
+        chạy mỗi phút. Xử lý tức thời ra sao?
+      options:
+      - key: q2_opt7
+        label: Suspend/Pause CronJob 'OrderSyncWorker' trên Kubernetes ngay lập tức.
+      - key: q2_opt8
+        label: Tăng thêm CPU limit cho Container Redis.
+      - key: q2_opt9
+        label: Xóa toàn bộ các key bắt đầu bằng order:user:* trên Redis.
+    - key: q2_node4
+      prompt: Đã ngắt CronJob, CPU Redis giảm về 40%, nhưng đơn hàng vẫn bị tắc nghẽn
+        do bão request dồn dập (Cache Stampede). Cần làm gì?
+      options:
+      - key: q2_opt10
+        label: Bật Rate Limiter và Circuit Breaker tại API Gateway để cản bão request.
+      - key: q2_opt11
+        label: Cho CronJob OrderSyncWorker chạy lại để đồng bộ bớt đơn.
+      - key: q2_opt12
+        label: Xóa Redis khỏi hệ thống để cho ứng dụng đọc trực tiếp DB Master.
+    - key: q2_node5
+      prompt: Hệ thống đã dừng sập hoàn toàn nhờ Circuit Breaker. Bây giờ cần giải
+        quyết triệt để lệnh KEYS trong code OrderSyncWorker.
+      options:
+      - key: q2_opt13
+        label: Thay lệnh KEYS bằng SCAN (concurrency/cursor based) hoặc lưu danh sách
+          theo Redis Set.
+      - key: q2_opt14
+        label: Thay lệnh KEYS bằng lệnh MGET.
+      - key: q2_opt15
+        label: Tăng timeout của Redis client từ 5s lên 30s.
+    - key: q2_node6
+      prompt: Bản code tối ưu đã được test ở Staging (dùng Redis Set thay cho KEYS).
+        Bạn chuẩn bị deploy hotfix thế nào?
+      options:
+      - key: q2_opt16
+        label: Deploy Hotfix cho OrderSyncWorker và cập nhật cấu hình Redis data structure
+          mới.
+      - key: q2_opt17
+        label: Xóa cấu hình Redis trong Pod deployment để app không dùng Redis nữa.
+      - key: q2_opt18
+        label: Un-suspend CronJob cũ trước rồi mới deploy code mới sau.
+    - key: q2_node7
+      prompt: Hotfix đã deploy thành công. Tình trạng Redis CPU giữ ở mức 10%. Làm
+        thế nào để đưa dịch vụ phục vụ người dùng trở lại?
+      options:
+      - key: q2_opt19
+        label: Nâng dần giới hạn Rate Limit ở API Gateway và khôi phục CronJob OrderSyncWorker.
+      - key: q2_opt20
+        label: Khóa API Gateway thêm 2 tiếng để đảm bảo dữ liệu ổn định.
+      - key: q2_opt21
+        label: Revert phiên bản code Git về lại bản của tuần trước.
+    - key: q2_node8
+      prompt: Toàn bộ metric đã trở về mức xanh (CPU < 15%, Order Latency ~25ms, Error
+        Rate 0%). Bước cuối cùng trong quy trình sự cố?
+      options:
+      - key: q2_opt22
+        label: Đóng incident, tổng hợp timeline và tổ chức buổi họp Post-mortem phân
+          tích nguyên nhân.
+      - key: q2_opt23
+        label: Bỏ qua Post-mortem, chuyển sang làm tính năng mới ngay.
+      - key: q2_opt24
+        label: Tắt hẳn dịch vụ Redis để tránh nguy cơ trong tương lai.
+    - key: q2_recovery
+      prompt: Sự cố Redis 100% CPU đã được giải quyết triệt để. Hệ thống Order đã
+        hoạt động mượt mà.
+      options:
+      - key: q2_opt25
+        label: Xác nhận hoàn tất bài tập.
+  answer_key:
+    option_effects:
+      q2_opt1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_node2
+        explanation: Chính xác! Redis xử lý đơn luồng, xem Slowlog là cách nhanh nhất
+          tìm lệnh tốn CPU.
+      q2_opt2:
+        points: 0
+        minutes_cost: 6
+        next_node: q2_node2
+        explanation: Restart sẽ khiến ứng dụng dồn request xuống DB gây sập DB, và
+          khi Redis lên lại vẫn bị lệnh KEYS làm nghẽn.
+      q2_opt3:
+        points: 5
+        minutes_cost: 4
+        next_node: q2_node2
+        explanation: Tăng Pod Order Service trong khi Redis nghẽn chỉ làm tăng thêm
+          lượng request gửi tới Redis.
+      q2_opt4:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_node3
+        explanation: Chính xác! KEYS có độ phức tạp O(N), quét toàn bộ keyspace làm
+          block đơn luồng của Redis.
+      q2_opt5:
+        points: 0
+        minutes_cost: 7
+        next_node: q2_node3
+        explanation: Sai. Lệnh KEYS tốn CPU do phải iterate qua toàn bộ bộ nhớ, không
+          liên quan trực tiếp thiếu RAM.
+      q2_opt6:
+        points: 5
+        minutes_cost: 3
+        next_node: q2_node3
+        explanation: AOF Persistence ảnh hưởng I/O đĩa, không phải nguyên nhân CPU
+          100% do lệnh KEYS.
+      q2_opt7:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_node4
+        explanation: Tuyệt vời! Dừng nguồn phát tán lệnh vô tận giúp Redis giải phóng
+          ngay luồng xử lý.
+      q2_opt8:
+        points: 5
+        minutes_cost: 5
+        next_node: q2_node4
+        explanation: Redis chạy đơn luồng chính (main thread), tăng thêm vCPU cho
+          container không giúp lệnh KEYS chạy đa luồng.
+      q2_opt9:
+        points: 0
+        minutes_cost: 6
+        next_node: q2_node4
+        explanation: Chạy lệnh DEL/KEYS để xóa tiếp tục làm Redis bị block nặng hơn.
+      q2_opt10:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_node5
+        explanation: Chính xác! Giảm tải lưu lượng tại Gateway giúp hạ nhiệt bão request
+          khi cache bị thủng.
+      q2_opt11:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_node5
+        explanation: Bật lại CronJob khi chưa sửa code sẽ đẩy Redis trở lại 100% CPU
+          ngay lập tức.
+      q2_opt12:
+        points: 0
+        minutes_cost: 8
+        next_node: q2_node5
+        explanation: Xóa Redis sẽ chuyển toàn bộ traffic xuống DB, gây sập luôn DB
+          Master.
+      q2_opt13:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_node6
+        explanation: Rất chuẩn! SCAN chia nhỏ việc duyệt key không block Redis, hoặc
+          dùng Set duy trì index riêng với O(1).
+      q2_opt14:
+        points: 0
+        minutes_cost: 4
+        next_node: q2_node6
+        explanation: MGET yêu cầu truyền sẵn danh sách key cụ thể, không thay thế
+          được tính năng tìm kiếm pattern của KEYS.
+      q2_opt15:
+        points: 5
+        minutes_cost: 3
+        next_node: q2_node6
+        explanation: Tăng timeout làm request treo lâu hơn và tốn tài nguyên bộ nhớ
+          ứng dụng.
+      q2_opt16:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_node7
+        explanation: Đúng quy trình! Deploy Hotfix code chuẩn chỉnh để giải quyết
+          triệt để lỗi.
+      q2_opt17:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_node7
+        explanation: Xóa cấu hình làm ứng dụng không thể kết nối Cache, gây lỗi sập
+          hệ thống.
+      q2_opt18:
+        points: 0
+        minutes_cost: 6
+        next_node: q2_node7
+        explanation: Chạy CronJob cũ trước khi nâng cấp code sẽ tái diễn sự cố lập
+          tức.
+      q2_opt19:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_node8
+        explanation: Chính xác! Mở lưu lượng từng bước đảm bảo hệ thống chịu tải an
+          toàn.
+      q2_opt20:
+        points: 5
+        minutes_cost: 4
+        next_node: q2_node8
+        explanation: Khóa quá lâu gây thiệt hại kinh doanh không cần thiết khi hệ
+          thống đã ổn định.
+      q2_opt21:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_node8
+        explanation: Revert lại Git làm mất bản Hotfix vừa tạo.
+      q2_opt22:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_recovery
+        explanation: Rất tốt! Post-mortem là bước quan trọng giúp rút kinh nghiệm
+          và phòng ngừa sự cố tương tự.
+      q2_opt23:
+        points: 5
+        minutes_cost: 2
+        next_node: q2_recovery
+        explanation: Không làm Post-mortem làm bỏ lỡ cơ hội cải tiến quy trình và
+          phòng tránh rủi ro tương lai.
+      q2_opt24:
+        points: 0
+        minutes_cost: 10
+        next_node: q2_recovery
+        explanation: Tắt vĩnh viễn Redis khiến hệ thống mất lớp Caching quan trọng.
+      q2_opt25:
+        points: 10
+        minutes_cost: 0
+        next_node: q2_recovery
+        explanation: Hoàn tất.
+    recovery_node: q2_recovery
+  difficulty: hard
+- content:
+    scenario: Hệ thống thanh toán của ứng dụng Thương mại điện tử bị nghẽn nặng trong
+      giờ Flash Sale. Khách hàng liên tục nhận lỗi HTTP 504 Gateway Timeout khi bấm
+      thanh toán. Doanh thu rơi tự do.
+    initial_logs: "[2023-10-25 12:00:05] ERROR payment-api: RedisConnectionException:
+      Unable to connect to redis-cluster:6379 (Timeout 5000ms) | [2023-10-25 12:00:08]
+      WARN nginx-ingress: 504 Gateway Time-out POST /api/v1/checkout - upstream response
+      time 10.02s"
+    nodes:
+    - key: q1_n1
+      prompt: Hệ thống cảnh báo hàng loạt lỗi 504 trên cổng thanh toán. Bước đầu tiên
+        bạn sẽ kiểm tra chỉ số nào?
+      options:
+      - key: q1_n1_o1
+        label: Kiểm tra chỉ số CPU, Memory và Client Connections trên Redis Cluster
+      - key: q1_n1_o2
+        label: Khởi động lại ngay lập tức toàn bộ dàn API pod để giải phóng bộ nhớ
+      - key: q1_n1_o3
+        label: Tăng kích thước Database PostgreSQL lên instance lớn hơn
+    - key: q1_n2
+      prompt: Chỉ số Redis cho thấy CPU đạt 100%, số lượng connection chạm ngưỡng
+        maxclients (10,000). Bước tiếp theo bạn làm gì?
+      options:
+      - key: q1_n2_o1
+        label: Chạy câu lệnh SLOWLOG GET và kiểm tra các key có lượt truy cập cao
+          (Hot Keys)
+      - key: q1_n2_o2
+        label: Thực hiện lệnh FLUSHALL trên Redis để xóa bớt dữ liệu rác
+      - key: q1_n2_o3
+        label: Tăng tham số maxmemory của Redis trong file cấu hình
+    - key: q1_n3
+      prompt: Kết quả SLOWLOG cho thấy key 'flash_sale_campaign_item_102' bị hết hạn
+        (TTL expire) đúng 12:00:00, khiến 50,000 requests/giây đồng thời chọc thẳng
+        xuống Database để đọc lại thông tin (Cache Stampede). Bạn xử lý thế nào?
+      options:
+      - key: q1_n3_o1
+        label: Kích hoạt cơ chế Distributed Lock (Mutex) kết hợp Cache Warming thủ
+          công cho hot key
+      - key: q1_n3_o2
+        label: Xóa toàn bộ Index của bảng Campaign trong Database để ghi dữ liệu nhanh
+          hơn
+      - key: q1_n3_o3
+        label: Chờ cho Database tự xử lý xong 50,000 request đó
+    - key: q1_n4
+      prompt: Để ngăn chặn hiện tượng Cache Stampede tái diễn trong khi khôi phục
+        cache, bạn chọn giải pháp khẩn cấp nào?
+      options:
+      - key: q1_n4_o1
+        label: Set cứng cache cho hot key với TTL dài (24h) và bật cơ chế Background
+          Refresh
+      - key: q1_n4_o2
+        label: Mở rộng max_connections của Database lên 20,000
+      - key: q1_n4_o3
+        label: Chặn toàn bộ IP của người dùng truy cập từ mạng di động
+    - key: q1_n5
+      prompt: Hot key đã được nạp lại vào Redis, nhưng API Connection Pool vẫn đang
+        bị quá tải do hàng nghìn request cũ đọng lại. Bạn làm gì để xả tải?
+      options:
+      - key: q1_n5_o1
+        label: Kích hoạt Rate Limiter và Circuit Breaker ở API Gateway đối với endpoint
+          checkout
+      - key: q1_n5_o2
+        label: Restart Redis thêm một lần nữa
+      - key: q1_n5_o3
+        label: Tắt chứng chỉ SSL/TLS trên API Gateway
+    - key: q1_n6
+      prompt: Traffic trên Gateway bắt đầu ổn định trở lại. Bạn cần làm gì để xác
+        nhận DB và API đã trở lại trạng thái lành lặn?
+      options:
+      - key: q1_n6_o1
+        label: Kiểm tra APM dashboard quan sát Latency p99 và Connection Pool Active
+          Count
+      - key: q1_n6_o2
+        label: Kill toàn bộ các query đang chạy trong Postgres
+      - key: q1_n6_o3
+        label: Tắt hệ thống cảnh báo Prometheus để bớt nhiễu
+    - key: q1_n7
+      prompt: Hệ thống đã chạy mượt trở lại với 95% request thành công. Làm sao để
+        nâng dần hạn mức truy cập cho người dùng?
+      options:
+      - key: q1_n7_o1
+        label: Tăng dần giới hạn Rate Limit từng bậc (từ 20% -> 50% -> 100%) và theo
+          dõi CPU DB
+      - key: q1_n7_o2
+        label: Gỡ bỏ ngay lập tức toàn bộ Rate Limit trên API Gateway
+      - key: q1_n7_o3
+        label: Yêu cầu người dùng tự xóa cache trình duyệt
+    - key: q1_n8
+      prompt: Sự cố được khắc phục hoàn toàn, latency dưới 150ms. Bước kết thúc quy
+        trình xử lý sự cố là gì?
+      options:
+      - key: q1_n8_o1
+        label: Ghi nhận Post-Mortem, cập nhật cảnh báo tự động và tạo task phòng chống
+          Cache Stampede
+      - key: q1_n8_o2
+        label: Đóng ticket sự cố và không cần họp lại với đội dev
+      - key: q1_n8_o3
+        label: Giảm cấu hình Redis để tiết kiệm chi phí
+    - key: q1_recovery
+      prompt: Sự cố Cache Stampede trên dịch vụ thanh toán đã được khắc phục hoàn
+        toàn!
+      options: []
+  answer_key:
+    option_effects:
+      q1_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n2
+        explanation: Chẩn đoán chính xác. Phát hiện nguyên nhân nghẽn từ hạ tầng Redis.
+      q1_n1_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_n1
+        explanation: Restart vô ích khi Redis vẫn bị nghẽn connection, làm tăng downtime.
+      q1_n1_o3:
+        points: 5
+        minutes_cost: 4
+        next_node: q1_n2
+        explanation: Tốn thời gian nâng cấp DB trong khi chưa xác định rõ bottleneck
+          ở đâu.
+      q1_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n3
+        explanation: Chính xác. Giúp tìm ra Hot Key đang ngốn băng thông và tài nguyên
+          Redis.
+      q1_n2_o2:
+        points: 0
+        minutes_cost: 6
+        next_node: q1_n2
+        explanation: Hành động thảm họa! Xóa sạch cache khiến toàn bộ traffic đâm
+          xuống DB.
+      q1_n2_o3:
+        points: 5
+        minutes_cost: 3
+        next_node: q1_n3
+        explanation: Tăng bộ nhớ không giải quyết được vấn đề vượt quá connection
+          do CPU 100%.
+      q1_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: q1_n4
+        explanation: Chính xác. Khóa phân tán giúp chỉ 1 request nạp lại cache, bảo
+          vệ DB.
+      q1_n3_o2:
+        points: 0
+        minutes_cost: 7
+        next_node: q1_n3
+        explanation: Xóa index khiến các câu lệnh SELECT bị Table Scan, làm chết DB.
+      q1_n3_o3:
+        points: 0
+        minutes_cost: 8
+        next_node: q1_n3
+        explanation: Phù hợp với việc đứng nhìn hệ thống sụp đổ hoàn toàn.
+      q1_n4_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: q1_n5
+        explanation: Giúp hot key không bị hổng dữ liệu trong thời gian diễn ra chiến
+          dịch.
+      q1_n4_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: q1_n5
+        explanation: Tăng DB max connections tạm thời xả nghẽn nhưng dễ gây đơ luôn
+          DB host.
+      q1_n4_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_n4
+        explanation: Chặn khách hàng mua hàng gây mất doanh thu nghiêm trọng.
+      q1_n5_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n6
+        explanation: Giới hạn lưu lượng hợp lý giúp hệ thống tiêu hóa dần lượng request
+          tích tụ.
+      q1_n5_o2:
+        points: 0
+        minutes_cost: 4
+        next_node: q1_n5
+        explanation: Restart Redis lặp lại làm hỏng trạng thái cache vừa nạp.
+      q1_n5_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_n5
+        explanation: Mất an toàn bảo mật và không giải quyết được bài toán quá tải.
+      q1_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n7
+        explanation: Theo dõi các chỉ số đo lường thực tế là chuẩn mực giám sát sự
+          cố.
+      q1_n6_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_n6
+        explanation: Kill query dở dang gây lỗi dữ liệu không nhất quán (inconsistent
+          state).
+      q1_n6_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: q1_n6
+        explanation: Tắt cảnh báo khiến đội ngũ mất dấu tình trạng hệ thống.
+      q1_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_n8
+        explanation: Mở luồng lưu lượng từng bước đảm bảo hệ thống không bị sốc nhiệt
+          trở lại.
+      q1_n7_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: q1_n7
+        explanation: Xả trạm quá nhanh có thể gây đợt bùng nổ request mới khiến DB
+          sập lại.
+      q1_n7_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: q1_n7
+        explanation: Không thể bắt hàng trăm nghìn người dùng tự xóa cache trình duyệt.
+      q1_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q1_recovery
+        explanation: Quy trình khép kín bài bản giúp nâng cao tính ổn định lâu dài.
+      q1_n8_o2:
+        points: 0
+        minutes_cost: 2
+        next_node: q1_recovery
+        explanation: Bỏ qua Post-Mortem sẽ khiến lỗi tương tự lặp lại trong tương
+          lai.
+      q1_n8_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: q1_recovery
+        explanation: Giảm cấu hình khi vừa xảy ra quá tải là quyết định sai lầm.
+    recovery_node: q1_recovery
+  difficulty: medium
+- content:
+    scenario: Dịch vụ order-service trên Kubernetes liên tục bị k8s oom-killed và
+      restart lại. Hàng ngàn đơn hàng của khách bị kẹt ở trạng thái Pending. Queue
+      tin nhắn tích tụ nhanh chóng.
+    initial_logs: "[2023-10-25 14:10:12] k8s-event: Pod order-service-7d8b9c-x42z1
+      OOMKilled (Exit Code 137) | memory limit 2Gi reached | [2023-10-25 14:10:15]
+      rabbitmq: queue 'order_created_queue' unacked messages: 45,210"
+    nodes:
+    - key: q2_n1
+      prompt: Các Pod order-service liên tục rơi vào trạng thái CrashLoopBackOff do
+        OOMKilled. Hành động đầu tiên của bạn là gì?
+      options:
+      - key: q2_n1_o1
+        label: Dùng 'kubectl describe pod' và kiểm tra metricsMemory Usage trên Grafana
+      - key: q2_n1_o2
+        label: Tăng số lượng Replica Pods từ 5 lên 100
+      - key: q2_n1_o3
+        label: Xóa toàn bộ Kubernetes Namespace chứa order-service
+    - key: q2_n2
+      prompt: Biểu đồ Grafana cho thấy Memory tăng dần theo dạng bậc thang (staircase)
+        đều đặn cho đến khi chạm mốc 2GB trong 15 phút. Đây là biểu hiện đặc trưng
+        của vấn đề gì?
+      options:
+      - key: q2_n2_o1
+        label: Rò rỉ bộ nhớ (Memory Leak) trong ứng dụng
+      - key: q2_n2_o2
+        label: Tấn công từ chối dịch vụ DDOS vào hạ tầng network
+      - key: q2_n2_o3
+        label: Database PostgreSQL nghẽn ổ đĩa SSD
+    - key: q2_n3
+      prompt: Để tìm chính xác nguyên nhân Memory Leak trong source code, bước xử
+        lý tiếp theo là gì?
+      options:
+      - key: q2_n3_o1
+        label: Kiểm tra danh sách Commit gần đây và soi Heap Dump của Pod trước khi
+          crash
+      - key: q2_n3_o2
+        label: Khởi động lại toàn bộ Kubernetes Worker Nodes
+      - key: q2_n3_o3
+        label: Tắt toàn bộ hệ thống Log của Node.js
+    - key: q2_n4
+      prompt: Soi Heap Dump phát hiện biến global 'processedEventsArray' tích tụ mọi
+        request payload mà không bao giờ cleanup kể từ release commit 'b3f8a1'. Phương
+        án sửa khẩn cấp là gì?
+      options:
+      - key: q2_n4_o1
+        label: Thực hiện Rollback ngay lập tức về Deployment Image version ổn định
+          trước đó (v2.4.1)
+      - key: q2_n4_o2
+        label: Sửa trực tiếp file code Javascript bằng 'kubectl exec' vào trong pod
+          đang chạy
+      - key: q2_n4_o3
+        label: Nâng giới hạn Memory resource limit của Pod trong deployment YAML từ
+          2Gi lên 32Gi
+    - key: q2_n5
+      prompt: Đã Rollback về v2.4.1. Các Pod mới tạo ra chạy ổn định và không còn
+        tăng Memory bất thường. Nhưng hàng nghìn request đang đọng trong Queue RabbitMQ.
+        Bạn giải quyết thế nào?
+      options:
+      - key: q2_n5_o1
+        label: Tạm thời Scale-out số lượng Worker Pods lên gấp 3 để tiêu thụ nhanh
+          backlog
+      - key: q2_n5_o2
+        label: Purge (xóa sạch) toàn bộ tin nhắn trong queue 'order_created_queue'
+      - key: q2_n5_o3
+        label: Restart server RabbitMQ
+    - key: q2_n6
+      prompt: Queue tiêu thụ rất nhanh nhưng xuất hiện một số đơn hàng báo lỗi trùng
+        lặp (Duplicate Processing) do các Pod cũ OOM bị kill giữa chừng khi chưa kịp
+        Ack message. Bạn khắc phục dữ liệu thế nào?
+      options:
+      - key: q2_n6_o1
+        label: Đảm bảo Consumer xử lý Idempotency dựa trên order_id và lọc bỏ dữ liệu
+          trùng
+      - key: q2_n6_o2
+        label: Xóa hết các bản ghi bị trùng trực tiếp bằng câu lệnh DELETE thủ công
+          trong DB
+      - key: q2_n6_o3
+        label: Gửi email xin lỗi toàn bộ khách hàng và hủy các đơn hàng đó
+    - key: q2_n7
+      prompt: Backlog trong Queue đã về 0, tất cả đơn hàng đã xử lý xong. Bước kiểm
+        tra đối soát cuối cùng là gì?
+      options:
+      - key: q2_n7_o1
+        label: Chạy script Reconciliation đối soát trạng thái giữa Thanh toán và Đơn
+          hàng
+      - key: q2_n7_o2
+        label: Bỏ qua không kiểm tra vì khách hàng không khiếu nại
+      - key: q2_n7_o3
+        label: Tắt bớt 50% database replica
+    - key: q2_n8
+      prompt: Hệ thống đã ổn định hoàn toàn. Cần làm gì để ngăn ngừa sự cố Memory
+        Leak tương tự lọt lên Production?
+      options:
+      - key: q2_n8_o1
+        label: Thêm Memory Leak Test vào CI/CD pipeline và bắt buộc Review Code kỹ
+          phần global state
+      - key: q2_n8_o2
+        label: Tăng tần suất tự động Restart Pods 2 tiếng một lần
+      - key: q2_n8_o3
+        label: Cấm lập trình viên sử dụng mảng (Array) trong code Node.js
+    - key: q2_recovery
+      prompt: Sự cố Memory Leak trên order-service đã được xử lý triệt để và dữ liệu
+        đã nhất quán!
+      options: []
+  answer_key:
+    option_effects:
+      q2_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n2
+        explanation: Xem thông tin pod và metrics giúp xác định chính xác triệu chứng
+          sự cố.
+      q2_n1_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: q2_n2
+        explanation: Scale up pod khi đang bị Memory Leak chỉ làm chết thêm nhiều
+          pod hơn.
+      q2_n1_o3:
+        points: 0
+        minutes_cost: 8
+        next_node: q2_n1
+        explanation: Xóa Namespace xóa sạch cấu hình và dịch vụ đang chạy, vô cùng
+          nguy hiểm.
+      q2_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n3
+        explanation: Đánh giá chính xác. Đồ thị Staircase thể hiện bộ nhớ không được
+          giải phóng.
+      q2_n2_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_n2
+        explanation: DDOS gây nghẽn băng thông/CPU chứ không gây tăng bộ nhớ dốc đứng
+          dạng staircase.
+      q2_n2_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_n2
+        explanation: Lỗi RAM ở ứng dụng Node.js hoàn toàn không liên quan đến đĩa
+          SSD của DB.
+      q2_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_n4
+        explanation: 'Đúng quy trình debug: Heap dump chỉ ra vật thể nào đang chiếm
+          giữ RAM.'
+      q2_n3_o2:
+        points: 0
+        minutes_cost: 7
+        next_node: q2_n3
+        explanation: Reboot K8s nodes gián đoạn dịch vụ khác mà không sửa được bug
+          trong code.
+      q2_n3_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: q2_n3
+        explanation: Tắt log không giúp giải phóng RAM bị leak.
+      q2_n4_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_n5
+        explanation: Rollback phiên bản cũ là cách khôi phục dịch vụ an toàn và nhanh
+          nhất.
+      q2_n4_o2:
+        points: 0
+        minutes_cost: 6
+        next_node: q2_n4
+        explanation: Sửa hotfix trực tiếp trong container vi phạm nguyên tắc Immutable
+          Infrastructure.
+      q2_n4_o3:
+        points: 5
+        minutes_cost: 4
+        next_node: q2_n5
+        explanation: Tăng limit chỉ kéo dài thời gian trước khi pod tiếp tục dính
+          OOM.
+      q2_n5_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: q2_n6
+        explanation: Chính xác. Nâng số worker ổn định giúp giải tỏa tin nhắn đọng
+          trong queue.
+      q2_n5_o2:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_n5
+        explanation: Xóa tin nhắn đồng nghĩa với việc làm mất đơn hàng của khách!
+      q2_n5_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: q2_n5
+        explanation: Restart RabbitMQ không làm sạch queue mà còn có thể gây mất tin
+          nhắn unacked.
+      q2_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n7
+        explanation: Xử lý Idempotent giúp hệ thống an toàn khi nhận trùng lặp tin
+          nhắn.
+      q2_n6_o2:
+        points: 0
+        minutes_cost: 6
+        next_node: q2_n6
+        explanation: Xóa thủ công dữ liệu trong DB rất dễ dẫn đến sai lệch dữ liệu
+          liên quan.
+      q2_n6_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: q2_n6
+        explanation: Hủy đơn hàng gây ảnh hưởng lớn tới trải nghiệm người dùng.
+      q2_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_n8
+        explanation: Đối soát giúp phát hiện các đơn hàng thanh toán rồi mà chưa cập
+          nhật trạng thái.
+      q2_n7_o2:
+        points: 0
+        minutes_cost: 2
+        next_node: q2_n7
+        explanation: Bỏ qua đối soát khiến nguy cơ lệch sổ sách tài chính kéo dài.
+      q2_n7_o3:
+        points: 0
+        minutes_cost: 3
+        next_node: q2_n7
+        explanation: Tắt DB replica không liên quan gì tới công việc đối soát dữ liệu.
+      q2_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: q2_recovery
+        explanation: Tự động hóa kiểm tra memory leak giúp ngăn ngừa lỗi tái diễn
+          từ vòng CI/CD.
+      q2_n8_o2:
+        points: 0
+        minutes_cost: 3
+        next_node: q2_recovery
+        explanation: Restart pod định kỳ chỉ là giải pháp che giấu code bẩn (workaround).
+      q2_n8_o3:
+        points: 0
+        minutes_cost: 2
+        next_node: q2_recovery
+        explanation: Đề xuất phi lý và vô nghĩa.
+    recovery_node: q2_recovery
+  difficulty: hard

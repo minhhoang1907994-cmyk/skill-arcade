@@ -1,0 +1,329 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-08-30T21:55:59Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần bổ sung tính năng áp dụng mã giảm giá tự động khi khách hàng thanh
+      toán.
+    - Nếu giỏ hàng đạt giá trị tối thiểu, hệ thống sẽ tự động chọn voucher tốt nhất
+      cho người dùng.
+    - Mỗi tài khoản chỉ được sử dụng tối đa 3 voucher trong một ngày.
+    - Nếu giao dịch bị hủy, voucher sẽ được hoàn lại cho khách hàng nếu cần.
+    - Hệ thống phải xử lý việc áp mã thật nhanh để tránh làm gián đoạn trải nghiệm.
+    clarifying_options:
+    - key: a
+      label: Mỗi tài khoản được sử dụng tối đa bao nhiêu voucher trong một ngày?
+    - key: b
+      label: Thời gian phản hồi 'thật nhanh' tối đa là bao nhiêu millisecond và điều
+        kiện chính xác để hoàn lại voucher khi hủy đơn là gì?
+    - key: c
+      label: Giao diện chọn voucher nên thiết kế màu sắc như thế nào cho phù hợp?
+    - key: d
+      label: Hệ thống có cần gửi thông báo qua email mỗi khi áp mã thành công không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    - 5
+    best_option_key: b
+    explanation: Phương án b là tốt nhất vì nó trực tiếp yêu cầu làm rõ các quy tắc
+      kỹ thuật bị mơ hồ (ngưỡng thời gian xử lý và điều kiện hoàn voucher), trong
+      khi phương án a hỏi lại thông tin đã rõ (3 voucher/ngày), c và d hỏi ngoài phạm
+      vi yêu cầu.
+  difficulty: easy
+- content:
+    statements:
+    - Người dùng mới khi đăng ký tài khoản phải xác thực qua mã OTP gửi về số điện
+      thoại.
+    - Mã OTP sẽ có hiệu lực trong vòng 180 giây kể từ khi gửi.
+    - Nếu người dùng nhập sai quá số lần cho phép, hệ thống sẽ tạm khóa tính năng
+      gửi OTP.
+    - Hệ thống cần gửi lại OTP phù hợp nếu người dùng bấm nút yêu cầu gửi lại.
+    - Dữ liệu số điện thoại phải được mã hóa chuẩn AES-256 trước khi lưu vào cơ sở
+      dữ liệu.
+    clarifying_options:
+    - key: a
+      label: Mã OTP gửi về số điện thoại có thời hạn hiệu lực là bao nhiêu giây?
+    - key: b
+      label: Số lần nhập sai tối đa cho phép là bao nhiêu, thời gian tạm khóa bao
+        lâu và khoảng cách tối thiểu giữa các lần bấm gửi lại OTP là bao nhiêu giây?
+    - key: c
+      label: Hệ thống có nên chuyển sang dùng tin nhắn Zalo ZNS thay vì SMS không?
+    - key: d
+      label: Giao diện nhập mã OTP có cần hiển thị bàn phím số riêng không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: b
+    explanation: Phương án b chốt được chính xác các con số quy tắc biên cho trường
+      hợp khóa OTP và cooldown gửi lại, trong khi phương án a lặp lại điều đã ghi
+      rõ (180 giây), c và d là các câu hỏi gợi ý tính năng ngoài phạm vi.
+  difficulty: medium
+- content:
+    statements:
+    - Khi đơn hàng chuyển sang trạng thái PENDING_PAYMENT, hệ thống bắt đầu đếm ngược
+      thời gian chờ thanh toán.
+    - Khách hàng có 15 phút để hoàn tất thanh toán qua cổng thanh toán VNPAY.
+    - Nếu quá thời hạn trên mà chưa nhận được IPN thanh toán, hệ thống sẽ hủy đơn
+      hàng và giải phóng kho.
+    - Trong trường hợp cổng thanh toán gặp sự cố, hệ thống sẽ tự động xử lý thích
+      hợp để không làm thiệt hại cho khách hàng.
+    - Hệ thống cần gửi thông báo hủy đơn cho khách hàng nếu thấy cần thiết.
+    - Lịch sử thay đổi trạng thái đơn hàng phải được ghi log đầy đủ vào bảng order_logs.
+    clarifying_options:
+    - key: a
+      label: Khách hàng có bao nhiêu phút để hoàn tất thanh toán trước khi đơn bị
+        hủy?
+    - key: b
+      label: Kế hoạch marketing cho các sản phẩm trong đơn hàng bị hủy là gì?
+    - key: c
+      label: 'Định nghĩa cụ thể khi nào cổng thanh toán coi là sự cố (ví dụ: timeout
+        bao nhiêu giây) và điều kiện bắt buộc để gửi thông báo hủy đơn là gì?'
+    - key: d
+      label: Hệ thống có cần hỗ trợ thêm phương thức thanh toán tiền mặt khi nhận
+        hàng không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 4
+    - 5
+    best_option_key: c
+    explanation: Phương án c quy định rõ tiêu chí kỹ thuật để xác định 'sự cố' và
+      tiêu chuẩn kích hoạt thông báo hủy đơn, phương án a hỏi lại chi tiết đã rõ (15
+      phút), b và d không liên quan đến yêu cầu hiện tại.
+  difficulty: medium
+- content:
+    statements:
+    - Hệ thống chấm công sẽ tự động tính giờ làm thêm (OT) dựa trên dữ liệu quẹt thẻ
+      ra vào.
+    - Mỗi ca làm việc chuẩn kéo dài đúng 8 tiếng từ 08:00 đến 17:00, đã trừ 1 tiếng
+      nghỉ trưa.
+    - Thời gian OT chỉ được ghi nhận nếu nhân viên làm thêm đủ lâu sau giờ làm việc
+      chính thức.
+    - Mức phụ cấp OT sẽ được nhân theo hệ số phù hợp tùy thuộc vào ngày thường hay
+      ngày lễ.
+    - Nếu nhân viên quên quẹt thẻ, họ có thể gửi yêu cầu giải trình trên hệ thống
+      trước ngày 25 hàng tháng.
+    - Các yêu cầu giải trình quá hạn sẽ tự động bị từ chối bởi hệ thống.
+    clarifying_options:
+    - key: a
+      label: Thời gian tối thiểu sau 17:00 để bắt đầu tính OT là bao nhiêu phút và
+        hệ số nhân OT cụ thể cho ngày thường, cuối tuần, ngày lễ là bao nhiêu?
+    - key: b
+      label: Hạn chót để nhân viên gửi yêu cầu giải trình quên quẹt thẻ là ngày nào
+        trong tháng?
+    - key: c
+      label: Nhân viên có thích làm thêm giờ vào ngày cuối tuần hay không?
+    - key: d
+      label: Hệ thống chấm công có nên bổ sung tính năng điểm danh bằng khuôn mặt
+        FaceID không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: a
+    explanation: Phương án a hỏi chính xác các con số công thức tính OT (ngưỡng tối
+      thiểu và hệ số nhân), phương án b hỏi lại thông tin đã ghi rõ (ngày 25), c mang
+      tính chủ quan còn d mở rộng phạm vi bài toán.
+  difficulty: hard
+- content:
+    statements:
+    - Người dùng có thể đăng bài viết kèm hình ảnh lên diễn đàn nội bộ của công ty.
+    - Dung lượng tối đa cho mỗi tệp hình ảnh tải lên là 10MB và chỉ chấp nhận định
+      dạng PNG, JPG.
+    - Nếu bài viết chứa các từ khóa nhạy cảm trong danh sách blacklist, bài viết sẽ
+      chuyển sang trạng thái PENDING_REVIEW.
+    - Đội ngũ kiểm duyệt sẽ xử lý các bài viết PENDING_REVIEW trong thời gian sớm
+      nhất.
+    - Nếu bài viết bị từ chối, hệ thống cần gửi phản hồi phù hợp cho tác giả.
+    - Các bài viết bị báo cáo vi phạm quá nhiều lần sẽ bị tạm ẩn tự động.
+    clarifying_options:
+    - key: a
+      label: Dung lượng tối đa cho mỗi tệp hình ảnh được phép tải lên là bao nhiêu
+        MB?
+    - key: b
+      label: Giao diện trang kiểm duyệt bài viết nên dùng tông màu sáng hay tối?
+    - key: c
+      label: SLA thời gian kiểm duyệt tối đa là bao nhiêu giờ, nội dung/kênh phản
+        hồi khi từ chối bài là gì, và ngưỡng số lần báo cáo để tự động ẩn bài là bao
+        nhiêu?
+    - key: d
+      label: Công ty có nên mở rộng diễn đàn cho người dùng bên ngoài công ty cùng
+        tham gia không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 4
+    - 5
+    - 6
+    best_option_key: c
+    explanation: Phương án c giúp làm rõ cả 3 điểm mơ hồ quan trọng (SLA kiểm duyệt,
+      kênh phản hồi, và ngưỡng số lần báo cáo), phương án a trùng lặp thông tin đã
+      rõ (10MB), b quá chung chung và d sai phạm vi.
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống cần cho phép khách hàng áp dụng mã giảm giá tại trang thanh toán.
+    - Nếu đơn hàng đạt giá trị tối thiểu 500.000 VNĐ, hệ thống tự động gợi ý các voucher
+      khả dụng.
+    - Đối với các voucher giảm giá theo phần trăm, số tiền giảm tối đa không được
+      vượt quá một khoảng hợp lý.
+    - Thời gian xử lý kiểm tra mã voucher phải thật nhanh để không làm gián đoạn trải
+      nghiệm người dùng.
+    - Mỗi tài khoản chỉ được sử dụng tối đa 3 voucher trong một tháng lịch.
+    clarifying_options:
+    - key: a
+      label: Khoảng hợp lý cho số tiền giảm tối đa của voucher % là bao nhiêu VNĐ,
+        và thời gian phản hồi tối đa khi kiểm tra voucher là bao nhiêu mili-giây?
+    - key: b
+      label: Đơn hàng bao nhiêu tiền thì mới được xem là đạt giá trị tối thiểu để
+        nhận gợi ý voucher?
+    - key: c
+      label: Hệ thống có nên tích hợp thêm tính năng chia sẻ voucher qua mạng xã hội
+        Facebook hay không?
+    - key: d
+      label: Làm sao để giao diện trang thanh toán trông đẹp mắt và thu hút khách
+        hàng hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: a
+    explanation: Phương án a trực tiếp làm rõ hai từ ngữ mơ hồ 'khoảng hợp lý' và
+      'thật nhanh' bằng các con số cụ thể, trong khi b hỏi lại thông tin đã rõ (500.000
+      VNĐ), c ngoài phạm vi và d quá chung chung.
+  difficulty: easy
+- content:
+    statements:
+    - Hệ thống quản lý kho phải gửi cảnh báo khi số lượng tồn kho của một sản phẩm
+      xuống quá thấp.
+    - Cảnh báo sẽ được gửi qua email cho Quản lý kho trong vòng 5 phút kể từ khi giao
+      dịch xuất kho hoàn tất.
+    - Nếu sản phẩm thuộc danh mục mặt hàng dễ vỡ, hệ thống sẽ ưu tiên gửi thêm thông
+      báo Push Notification.
+    - Trong trường hợp mặt hàng hết hàng hẳn, hệ thống cần tự động khóa nút đặt hàng
+      trên website ngay lập tức.
+    - Báo cáo tổng hợp hàng tồn kho cần được xuất ra file Excel định kỳ vào thời điểm
+      phù hợp.
+    clarifying_options:
+    - key: a
+      label: Cảnh báo qua email sẽ được gửi cho ai và trong thời gian bao lâu kể từ
+        khi xuất kho?
+    - key: b
+      label: Ngưỡng tồn kho cụ thể là bao nhiêu sản phẩm thì coi là 'xuống quá thấp',
+        và thời điểm định kỳ xuất báo cáo Excel là mấy giờ, tần suất thế nào?
+    - key: c
+      label: Hệ thống cần xử lý thế nào nếu người quản lý kho quên mật khẩu đăng nhập
+        email?
+    - key: d
+      label: Làm thế nào để nâng cao hiệu quả quản lý kho hàng trong tương lai?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 5
+    best_option_key: b
+    explanation: Phương án b chốt rõ con số ngưỡng tồn kho tối thiểu và lịch trình
+      xuất báo cáo Excel, còn a hỏi lại thông tin đã ghi rõ, c ngoài phạm vi và d
+      quá chung chung.
+  difficulty: medium
+- content:
+    statements:
+    - Tỷ lệ tăng giá cước sẽ được áp dụng tự động khi nhu cầu đặt xe ở một khu vực
+      tăng quá cao.
+    - Khu vực được tính theo bán kính 2 km xung quanh tọa độ của hành khách tại thời
+      điểm đặt xe.
+    - Hệ thống chỉ cho phép tăng giá tối đa gấp 2.5 lần so với giá cước gốc ban đầu.
+    - Khách hàng phải được thông báo chính xác số tiền chênh lệch trước khi bấm xác
+      nhận chuyến đi.
+    - Nếu tài xế hủy chuyến quá nhiều lần trong ngày, hệ thống sẽ tạm khóa tài khoản
+      của tài xế để xem xét.
+    clarifying_options:
+    - key: a
+      label: Tỷ lệ tăng giá tối đa cho phép là bao nhiêu lần so với cước gốc?
+    - key: b
+      label: Ứng dụng có nên tích hợp bản đồ vệ tinh để hiển thị vị trí xe hay không?
+    - key: c
+      label: Chỉ số cụ thể nào xác định 'nhu cầu tăng quá cao', và tài xế hủy bao
+        nhiêu chuyến thì bị khóa tài khoản trong bao lâu?
+    - key: d
+      label: Làm sao để khách hàng cảm thấy hài lòng dù phải trả giá cước cao hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 5
+    best_option_key: c
+    explanation: Phương án c giải quyết đúng 2 điểm mơ hồ bằng con số đo lường cụ
+      thể về kích hoạt tăng giá và chế tài phạt tài xế, vượt trội so với a (hỏi lại
+      thông tin 2.5 lần), b (ngoài phạm vi) và d (không đo lường được).
+  difficulty: medium
+- content:
+    statements:
+    - Khi người dùng thực hiện giao dịch chuyển tiền trên 10.000.000 VNĐ, hệ thống
+      bắt buộc phải xác thực qua mã OTP.
+    - Mã OTP sẽ có hiệu lực trong vòng 60 giây kể từ khi được tạo thành công.
+    - Nếu người dùng nhập sai OTP một vài lần, tài khoản sẽ tạm thời bị khóa chức
+      năng chuyển tiền.
+    - Khách hàng có thể nhấn nút yêu cầu gửi lại OTP nếu chưa nhận được tin nhắn trong
+      thời gian quy định.
+    - Mọi lịch sử gửi và xác thực OTP phải được lưu trữ trong cơ sở dữ liệu tối thiểu
+      365 ngày để phục vụ đối soát.
+    clarifying_options:
+    - key: a
+      label: Mã OTP có hiệu lực trong bao lâu và lịch sử gửi OTP cần lưu trữ trong
+        bao nhiêu ngày?
+    - key: b
+      label: Nhập sai OTP chính xác bao nhiêu lần thì bị khóa, khóa trong bao nhiêu
+        phút, và thời gian chờ tối thiểu để bấm gửi lại OTP là bao nhiêu giây?
+    - key: c
+      label: Ngân hàng có nên chuyển sang dùng xác thực sinh trắc học khuôn mặt thay
+        cho OTP không?
+    - key: d
+      label: Làm thế nào để đảm bảo hệ thống gửi tin nhắn SMS OTP không bao giờ bị
+        nghẽn mạng?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: b
+    explanation: Phương án b làm rõ trực tiếp quy tắc biên nhập sai OTP và thời gian
+      đếm ngược gửi lại OTP, trong khi a hỏi lại thông tin đã có, c thay đổi phạm
+      vi giải pháp và d đưa ra câu hỏi không khả thi.
+  difficulty: hard
+- content:
+    statements:
+    - Học viên sẽ được cấp chứng chỉ hoàn thành khóa học khi đáp ứng đầy đủ các tiêu
+      chuẩn học tập.
+    - Điểm trung bình của tất cả các bài kiểm tra trắc nghiệm phải đạt từ 7.0/10 trở
+      lên.
+    - Học viên phải xem tối thiểu 80% tổng thời lượng video của khóa học.
+    - Chứng chỉ sẽ tự động xuất dưới dạng file PDF với mẫu quy định và gửi qua email
+      trong thời gian phù hợp.
+    - File chứng chỉ PDF đã cấp phải được lưu trên bộ nhớ S3 trong 3 năm.
+    clarifying_options:
+    - key: a
+      label: Ngoài điểm trắc nghiệm và thời lượng video, còn tiêu chuẩn học tập nào
+        khác không, và thời hạn tối đa hệ thống phải gửi email chứng chỉ là bao nhiêu
+        giờ?
+    - key: b
+      label: Học viên cần đạt điểm trắc nghiệm bao nhiêu và phải xem bao nhiêu phần
+        trăm video để nhận chứng chỉ?
+    - key: c
+      label: Hệ thống có nên cho phép học viên chia sẻ chứng chỉ PDF trực tiếp lên
+        mạng xã hội LinkedIn không?
+    - key: d
+      label: Làm sao để thiết kế mẫu chứng chỉ PDF nhìn chuyên nghiệp và đẹp mắt hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 4
+    best_option_key: a
+    explanation: Phương án a quy định rõ ràng danh sách tiêu chuẩn và SLA thời gian
+      gửi email, trong khi b hỏi lại điều kiện đã nêu rõ (7.0/10 và 80%), c thêm tính
+      năng ngoài phạm vi và d là ý kiến định tính về thiết kế.
+  difficulty: hard
