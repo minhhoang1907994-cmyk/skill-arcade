@@ -1,0 +1,287 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-01T21:42:22Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_orders(user, query)
+    - "  return [] if query.blank?"
+    - "  Order.where(user_id: user.id)"
+    - '       .where("status = ''active'' AND title LIKE ''%#{query}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: sql_injection
+    explanation: Sử dụng string interpolation trực tiếp dữ liệu từ người dùng vào
+      câu lệnh SQL gây ra lỗi SQL Injection, cần chuyển sang dùng parameterized query
+      dạng `.where("status = 'active' AND title LIKE ?", "%#{query}%")`.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def render_user_posts(user_id)
+    - "  posts = Post.where(author_id: user_id).limit(20)"
+    - "  posts.map do |post|"
+    - "    { id: post.id, title: post.title, category: post.category.name }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy cập mối quan hệ `post.category` bên trong vòng lặp dẫn đến vấn
+      đề N+1 query, cần dùng `.includes(:category)` ở câu truy vấn dòng 2 để eager
+      load dữ liệu.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(user, card_params)
+    - '  Rails.logger.info("Processing payment for user #{user.id} with card: #{card_params.inspect}")'
+    - "  response = PaymentGateway.charge(card_params)"
+    - "  user.transactions.create!(amount: card_params[:amount], status: response.status)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin thẻ thanh toán (`card_params.inspect`) trực tiếp vào
+      log hệ thống vi phạm quy định bảo mật dữ liệu nhạy cảm, cần lọc bỏ các trường
+      như cvv, number trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def update_inventory(product_id, quantity)
+    - "  product = Product.find(product_id)"
+    - "  product.update!(stock: quantity)"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ bị bắt nhưng chỉ trả về `nil` mà không log hay throw lại
+      lỗi, làm nuốt ngoại lệ và khiến việc debug sự cố trở nên vô cùng khó khăn.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_points(sender, receiver, points)
+    - "  return false if sender.points < points"
+    - "  sender.update!(points: sender.points - points)"
+    - "  receiver.update!(points: receiver.points + points)"
+    - "  true"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_transaction
+    explanation: Thực hiện hai thao tác cập nhật dữ liệu tài chính liên quan đến nhau
+      mà không bọc trong `ActiveRecord::Base.transaction do ... end`, có thể dẫn đến
+      mất tính nhất quán nếu bước thứ hai thất bại.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def recent_order_summaries
+    - "  orders = Order.where(status: 'completed').limit(10)"
+    - '  orders.map { |order| "#{order.id}: #{order.user.name}" }'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn thiếu `.includes(:user)` gây ra lỗi N+1 query khi lặp qua
+      từng đơn hàng để lấy thông tin người dùng.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - "  query = params[:term]"
+    - '  User.where("username LIKE ''%#{query}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối trực tiếp tham số từ người dùng vào chuỗi SQL gây ra lỗ hổng
+      SQL Injection, cần dùng tham số hóa `where('username LIKE ?', ...)`.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(order)
+    - "  Gateway.charge(order.amount, order.token)"
+    - rescue StandardError => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bỏ qua ngoại lệ bằng cách trả về `nil` khiến hệ thống mất vết khi
+      thanh toán thất bại, cần ghi log hoặc ném lại ngoại lệ.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def create
+    - "  user = User.new(user_params)"
+    - '  Rails.logger.info("Creating user with raw params: #{params.to_json}")'
+    - "  user.save!"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log trực tiếp toàn bộ `params` chứa thông tin nhạy cảm như mật
+      khẩu vào log file, cần lọc dữ liệu nhạy cảm trước khi log.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def export_active_users_csv
+    - "  users = User.where(active: true)"
+    - "  CSV.generate do |csv|"
+    - "    users.each { |u| csv << [u.id, u.email] }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: unbounded_query
+    explanation: Tải toàn bộ dữ liệu người dùng vào bộ nhớ cùng lúc gây ra tràn RAM
+      khi bảng lớn, cần dùng `find_each` để duyệt theo batch.
+  difficulty: hard
