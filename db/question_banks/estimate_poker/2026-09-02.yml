@@ -1,0 +1,240 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-09-02T21:35:24Z'
+questions:
+- content:
+    task_description: Thêm trường boolean is_verified vào API lấy thông tin người
+      dùng GET /api/v1/users/{id}.
+    context: Cột is_verified đã tồn tại sẵn trong bảng users ở cơ sở dữ liệu và Model
+      ORM đã định nghĩa thuộc tính này.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Thêm thuộc tính is_verified vào UserResponseDTO
+      hours: 0.25
+    - step: Cập nhật mapper để chuyển giá trị is_verified từ UserEntity sang DTO
+      hours: 0.25
+    - step: Cập nhật unit test sẵn có và thêm assertion kiểm tra field is_verified
+      hours: 0.5
+    - step: Chỉnh sửa code theo nhận xét trong code review
+      hours: 0.25
+    reasoning: Thời gian chủ yếu dành cho việc cập nhật unit test để đảm bảo hợp đồng
+      API trả về đúng trường dữ liệu mới.
+  difficulty: easy
+- content:
+    task_description: Thêm rate limiting giới hạn 5 lượt yêu cầu mỗi phút cho API
+      POST /api/v1/auth/send-otp.
+    context: Dự án NestJS đã tích hợp sẵn thư viện @nestjs/throttler và đã kết nối
+      Redis cluster từ trước.
+  answer_key:
+    actual_hours: 2.5
+    breakdown:
+    - step: Khai báo cấu hình Redis Storage trong ThrottlerModule
+      hours: 0.5
+    - step: Gắn decorator Throttle lên controller handler của API send-otp
+      hours: 0.25
+    - step: Viết CustomThrottlerGuard để trả về cấu trúc lỗi JSON 429 theo chuẩn hệ
+        thống
+      hours: 0.75
+    - step: Viết E2E test cho trường hợp gửi liên tiếp 6 request để kiểm tra HTTP
+        429
+      hours: 0.75
+    - step: Chỉnh sửa nhỏ sau bước code review
+      hours: 0.25
+    reasoning: Nỗ lực chính nằm ở việc tùy biến response lỗi HTTP 429 đúng định dạng
+      chung của hệ thống và viết integration test giả lập vượt ngưỡng.
+  difficulty: easy
+- content:
+    task_description: Tích hợp webhook tiếp nhận thông báo trạng thái giao dịch từ
+      cổng thanh toán ZaloPay.
+    context: Hệ thống đã có controller tiếp nhận webhook chung và hạ tầng EventBus
+      nội bộ.
+  answer_key:
+    actual_hours: 4.0
+    breakdown:
+    - step: Đọc tài liệu tích hợp và định nghĩa DTO ZaloPayWebhookPayload
+      hours: 0.5
+    - step: Cấu trúc ZaloPayService để xác thực chữ ký HMAC-SHA256 từ header
+      hours: 1.0
+    - step: Cập nhật trạng thái đơn hàng trong bảng orders và gửi internal event OrderPaidEvent
+      hours: 1.0
+    - step: Viết unit test kiểm thử các trường hợp payload chuẩn, sai checksum, và
+        trùng lặp transaction_id
+      hours: 1.0
+    - step: Refactor code và xử lý góp ý sau code review
+      hours: 0.5
+    reasoning: Thời gian tập trung vào việc hiện thực thuật toán verify chữ ký an
+      toàn và viết test đầy đủ cho các kịch bản webhook hợp lệ lẫn giả mạo.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi luồng tải lên ảnh đại diện từ lưu trữ ổ đĩa cục bộ
+      sang AWS S3.
+    context: Ứng dụng NodeJS Express hiện lưu trực tiếp file vào thư mục nội bộ server
+      qua Multer diskStorage.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Nghiên cứu AWS SDK v3 và cấu hình S3Client với IAM credential
+      hours: 1.5
+    - step: Viết lại S3StorageService để ghi file trực tiếp lên S3 bucket thay vì
+        ghi vào thư mục local public/uploads
+      hours: 3.0
+    - step: Viết script CLI một lần để đồng bộ toàn bộ tệp tin ảnh hiện có từ ổ đĩa
+        local lên S3
+      hours: 2.5
+    - step: Mock S3Client và viết lại các integration test cho luồng upload avatar
+      hours: 3.0
+    - step: Khắc phục các lỗi phát sinh và hoàn thiện theo code review
+      hours: 2.0
+    reasoning: Phần lớn thời gian tốn cho việc refactor lại logic lưu trữ hiện tại
+      và tạo công cụ chuyển đổi dữ liệu tệp tin cũ lên cloud.
+  difficulty: medium
+- content:
+    task_description: Phát triển tính năng xuất báo cáo doanh thu tháng ra file Excel
+      dạng định dạng phức tạp có biểu đồ.
+    context: Dự án Java Spring Boot. Dữ liệu cần báo cáo tổng hợp từ hơn một triệu
+      bản ghi và file xuất ra cần có style định dạng thương hiệu.
+  answer_key:
+    actual_hours: 32.0
+    breakdown:
+    - step: Viết truy vấn SQL tổng hợp số liệu doanh thu join giữa các bảng orders,
+        order_items và promotions
+      hours: 6.0
+    - step: Xây dựng service kết xuất Excel sử dụng Apache POI để định dạng cell,
+        màu sắc và công thức tổng
+      hours: 8.0
+    - step: Tạo biểu đồ cột Column Chart trực tiếp trong file Excel bằng API của Apache
+        POI
+      hours: 6.0
+    - step: Xây dựng Spring Batch job để xử lý xuất dữ liệu dung lượng lớn theo cơ
+        chế streaming background
+      hours: 6.0
+    - step: Viết unit test cho SQL query và test kiểm tra tính toàn vẹn file Excel
+        đầu ra
+      hours: 4.0
+    - step: Tối ưu hiệu năng truy vấn và sửa code theo nhận xét review
+      hours: 2.0
+    reasoning: Khối lượng công việc lớn nhất nằm ở việc lập trình giao diện file Excel
+      bằng Apache POI và cấu hình xử lý dữ liệu lớn không gây ngốn bộ nhớ.
+  difficulty: hard
+- content:
+    task_description: Thêm trường is_verified (boolean) vào API thông tin người dùng
+      GET /api/v1/users/{id} và lưu trữ trong database PostgreSQL.
+    context: Hệ thống sử dụng NestJS + TypeORM + PostgreSQL, đã có sẵn DTO, Entity
+      và API thông tin chi tiết user.
+  answer_key:
+    actual_hours: 1.0
+    breakdown:
+    - step: Tạo file migration TypeORM thêm cột is_verified vào bảng users
+      hours: 0.25
+    - step: Cập nhật User entity và UserResponseDto
+      hours: 0.25
+    - step: Sửa service mapper để gán trường is_verified vào response
+      hours: 0.25
+    - step: Cập nhật unit test cho UserService và UserController
+      hours: 0.25
+    reasoning: Thời gian tập trung ở việc tạo migration database và cập nhật lại DTO
+      cùng unit test tương ứng.
+  difficulty: easy
+- content:
+    task_description: Tích hợp gửi thông báo Slack qua Webhook mỗi khi phát sinh đơn
+      hàng mới.
+    context: Dự án NodeJS đã có sẵn SDK @slack/web-api và hệ thống event-driven với
+      OrderCreatedEvent đã hoạt động sẵn.
+  answer_key:
+    actual_hours: 4.0
+    breakdown:
+    - step: Khởi tạo Slack SDK client và đọc cấu hình webhook từ môi trường
+      hours: 0.5
+    - step: Viết event listener lắng nghe OrderCreatedEvent và dựng định dạng tin
+        nhắn bằng Block Kit
+      hours: 1.5
+    - step: Xử lý retry logic bằng thư viện async-retry khi kết nối API Slack bị lỗi
+      hours: 1.0
+    - step: Viết unit test cho event listener và integration test mock Slack API
+      hours: 1.0
+    reasoning: Phần lớn thời gian dùng để dựng cấu trúc tin nhắn Slack bằng Block
+      Kit và viết integration test giả lập Slack API.
+  difficulty: easy
+- content:
+    task_description: Bổ sung tính năng xuất báo cáo doanh thu theo tháng ra file
+      Excel (XLSX) trên trang quản trị.
+    context: Dự án Laravel + React. Phía backend đã có câu truy vấn dữ liệu thô nhưng
+      chưa tổng hợp theo tháng, phía frontend đã có UI bảng dữ liệu.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Tối ưu câu truy vấn SQL aggregate doanh thu theo tháng và đánh index phù
+        hợp
+      hours: 2.5
+    - step: Tạo Excel generator service dùng phpoffice/phpspreadsheet định dạng cột
+        và màu sắc
+      hours: 3.0
+    - step: Tạo API endpoint xuất file hỗ trợ stream dữ liệu lớn theo chunk
+      hours: 2.5
+    - step: Gắn event download tại trang Admin React và xử lý trạng thái loading
+      hours: 1.5
+    - step: Viết unit test cho query report và feature test cho API download file
+      hours: 2.5
+    reasoning: Thời gian tiêu tốn nhiều nhất ở việc cấu hình thư viện xuất file Excel
+      đúng định dạng và tối ưu query aggregate dữ liệu.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi phương thức xác thực hệ thống từ Session-based sang
+      JWT kèm cơ chế Refresh Token rotation.
+    context: Hệ thống Spring Boot monolith đang dùng HTTP Session lưu trong Redis.
+      Đã có sẵn bảng users và các API đăng nhập, đăng xuất cơ bản.
+  answer_key:
+    actual_hours: 21.5
+    breakdown:
+    - step: Tạo module sinh và kiểm tra JWT Access Token và Refresh Token với thư
+        viện jjwt
+      hours: 3.0
+    - step: Tạo migration bảng refresh_tokens trong PostgreSQL lưu danh sách token
+        đã cấp
+      hours: 2.0
+    - step: Cấu hình Spring Security OncePerRequestFilter để xác thực Bearer Token
+      hours: 4.5
+    - step: Viết API /api/v1/auth/refresh xử lý xoay vòng Refresh Token và thu hồi
+        token cũ
+      hours: 4.0
+    - step: Sửa lại các integration test liên quan từ MockHttpSession sang Bearer
+        token
+      hours: 6.0
+    - step: Cập nhật logic API logout để thu hồi và huỷ Refresh Token trong DB
+      hours: 2.0
+    reasoning: Thời gian lớn nhất nằm ở việc viết Custom Spring Security Filter và
+      sửa lại toàn bộ suite integration test cũ do thay đổi cơ chế auth.
+  difficulty: hard
+- content:
+    task_description: Xây dựng hệ thống Audit Log tự động ghi lại toàn bộ thao tác
+      CRUD của tài khoản admin vào Elasticsearch.
+    context: Hệ thống kiến trúc Microservices Java (Spring Cloud) gồm 8 services riêng
+      biệt. Đã có sẵn cụm Kafka và Elasticsearch dùng chung.
+  answer_key:
+    actual_hours: 43.0
+    breakdown:
+    - step: Tạo AOP Annotation @AuditLog để bắt thông tin request, user id và payload
+      hours: 6.0
+    - step: Đóng gói Spring Boot Starter internal module để cấu hình AOP dùng chung
+      hours: 8.0
+    - step: Cấu hình Kafka Producer push event log bất đồng bộ từ các microservices
+      hours: 7.0
+    - step: Viết Consumer Service ghi nhận log từ Kafka vào Elasticsearch theo index
+        template
+      hours: 8.0
+    - step: Viết API tìm kiếm và truy vấn Audit Log từ Elasticsearch cho màn hình
+        Admin Dashboard
+      hours: 6.0
+    - step: Viết unit test cho AOP Aspect và integration test kiểm tra luồng tin nhắn
+        qua Kafka
+      hours: 8.0
+    reasoning: Phần lớn thời gian dùng để đóng gói module Spring Boot Starter tái
+      sử dụng cho nhiều service và cấu hình luồng gửi log bất đồng bộ qua Kafka.
+  difficulty: hard
