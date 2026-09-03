@@ -40,11 +40,14 @@ module Questions
 
     Batch = Struct.new(:records, :model, :prompts, :failures, keyword_init: true) do
       # keyword_init cho phép bỏ qua member, và caller cũ (vd Refiller spec) vẫn dựng Batch
-      # không có failures. Trả [] thay vì nil để caller gọi thẳng .size/.map không phải nhớ
-      # bọc Array() — đọc self[:failures] chứ không super vì Struct sinh accessor ngay trên
-      # chính class này, super sẽ không tìm thấy gì.
-      def failures
-        self[:failures] || []
+      # không có failures. Điền [] ngay lúc khởi tạo để caller gọi thẳng .size/.map không
+      # phải nhớ bọc Array().
+      #
+      # Đặt ở initialize chứ KHÔNG override reader: override thì reader trả [] trong khi
+      # to_h vẫn ra nil và hai Batch cùng nghĩa lại không ==, tức là hai nguồn sự thật cho
+      # cùng một member.
+      def initialize(failures: [], **rest)
+        super(failures: failures, **rest)
       end
     end
 
