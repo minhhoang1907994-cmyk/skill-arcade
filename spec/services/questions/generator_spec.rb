@@ -5,12 +5,16 @@ RSpec.describe Questions::Generator do
   let(:breaker) { Gemini::CircuitBreaker.new(name: "generator-test", cache: cache) }
 
   # Mỗi phần tử: một Exception để raise, hoặc một payload để trả về — theo đúng thứ tự gọi.
+  # Hết step mà vẫn bị gọi thì fail ngay thay vì lặp lại step cuối: số lô là thứ các test ở
+  # đây đang kiểm, nên test khai thiếu step phải đỏ chứ không được im lặng chạy tiếp.
   def failing_client(*steps)
     calls = -1
     instance_double(Gemini::Client, model: "gemini-test").tap do |client|
       allow(client).to receive(:generate) do
         calls += 1
-        step = steps[calls] || steps.last
+        step = steps.fetch(calls) do
+          raise "failing_client: gọi lần #{calls + 1} nhưng chỉ khai #{steps.size} step"
+        end
         raise step if step.is_a?(Exception)
 
         Gemini::Client::Response.new(text: step.to_json, raw_body: {}, latency_ms: 1)
@@ -25,6 +29,15 @@ RSpec.describe Questions::Generator do
 
     instance_double(Gemini::Client, model: "gemini-test").tap do |client|
       allow(client).to receive(:generate).and_return(*responses)
+    end
+  end
+
+  describe "Batch" do
+    it "failures mặc định là [] khi caller không truyền, và to_h khớp reader" do
+      batch = described_class::Batch.new(records: [], model: "gemini-test", prompts: [])
+
+      expect(batch.failures).to eq([])
+      expect(batch.to_h[:failures]).to eq([])
     end
   end
 
@@ -102,6 +115,25 @@ RSpec.describe Questions::Generator do
         .to raise_error(Gemini::Client::RequestFailed, "Gemini trả HTTP 503")
     end
 
+    # Không có test này thì nhánh `break if @breaker.open?` chưa từng chạy. count suy ra từ
+    # hằng số chứ không viết số cứng: nhánh này chỉ chạm được khi max_batches > 1 + threshold,
+    # mà max_batches lại phụ thuộc BATCH_SIZE — viết số cứng thì đổi BATCH_SIZE là test đỏ
+    # với thông báo không nói được lý do thật.
+    it "dừng sớm khi circuit breaker mở, không tiêu hết quota lô" do
+      many = { questions: Array.new(described_class::BATCH_SIZE) { payload[:questions].first } }
+      error = Gemini::Client::RequestFailed.new("Gemini trả HTTP 503")
+      threshold = Gemini::CircuitBreaker::FAILURE_THRESHOLD
+      client = failing_client(many, *Array.new(threshold) { error })
+
+      # max_batches = (threshold + 1) + EXTRA_BATCH_ALLOWANCE, dư 2 lô so với mốc phải dừng.
+      batch = generate(count: described_class::BATCH_SIZE * (threshold + 1), client: client)
+
+      expect(batch.prompts.size).to eq(1 + threshold)
+      expect(batch.records.size).to eq(described_class::BATCH_SIZE)
+      expect(batch.failures.size).to eq(threshold)
+      expect(breaker).to be_open
+    end
+
     it "difficulty lạ thì về medium" do
       odd = { questions: [ payload[:questions].first.merge(difficulty: "impossible") ] }
 
@@ -151,6 +183,20 @@ RSpec.describe Questions::Generator do
         "points" => 10, "irreversible" => true,
         "consequence_text" => "50k user nhận SMS thật.", "next_node" => "n2"
       )
+    end
+
+    # Game kịch bản khai batch_size = 2 nên 4 đề cần 2 lô thành công — đây chính là dạng
+    # mục tiêu mà một 503 lẻ từng làm mất trắng (production 2026-08-30..09-03).
+    it "một lô lỗi không làm mất đề của các lô còn lại dù batch_size = 2" do
+      two = { questions: Array.new(2) { payload[:questions].first } }
+      error = Gemini::Client::RequestFailed.new("Gemini trả HTTP 503")
+
+      batch = described_class.new(game: game, client: failing_client(error, two, two),
+                                  breaker: breaker).call(count: 4)
+
+      expect(batch.records.size).to eq(4)
+      expect(batch.prompts.size).to eq(3)
+      expect(batch.failures.map(&:message)).to eq([ "Gemini trả HTTP 503" ])
     end
 
     it "hiệu ứng gom được chấm đúng bởi scorer thật" do
