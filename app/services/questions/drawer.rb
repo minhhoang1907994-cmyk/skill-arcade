@@ -12,7 +12,7 @@ module Questions
   # lần bốc cho cùng một bước ra hai câu KHÁC NHAU — người chơi xem câu A mà server chấm
   # theo đáp án câu B. Truyền cùng một seed thì thứ tự lặp lại được, không cần thêm cột DB.
   class Drawer
-    class NotEnoughQuestions < StandardError; end
+    class NotEnoughQuestions < NoQuestionsAvailable; end
 
     def initialize(user:, game:, language: nil, seed: nil)
       @user = user

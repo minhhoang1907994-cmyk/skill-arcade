@@ -29,7 +29,7 @@ Monolith MVC theo cấu trúc chuẩn Rails:
 - `app/controllers/` — nhận request, xác thực/phân quyền, gọi model hoặc service, render response. Không chứa business logic phức tạp
 - `app/models/` — ActiveRecord model: association, validation, scope, business rule gắn với entity
 - `app/views/` — ERB template
-- `app/services/` — business logic nhiều bước hoặc liên quan nhiều model (quy ước bổ sung, không phải mặc định Rails). Mỗi class 1 việc, entry point là `call`
+- `app/services/` — business logic nhiều bước hoặc liên quan nhiều model (quy ước bổ sung, không phải mặc định Rails). Mỗi class 1 việc, entry point là `call`. Hai ngoại lệ được chấp nhận: hàm thuần không giữ state khai thẳng class method (`Questions::Validator.error_for`), và facade class method bọc `new(...).call` cho tiện call site (`Questions::BankFile.write`)
 - `app/jobs/` — background job (ActiveJob)
 - `app/mailers/` — gửi email
 - `app/helpers/` — helper cho view, không chứa business logic
@@ -43,6 +43,9 @@ Monolith MVC theo cấu trúc chuẩn Rails:
 - Timestamp: `created_at`, `updated_at` (DATETIME) — dùng `t.timestamps`
 - Soft delete: `deleted_at` (DATETIME, nullable)
 - Boolean: `is_{name}` hoặc tính từ (`active`, `published`) — NOT NULL kèm default
+- Cột trạng thái vòng đời: đặt tên `status`, kiểu string kèm hằng số trong model và
+  `validates inclusion` (KHÔNG dùng Rails `enum`). `game_sessions.state` là ngoại lệ có
+  trước quy ước này — giữ nguyên, đổi tên cột không đáng so với chi phí migration
 - Index: đặt tên mặc định Rails, hoặc `index_{table}_on_{column}` khi cần chỉ định
 - Charset: `utf8mb4` / collation `utf8mb4_unicode_ci`
 - Mọi thay đổi schema đi qua migration; KHÔNG sửa tay `db/schema.rb`
@@ -52,12 +55,19 @@ HTTP status là signal, body là data:
 
 ```json
 200: { "id": 1, "name": "..." }
-404: { "code": "NOT_FOUND", "message": "User not found" }
-422: { "errors": [{ "field": "email", "message": "Invalid email" }] }
+404: { "code": "NOT_FOUND", "message": "Không tìm thấy" }
+422: { "code": "VALIDATION_ERROR", "message": "Thiếu tham số: answer" }
 ```
 
+Mọi response lỗi đi qua `ApplicationController#render_error(status, code, message)` — cùng
+một shape `{ code, message }` cho mọi status, không có biến thể `errors: [...]`. Endpoint
+mới KHÔNG tự dựng body lỗi riêng.
+
 ### Error Handling
-- Custom exception kế thừa `StandardError`, gom trong `app/errors/` hoặc namespace riêng
+- Mỗi namespace service có một base error riêng (`Gemini::Error`, `Questions::Error`,
+  `GameSessions::Error`) kế thừa `StandardError`; lỗi cụ thể kế thừa base đó, không kế thừa
+  thẳng `StandardError`. Nhờ vậy caller `rescue Questions::Error` được cả namespace thay vì
+  phải liệt kê từng class
 - Xử lý tập trung bằng `rescue_from` trong `ApplicationController`
 - `rescue StandardError` hoặc class cụ thể — KHÔNG `rescue Exception`
 - Trong service: raise exception hoặc trả về result object, nhất quán 1 kiểu trong toàn project
@@ -84,7 +94,8 @@ bundle exec rubocop
 
 ## Quy tắc của project
 - Thay đổi schema chỉ qua migration — không sửa `db/schema.rb` bằng tay
-- Strong parameters bắt buộc ở controller (`params.require(...).permit(...)`) — không truyền `params` trực tiếp vào model
+- Strong parameters bắt buộc ở controller — dùng `params.expect(...)` (idiom Rails 8, raise
+  `ParameterMissing` cả khi thiếu khoá lẫn khi sai kiểu), không truyền `params` trực tiếp vào model
 - Không nội suy chuỗi vào SQL — dùng placeholder (`where('name = ?', name)`) hoặc hash condition
 - Phòng N+1: dùng `includes` / `preload` khi lặp qua association
 - Business logic nhiều bước đặt ở `app/services/`, không viết trong controller

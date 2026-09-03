@@ -12,7 +12,7 @@ module Questions
   # - `option_effects` của hai game kịch bản là hash khoá động, mà responseSchema không
   #   diễn đạt được khoá động — nên AI trả array rồi Ruby gom lại thành hash
   class Generator
-    class UnsupportedGame < StandardError; end
+    class UnsupportedGame < Error; end
 
     # Sinh đề chạy offline nên chịu được timeout dài hơn lời gọi lúc chơi (10s ở §15).
     GENERATION_TIMEOUT_SECONDS = 120

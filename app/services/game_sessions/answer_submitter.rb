@@ -4,8 +4,8 @@ module GameSessions
   #
   # Điểm chỉ cộng thêm, không bao giờ trừ (BR-31). Trần điểm là max_score của game (BR-04).
   class AnswerSubmitter
-    class PositionConflict < StandardError; end
-    class SessionFinished < StandardError; end
+    class PositionConflict < Error; end
+    class SessionFinished < Error; end
 
     Outcome = Struct.new(:session_answer, :result, :finished, keyword_init: true)
 

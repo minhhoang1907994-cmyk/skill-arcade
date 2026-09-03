@@ -441,7 +441,7 @@ RSpec.describe "Gameplay API" do
   # người chơi dùng. Từ 1.20 rescue nằm tập trung ở BaseController nên cả ba endpoint cùng
   # trả 422 NO_QUESTIONS_AVAILABLE.
   #
-  # Ghi chú: `StepProvider::NoQuestionAvailable` KHÔNG phải exception xảy ra ở đây.
+  # Ghi chú: nhánh `NoQuestionsAvailable` do StepProvider ném KHÔNG phải đường xảy ra ở đây.
   # `Drawer#call` luôn trả đúng `count` câu hoặc ném `NotEnoughQuestions` trước đó, nên
   # `fresh_question` không bao giờ hết ứng viên. Test dưới đây khoá lại hành vi thật.
   describe "ngân hàng câu hỏi hụt giữa lượt (BR-16/BR-18)" do
