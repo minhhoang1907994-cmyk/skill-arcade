@@ -29,11 +29,12 @@ module Api
       # đang chơi (BR-16/BR-18 — chính luồng app khuyến khích người chơi dùng) thì `GET current`
       # và nộp đáp án trả **500**.
       #
-      # `StepProvider::NoQuestionAvailable` gộp cùng chỗ: hiện không chạm được vì `Drawer#call`
+      # `StepProvider` ném thẳng `NoQuestionsAvailable`: hiện không chạm được vì `Drawer#call`
       # luôn trả đúng `count` câu hoặc ném `NotEnoughQuestions` trước đó, nhưng nó là cùng một
-      # tình huống nghiệp vụ nên không để hai đường xử lý khác nhau.
-      rescue_from ::Questions::Drawer::NotEnoughQuestions,
-                  ::GameSessions::StepProvider::NoQuestionAvailable do
+      # tình huống nghiệp vụ nên không để hai đường xử lý khác nhau. Từ 2026-09-03 cả hai đi
+      # qua `Questions::NoQuestionsAvailable`, nên thêm lỗi cùng loại về sau không phải sửa
+      # lại dòng rescue này.
+      rescue_from ::Questions::NoQuestionsAvailable do
         render_error(:unprocessable_entity, "NO_QUESTIONS_AVAILABLE",
                      "Chưa đủ câu hỏi cho game này")
       end

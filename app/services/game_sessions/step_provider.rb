@@ -9,8 +9,6 @@ module GameSessions
   # - Kịch bản (Escape Room, PROD Roulette): cả lượt dùng đúng một câu hỏi,
   #   mỗi bước là một node quyết định trong kịch bản đó.
   class StepProvider
-    class NoQuestionAvailable < StandardError; end
-
     # Bug Hunt hiện bao nhiêu loại bug cho người chơi chọn. Ngân hàng câu hỏi lưu cả 12
     # loại trong `content["bug_types"]`, hiện hết ra thì đoán loại bug khó hơn hẳn tìm
     # đúng dòng. Rút xuống còn 4 lựa chọn (luôn kèm đáp án đúng) để hai phần của câu hỏi
@@ -19,10 +17,6 @@ module GameSessions
 
     def initialize(session)
       @session = session
-    end
-
-    def next_position
-      @session.current_position + 1
     end
 
     # Câu hỏi phục vụ bước kế tiếp.
@@ -40,6 +34,10 @@ module GameSessions
     end
 
     private
+
+    def next_position
+      @session.current_position + 1
+    end
 
     # content đem hiển thị: giống content trong DB, trừ hai chỗ được xử lý ở payload chứ
     # không sửa content trong DB (content đi vào checksum):
@@ -122,11 +120,12 @@ module GameSessions
       used_ids = @session.session_answers.pluck(:question_id)
       candidates = drawn_questions.reject { |q| used_ids.include?(q.id) }
 
-      candidates.first || raise(NoQuestionAvailable, "không còn câu hỏi khả dụng")
+      candidates.first || raise(::Questions::NoQuestionsAvailable, "không còn câu hỏi khả dụng")
     end
 
     def draw_one
-      drawn_questions.first || raise(NoQuestionAvailable, "không còn câu hỏi khả dụng")
+      drawn_questions.first ||
+        raise(::Questions::NoQuestionsAvailable, "không còn câu hỏi khả dụng")
     end
 
     # Bốc theo đúng ngôn ngữ đã chốt lúc tạo lượt, để mọi bước trong lượt cùng ngôn ngữ.

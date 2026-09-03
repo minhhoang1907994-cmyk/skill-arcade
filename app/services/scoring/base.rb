@@ -1,7 +1,7 @@
 module Scoring
   # Điểm luôn được tính ở server (BR-02). Mọi giá trị điểm gửi lên từ client bị bỏ qua.
   class Base
-    class InvalidAnswer < StandardError; end
+    class InvalidAnswer < Error; end
 
     SCORERS = {
       Game::BUG_HUNT => "Scoring::BugHunt",

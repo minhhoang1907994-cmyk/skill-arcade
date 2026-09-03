@@ -7,7 +7,7 @@ module Questions
   #
   # Idempotent theo checksum: chạy lại cùng một file không tạo bản ghi trùng.
   class Importer
-    class InvalidFile < StandardError; end
+    class InvalidFile < Error; end
 
     Report = Struct.new(:created, :updated, :rejected, keyword_init: true) do
       def total

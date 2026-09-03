@@ -43,8 +43,13 @@ module Api
       ].freeze
 
       def answer_params
-        # statement_indexes là MẢNG số (Spec Detective) nên phải khai riêng dạng `key: []`.
-        params.require(:answer).permit(*ANSWER_KEYS, statement_indexes: []).to_h
+        # statement_indexes là MẢNG số (Spec Detective) nên phải khai riêng dạng `key: []`,
+        # bọc trong hash vì expect nhận danh sách filter phẳng.
+        #
+        # expect chứ không phải require(...).permit(...): cùng lọc khoá lạ, nhưng expect còn
+        # ném ParameterMissing khi `answer` sai kiểu (vd client gửi string) — chỗ đó trước
+        # đây rơi vào NoMethodError trong permit và trả 500 thay vì 400.
+        params.expect(answer: [ *ANSWER_KEYS, { statement_indexes: [] } ]).to_h
       end
 
       def response_payload(outcome)

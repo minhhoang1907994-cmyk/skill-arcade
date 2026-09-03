@@ -13,7 +13,10 @@ module Questions
   # Ghi đè content nên checksum được tính lại (Question#assign_checksum). Lượt cũ vẫn trỏ
   # đúng bản ghi đó qua question_id nên điểm đã chấm không đổi.
   class SpecDetectiveConverter
-    Report = Struct.new(:converted, :skipped, :failed, keyword_init: true)
+    # Cùng khuôn với Refiller::Outcome: status là symbol, detail là mô tả để in ra log.
+    # Trước 2026-09-03 #call trả mảng trần [status, detail] — đọc call site phải nhớ thứ tự
+    # hai phần tử, khác hẳn mọi service còn lại vốn trả Struct có tên.
+    Outcome = Struct.new(:status, :detail, keyword_init: true)
 
     RESPONSE_SCHEMA = {
       type: "object",
@@ -57,14 +60,14 @@ module Questions
       item = generate(question)
       record = build_record(item)
       error = Validator.error_for(question.game, record)
-      return [ :failed, error ] if error
+      return Outcome.new(status: :failed, detail: error) if error
 
       question.update!(content: record["content"], answer_key: record["answer_key"])
-      [ :converted, nil ]
+      Outcome.new(status: :converted, detail: nil)
     rescue Gemini::Error, JSON::ParserError => e
-      [ :failed, "#{e.class}: #{e.message}" ]
+      Outcome.new(status: :failed, detail: "#{e.class}: #{e.message}")
     rescue ActiveRecord::RecordInvalid => e
-      [ :failed, e.record.errors.full_messages.join(", ") ]
+      Outcome.new(status: :failed, detail: e.record.errors.full_messages.join(", "))
     end
 
     private

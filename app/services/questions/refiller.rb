@@ -168,7 +168,7 @@ module Questions
                           "#{path.basename} " \
                           "(đang có #{target.playable} đề, ít hơn mục tiêu nhiều đề nhất " \
                           "#{richest - target.playable} đề)")
-    rescue Generator::UnsupportedGame, Gemini::Error, Importer::InvalidFile => e
+    rescue Questions::Error, Gemini::Error => e
       Outcome.new(label: target.label, status: :failed, detail: "#{e.class}: #{e.message}")
     end
 

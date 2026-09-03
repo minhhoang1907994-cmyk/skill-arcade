@@ -127,9 +127,9 @@ namespace :questions do
     counts = { converted: 0, failed: 0 }
 
     pending.each do |question|
-      status, detail = converter.call(question)
-      counts[status] += 1
-      puts "  ##{question.id}: #{status}#{detail ? " — #{detail}" : ''}"
+      outcome = converter.call(question)
+      counts[outcome.status] += 1
+      puts "  ##{question.id}: #{outcome.status}#{outcome.detail ? " — #{outcome.detail}" : ''}"
     end
 
     puts "Xong: #{counts[:converted]} chuyển được, #{counts[:failed]} thất bại."

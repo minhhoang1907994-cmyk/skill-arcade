@@ -10,8 +10,8 @@ module GameSessions
   class Creator
     MAX_RETRY = 1
 
-    class ConcurrentCreate < StandardError; end
-    class InvalidLanguage < StandardError; end
+    class ConcurrentCreate < Error; end
+    class InvalidLanguage < Error; end
 
     def initialize(user:, game:, language: nil)
       @user = user
