@@ -31,7 +31,7 @@ module Questions
     THINKING_BUDGET = 1024
     DIFFICULTIES = [ "easy", "medium", "hard" ].freeze
 
-    Batch = Struct.new(:records, :model, :prompts, keyword_init: true)
+    Batch = Struct.new(:records, :model, :prompts, :failures, keyword_init: true)
 
     def initialize(game:, language: nil, client: nil, breaker: Gemini::CircuitBreaker.new)
       @game = game
@@ -51,19 +51,41 @@ module Questions
 
     # Trả về ĐẾN count đề, có thể ít hơn nếu Gemini trả đề không dùng được. Người gọi
     # (rake task) tự quyết định chạy lại hay không — thà thiếu còn hơn gọi API vô hạn.
+    #
+    # Một lô lỗi KHÔNG làm hỏng cả mục tiêu: lỗi được ghi lại rồi vòng lặp dùng nốt phần
+    # EXTRA_BATCH_ALLOWANCE để gọi lại. Trước 2026-09-03 exception vọt thẳng ra ngoài, nên
+    # một HTTP 503 lẻ (lỗi tạm thời phía Gemini) làm mất luôn những đề đã sinh xong ở các lô
+    # trước. Hai game kịch bản chịu trận nhiều nhất vì batch_size = 2 nên cần 5 lô liên tiếp
+    # cùng thành công, trong khi bug_hunt chỉ cần 2 — đo trên production 2026-08-30..09-03:
+    # mọi lần [failed] đều rơi vào incident_escape_room hoặc prod_roulette.
+    #
+    # Chỉ raise khi KHÔNG sinh được đề nào: lúc đó người gọi phải thấy đúng lỗi gốc để phân
+    # biệt "Gemini hỏng" với "Gemini trả đề không hợp lệ" (Refiller và rake task báo khác nhau).
     def call(count:)
       records = []
       prompts = []
+      failures = []
       max_batches = (count.to_f / batch_size).ceil + EXTRA_BATCH_ALLOWANCE
 
       while records.size < count && prompts.size < max_batches
         wanted = [ count - records.size, batch_size ].min
         prompt = build_prompt(wanted)
         prompts << prompt
-        records.concat(generate_batch(prompt))
+
+        begin
+          records.concat(generate_batch(prompt))
+        rescue Gemini::Error => e
+          failures << e
+          # Breaker mở nghĩa là Gemini đang hỏng thật — gọi tiếp chỉ tốn lượt mà chắc chắn
+          # trượt, vì CircuitBreaker#run raise ngay không chạm API.
+          break if @breaker.open?
+        end
       end
 
-      Batch.new(records: records.first(count), model: @client.model, prompts: prompts)
+      raise failures.last if records.empty? && failures.any?
+
+      Batch.new(records: records.first(count), model: @client.model, prompts: prompts,
+                failures: failures)
     end
 
     private

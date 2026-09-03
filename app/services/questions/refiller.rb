@@ -158,13 +158,28 @@ module Questions
 
       # Ghi cả playable và khoảng cách tới mục tiêu nhiều đề nhất vào log: đọc log là biết
       # được chọn vì nghèo tới mức nào, không phải mở console query lại DB mới đối chiếu được.
+      #
+      # Lô lỗi vẫn để status :done vì đề đã vào DB thật — nhưng PHẢI in ra. Job đỏ vì một
+      # 503 lẻ thì đỏ gần như mỗi đêm và không ai còn đọc, còn im lặng thì không phân biệt
+      # được "hôm nay Gemini chập chờn" với "hôm nay chạy trơn tru".
       Outcome.new(label: target.label, status: :done,
                   detail: "#{report.created} mới, #{report.updated} cập nhật, " \
-                          "#{report.rejected.size} bị loại — #{path.basename} " \
+                          "#{report.rejected.size} bị loại#{failure_note(batch)} — " \
+                          "#{path.basename} " \
                           "(đang có #{target.playable} đề, ít hơn mục tiêu nhiều đề nhất " \
                           "#{richest - target.playable} đề)")
     rescue Generator::UnsupportedGame, Gemini::Error, Importer::InvalidFile => e
       Outcome.new(label: target.label, status: :failed, detail: "#{e.class}: #{e.message}")
+    end
+
+    # Lô lỗi lẻ không còn làm mất cả mục tiêu (Generator#call từ 2026-09-03), nhưng vẫn phải
+    # thấy được trong log: đề nạp về ít hơn count là do Gemini chập chờn chứ không phải do
+    # ngân hàng đã gần đủ.
+    def failure_note(batch)
+      failures = Array(batch.failures)
+      return "" if failures.empty?
+
+      ", #{failures.size} lô lỗi (#{failures.last.message})"
     end
 
     # Kiểm tra SAU khi game_sessions:expire_stale đã chạy, không thì lượt treo vĩnh viễn ở
