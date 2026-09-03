@@ -176,10 +176,12 @@ module Questions
     # thấy được trong log: đề nạp về ít hơn count là do Gemini chập chờn chứ không phải do
     # ngân hàng đã gần đủ.
     def failure_note(batch)
-      failures = Array(batch.failures)
+      failures = batch.failures
       return "" if failures.empty?
 
-      ", #{failures.size} lô lỗi (#{failures.last.message})"
+      # uniq trên message chứ không chỉ lấy cái cuối: một mục tiêu có thể trượt vì hai
+      # nguyên nhân khác nhau (503 rồi MAX_TOKENS), in mỗi cái cuối là chẩn đoán sai.
+      ", #{failures.size} lô lỗi (#{failures.map(&:message).uniq.join('; ')})"
     end
 
     # Kiểm tra SAU khi game_sessions:expire_stale đã chạy, không thì lượt treo vĩnh viễn ở

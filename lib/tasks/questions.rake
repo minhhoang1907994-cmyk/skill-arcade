@@ -29,6 +29,11 @@ namespace :questions do
 
     puts "Đã ghi #{batch.records.size}/#{count} đề vào #{path}"
     puts "Model: #{batch.model} — #{batch.prompts.size} request"
+    # Từ 2026-09-03 lô lỗi lẻ không còn abort cả task (Generator#call), nên nếu không in ra
+    # thì "Đã ghi 7/10 đề" trông giống hệt trường hợp Gemini trả đề không hợp lệ.
+    if batch.failures.any?
+      puts "#{batch.failures.size} lô lỗi: #{batch.failures.map(&:message).uniq.join('; ')}"
+    end
     puts ""
     puts "Nạp vào DB bằng:"
     puts "  rake 'questions:import[#{path.relative_path_from(Rails.root)}]'"

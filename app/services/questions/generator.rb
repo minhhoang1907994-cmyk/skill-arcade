@@ -24,6 +24,13 @@ module Questions
     # Đề bị loại ở bước validate (vd buggy_line trỏ sai dòng) làm lô đó hụt, nên phải cho
     # phép gọi thêm vài lô. Nhưng PHẢI có trần: nếu Gemini liên tục trả đề không dùng được
     # thì vòng lặp sẽ chạy mãi và nện API cho đến khi hết quota.
+    #
+    # Từ 2026-09-03 ngân sách này DÙNG CHUNG cho hai loại hụt: đề bị Validator loại, và lô
+    # lỗi transport (503/timeout) mà #call gọi lại. Hệ quả phải biết: hai lần 503 là hết dư,
+    # mục tiêu trả về ít hơn count dù Gemini đã hồi phục. Cố ý không tách hằng số riêng cho
+    # retry — tách ra thì worst case của game kịch bản lên ceil(10/2) + 2 + 2 = 9 request,
+    # tổng một lần chạy thành 9 + 9 + 4 = 22, vượt hạn mức đo được 20/ngày (spec §20). Muốn
+    # tách thì phải hạ MAX_TARGETS_PER_RUN của Refiller cùng lúc.
     EXTRA_BATCH_ALLOWANCE = 2
     MAX_OUTPUT_TOKENS = 16_384
     # Sinh đề chạy offline nên cho model suy nghĩ nhiều hơn lúc chấm (128) để đề khá hơn.
@@ -31,7 +38,15 @@ module Questions
     THINKING_BUDGET = 1024
     DIFFICULTIES = [ "easy", "medium", "hard" ].freeze
 
-    Batch = Struct.new(:records, :model, :prompts, :failures, keyword_init: true)
+    Batch = Struct.new(:records, :model, :prompts, :failures, keyword_init: true) do
+      # keyword_init cho phép bỏ qua member, và caller cũ (vd Refiller spec) vẫn dựng Batch
+      # không có failures. Trả [] thay vì nil để caller gọi thẳng .size/.map không phải nhớ
+      # bọc Array() — đọc self[:failures] chứ không super vì Struct sinh accessor ngay trên
+      # chính class này, super sẽ không tìm thấy gì.
+      def failures
+        self[:failures] || []
+      end
+    end
 
     def initialize(game:, language: nil, client: nil, breaker: Gemini::CircuitBreaker.new)
       @game = game
