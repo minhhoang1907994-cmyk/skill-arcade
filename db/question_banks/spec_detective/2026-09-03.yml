@@ -1,0 +1,320 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-09-03T01:40:54Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần hỗ trợ tính năng Flash Sale cho các sản phẩm hot vào khung giờ
+      vàng.
+    - Mỗi tài khoản chỉ được mua tối đa 2 sản phẩm trong suốt thời gian diễn ra sự
+      kiện.
+    - Nếu số lượng đơn hàng tăng đột biến, hệ thống phải xử lý thật nhanh để tránh
+      nghẽn mạng.
+    - Đơn hàng chưa thanh toán sau một khoảng thời gian hợp lý sẽ tự động hủy để trả
+      lại kho.
+    - Khi hết hàng, nút Mua ngay sẽ đổi sang trạng thái hết hàng và không cho người
+      dùng click tiếp.
+    clarifying_options:
+    - key: a
+      label: Thời gian chờ thanh toán cụ thể trước khi tự động hủy đơn là bao nhiêu
+        phút?
+    - key: b
+      label: Mỗi tài khoản được mua tối đa bao nhiêu sản phẩm trong chương trình Flash
+        Sale?
+    - key: c
+      label: Làm thế nào để giao diện trang Flash Sale trông đẹp mắt và thu hút hơn?
+    - key: d
+      label: Công ty có kế hoạch mở rộng hạ tầng máy chủ sang thị trường quốc tế không?
+  answer_key:
+    explanation: Phương án a chốt được thời gian timeout cụ thể cho quy tắc hủy đơn
+      (điểm mơ hồ ở câu 4), trong khi b hỏi lại điều đã ghi rõ ở câu 2, c quá chung
+      chung về giao diện, còn d nằm ngoài phạm vi yêu cầu nghiệp vụ.
+    best_option_key: a
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+  difficulty: easy
+- content:
+    statements:
+    - Khách hàng dùng thẻ tín dụng hạng Gold sẽ được hoàn tiền 2% cho mọi giao dịch
+      ẩm thực.
+    - Tiền hoàn sẽ được tích lũy vào ví thưởng và có thể rút về tài khoản ngân hàng
+      liên kết.
+    - Hạn mức hoàn tiền tối đa mỗi tháng phải được giới hạn ở mức phù hợp với chính
+      sách ngân hàng.
+    - Các giao dịch nghi ngờ gian lận sẽ bị tạm khóa hoàn tiền để bộ phận rủi ro kiểm
+      tra.
+    - Thời gian xử lý kiểm tra rủi ro không được kéo dài quá lâu để không làm phiền
+      khách hàng.
+    clarifying_options:
+    - key: a
+      label: Ngân hàng đang sử dụng thuật toán AI nào để phát hiện giao dịch gian
+        lận?
+    - key: b
+      label: Tỷ lệ hoàn tiền cho giao dịch ẩm thực của thẻ Gold là bao nhiêu phần
+        trăm?
+    - key: c
+      label: Hạn mức tiền hoàn tối đa mỗi tháng cho một tài khoản là bao nhiêu VNĐ?
+    - key: d
+      label: Làm thế nào để ứng dụng di động chạy mượt mà hơn trên các máy đời cũ?
+  answer_key:
+    explanation: Phương án c làm rõ được con số hạn mức trần bằng tiền mặt (điểm mơ
+      hồ ở câu 3), trong khi b hỏi lại số % đã có ở câu 1, a đi quá sâu vào kỹ thuật
+      cài đặt AI, còn d không thuộc phạm vi nghiệp vụ hoàn tiền.
+    best_option_key: c
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+  difficulty: medium
+- content:
+    statements:
+    - Đơn hàng giao trong nội thành Hà Nội sẽ áp dụng phí giao hàng cố định là 25.000
+      VNĐ.
+    - Nếu tổng giá trị đơn hàng từ 500.000 VNĐ trở lên, khách hàng sẽ được miễn phí
+      vận chuyển.
+    - Shipper cần giao hàng cho khách trong thời gian sớm nhất có thể sau khi nhận
+      đơn từ kho.
+    - Khi giao hàng không thành công do không liên lạc được, shipper sẽ thử gọi lại
+      thêm vài lần.
+    - Nếu sau 3 lần giao thất bại, đơn hàng sẽ tự động chuyển sang trạng thái Hoàn
+      trả kho.
+    clarifying_options:
+    - key: a
+      label: Quy định cụ thể số lần gọi tối đa và khoảng thời gian tối thiểu giữa
+        các lần gọi lại là bao nhiêu?
+    - key: b
+      label: Phí giao hàng nội thành Hà Nội đối với các đơn dưới 500.000 VNĐ là bao
+        nhiêu?
+    - key: c
+      label: Làm thế nào để các shipper luôn duy trì thái độ thân thiện khi giao hàng?
+    - key: d
+      label: Hệ thống có nên tích hợp tính năng dự báo thời tiết cho shipper không?
+  answer_key:
+    explanation: Phương án a cụ thể hóa quy trình gọi lại bằng số lần và mốc thời
+      gian rõ ràng (xử lý câu 4 mơ hồ), trong khi b lặp lại thông tin phí ở câu 1,
+      c mang tính định lượng cảm tính không đo được, và d ngoài phạm vi bài toán.
+    best_option_key: a
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+  difficulty: medium
+- content:
+    statements:
+    - Học viên phải nộp bài tập về nhà trước 23:59 ngày chủ nhật hàng tuần.
+    - Bài tập nộp muộn sẽ bị trừ điểm theo tỷ lệ phần trăm tùy thuộc vào mức độ trễ.
+    - Dung lượng tệp đính kèm tối đa được phép tải lên hệ thống là 25MB.
+    - Các định dạng tệp hợp lệ bao gồm PDF, DOCX và ZIP.
+    - Giảng viên sẽ chấm điểm và phản hồi phản hồi chi tiết nếu cần thiết.
+    clarifying_options:
+    - key: a
+      label: Hệ thống có hỗ trợ tải lên các tệp bài tập ở định dạng PDF hay không?
+    - key: b
+      label: Công thức tính % điểm bị trừ cụ thể tương ứng với từng khoảng thời gian
+        nộp muộn là gì?
+    - key: c
+      label: Làm thế nào để học viên cảm thấy hào hứng hơn khi làm bài tập về nhà?
+    - key: d
+      label: Giao diện màn hình nộp bài có thể tùy chỉnh màu sắc theo sở thích cá
+        nhân không?
+  answer_key:
+    explanation: Phương án b yêu cầu công thức và con số trừ điểm rõ ràng cho trường
+      hợp quá hạn (xử lý câu 2 mơ hồ), trong khi a hỏi trùng điều kiện tệp ở câu 4,
+      c hỏi về tâm lý học viên không cụ thể hóa được logic, còn d là tính năng ngoài
+      phạm vi.
+    best_option_key: b
+    ambiguous_statement_indexes:
+    - 2
+    - 5
+  difficulty: hard
+- content:
+    statements:
+    - Nhân viên chính thức được hưởng 12 ngày phép năm có hưởng nguyên lương.
+    - Đơn xin nghỉ phép từ 3 ngày trở lên phải được gửi trước ít nhất 5 ngày làm việc.
+    - Quản lý trực tiếp cần duyệt đơn trong thời gian sớm để nhân viên chủ động công
+      việc.
+    - Nếu đơn bị từ chối, hệ thống yêu cầu quản lý phải nhập lý do từ chối tối thiểu
+      10 ký tự.
+    - Trường hợp nhân viên xin nghỉ đột xuất do ốm đau, quy trình duyệt sẽ được linh
+      hoạt xử lý phù hợp.
+    clarifying_options:
+    - key: a
+      label: Thời hạn tối đa (tính theo giờ hoặc ngày làm việc) để quản lý phản hồi
+        duyệt hoặc từ chối đơn là bao lâu?
+    - key: b
+      label: Nhân viên chính thức của công ty được hưởng bao nhiêu ngày phép năm?
+    - key: c
+      label: Làm sao để nâng cao tinh thần trách nhiệm của cấp quản lý trong công
+        ty?
+    - key: d
+      label: Công ty có nên tổ chức chuyến du lịch nghỉ mát hàng năm cho nhân viên
+        không?
+  answer_key:
+    explanation: Phương án a đưa ra yêu cầu xác định mốc thời gian SLA cụ thể cho
+      thao tác duyệt (làm rõ câu 3 mơ hồ), trong khi b hỏi lại số ngày phép đã ghi
+      ở câu 1, c là chủ đề quản trị nhân sự chung chung, còn d hoàn toàn lệch khỏi
+      quy trình duyệt phép.
+    best_option_key: a
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+  difficulty: easy
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá FLASH20 cho tất cả đơn hàng phát sinh
+      trong khung giờ từ 12:00 đến 14:00.
+    - Mỗi tài khoản người dùng chỉ được phép mua tối đa 3 sản phẩm áp dụng mã này
+      trong toàn bộ chương trình.
+    - Nếu người dùng hủy đơn hàng đã đặt, hệ thống nên xử lý hoàn lại lượt dùng mã
+      một cách phù hợp.
+    - Các đơn hàng có giá trị cao sẽ được ưu tiên giao hàng trước để đảm bảo trải
+      nghiệm dịch vụ tốt nhất.
+    - Thời gian lưu đơn hàng chờ thanh toán qua cổng VNPAY mặc định là 15 phút trước
+      khi tự động hủy.
+    clarifying_options:
+    - key: a
+      label: Điều kiện cụ thể nào để một đơn hàng được tính là giá trị cao và thứ
+        tự ưu tiên giao hàng được sắp xếp thế nào?
+    - key: b
+      label: Mã FLASH20 được áp dụng trong khung giờ nào và mỗi tài khoản được mua
+        tối đa bao nhiêu sản phẩm?
+    - key: c
+      label: Hệ thống có nên tích hợp thêm các cổng thanh toán quốc tế như PayPal
+        hay Stripe không?
+    - key: d
+      label: Làm sao để nâng cao trải nghiệm mua sắm của khách hàng trong mùa sale?
+  answer_key:
+    explanation: Phương án a làm rõ trực tiếp tiêu chí định lượng giá trị cao và quy
+      tắc nghiệp vụ xử lý ưu tiên, trong khi b hỏi lại điều đã rõ, c ngoài phạm vi
+      và d quá chung chung.
+    best_option_key: a
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+  difficulty: easy
+- content:
+    statements:
+    - Khi hồ sơ vay được duyệt, hệ thống phải gửi thông báo qua SMS và Email cho khách
+      hàng trong vòng 30 giây.
+    - Trường hợp hệ thống gửi SMS thất bại, cần thử lại một vài lần trước khi đánh
+      dấu thất bại.
+    - Số tiền giải ngân tối đa cho mỗi giao dịch qua ứng dụng là 50.000.000 VNĐ.
+    - Khách hàng có lịch sử nợ xấu sẽ bị từ chối tự động và nhận phản hồi ngay lập
+      tức.
+    - Đối với các khoản vay lớn, bộ phận thẩm định sẽ xem xét thủ công nếu cần thiết.
+    clarifying_options:
+    - key: a
+      label: Quy trình thiết kế giao diện ứng dụng mobile cho khách hàng vay tiền
+        nên thực hiện thế nào?
+    - key: b
+      label: Hệ thống cần thử lại tối đa bao nhiêu lần khi gửi SMS thất bại và khoảng
+        thời gian giữa các lần retry là bao lâu?
+    - key: c
+      label: Số tiền giải ngân tối đa cho mỗi giao dịch qua ứng dụng là bao nhiêu?
+    - key: d
+      label: Chúng ta có nên mở rộng sản phẩm sang cho vay thế chấp bất động sản không?
+  answer_key:
+    explanation: Phương án b làm rõ tham số kỹ thuật cụ thể cho cơ chế retry ở câu
+      2, trong khi các phương án khác hỏi lại điều đã rõ, lạc đề hoặc quá rộng.
+    best_option_key: b
+    ambiguous_statement_indexes:
+    - 2
+    - 5
+  difficulty: medium
+- content:
+    statements:
+    - Bệnh nhân có thể đặt lịch khám trực tuyến với bác sĩ trước tối thiểu 2 tiếng
+      so với giờ hẹn.
+    - Bác sĩ có quyền hủy lịch khám nếu có ca cấp cứu đột xuất phát sinh.
+    - Hệ thống sẽ tự động tìm kiếm bác sĩ thay thế phù hợp cho bệnh nhân trong thời
+      gian nhanh nhất.
+    - Khách hàng được hủy lịch và nhận lại 100% chi phí nếu báo trước thời điểm khám
+      24 tiếng.
+    - Nếu bệnh nhân vào phòng khám trễ quá lâu, buổi khám sẽ tự động kết thúc và không
+      được hoàn tiền.
+    - Mọi dữ liệu cuộc gọi video khám bệnh phải được mã hóa theo chuẩn AES-256.
+    clarifying_options:
+    - key: a
+      label: Thời gian vào trễ cụ thể là bao nhiêu phút thì tự động kết thúc và tiêu
+        chí chọn bác sĩ thay thế phù hợp là gì?
+    - key: b
+      label: Bệnh nhân cần đặt lịch khám trước giờ hẹn tối thiểu bao nhiêu tiếng?
+    - key: c
+      label: Làm thế nào để nâng cao chất lượng dịch vụ y tế trực tuyến nói chung?
+    - key: d
+      label: Hệ thống có nên hỗ trợ kết nối với thiết bị đo nhịp tim thông minh của
+        bên thứ ba không?
+  answer_key:
+    explanation: Phương án a quy định rõ mốc thời gian trễ và tiêu chí chọn bác sĩ
+      thay thế, giải quyết điểm mơ hồ ở câu 3 và 5.
+    best_option_key: a
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+  difficulty: hard
+- content:
+    statements:
+    - Mỗi khi có đơn hàng xuất kho, số lượng tồn kho trong bảng inventory phải giảm
+      ngay lập tức.
+    - Nếu số lượng tồn kho giảm xuống dưới 10 sản phẩm, hệ thống cần gửi email cảnh
+      báo cho quản lý kho.
+    - Khi hàng hóa bị hư hỏng trong quá trình kiểm kê, nhân viên kho cần cập nhật
+      trạng thái hợp lý trên hệ thống.
+    - Báo cáo xuất nhập tồn được tự động xuất file Excel vào lúc 23:59 mỗi ngày.
+    - Trong đợt cao điểm đợt sale lớn, hệ thống phải chịu tải tốt để không bị gián
+      đoạn.
+    clarifying_options:
+    - key: a
+      label: File báo cáo xuất nhập tồn được tự động xuất định dạng gì và vào mấy
+        giờ?
+    - key: b
+      label: Trạng thái cụ thể cần cập nhật khi hàng hư hỏng là gì và chịu tải tốt
+        nghĩa là phải đáp ứng bao nhiêu RPS?
+    - key: c
+      label: Công ty có kế hoạch xây dựng thêm kho bãi mới ở tỉnh khác trong năm tới
+        không?
+    - key: d
+      label: Làm sao để nhân viên kho làm việc hiệu quả và ít mắc lỗi hơn?
+  answer_key:
+    explanation: Phương án b xác định đúng mã trạng thái nghiệp vụ và chỉ số kỹ thuật
+      RPS cụ thể để đo lường, loại bỏ sự mơ hồ ở câu 3 và 5.
+    best_option_key: b
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+  difficulty: medium
+- content:
+    statements:
+    - Học viên phải hoàn thành 100% các bài giảng video trong khóa học để đủ điều
+      kiện làm bài thi cuối khóa.
+    - Bài thi cuối khóa gồm 30 câu hỏi trắc nghiệm, thời gian làm bài là 45 phút.
+    - Học viên đạt điểm cao sẽ nhận được chứng chỉ xuất sắc kèm theo phần thưởng thích
+      đáng.
+    - Chứng chỉ sẽ tự động tạo dưới dạng PDF và gửi qua email đăng ký trong vòng 5
+      phút sau khi nộp bài.
+    - Nếu phát hiện vi phạm gian lận trong lúc làm bài, hệ thống nên xử lý ngay lập
+      tức.
+    clarifying_options:
+    - key: a
+      label: Bài thi cuối khóa bao gồm bao nhiêu câu hỏi trắc nghiệm và thời gian
+        làm bài bao lâu?
+    - key: b
+      label: Mức điểm cụ thể nào được tính là điểm cao và hành động xử lý khi phát
+        hiện gian lận là hủy bài thi hay khóa tài khoản?
+    - key: c
+      label: Nên tuyển thêm giáo viên giảng dạy những môn học mới nào cho nền tảng?
+    - key: d
+      label: Làm thế nào để thu hút nhiều học viên đăng ký khóa học hơn?
+  answer_key:
+    explanation: Phương án b chốt con số điều kiện điểm số và hành động nghiệp vụ
+      rõ ràng khi gian lận, khắc phục điểm yếu ở câu 3 và 5.
+    best_option_key: b
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+  difficulty: easy
