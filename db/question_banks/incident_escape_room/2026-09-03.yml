@@ -1,0 +1,445 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: incident_escape_room
+model: gemini-3.6-flash
+generated_at: '2026-09-03T21:46:16Z'
+questions:
+- content:
+    scenario: Hệ thống Thanh toán (Payment Gateway) bị gián đoạn diện rộng trong sự
+      kiện Flash Sale. Hàng ngàn request checkout bị timeout và trả về lỗi HTTP 500.
+      Bạn cần tìm ra nguyên nhân và khôi phục dịch vụ gấp.
+    initial_logs: "[ERROR] 2023-10-24 10:15:02.123 [http-nio-8080-exec-42] c.m.p.s.CheckoutService:
+      Failed to process payment\norg.springframework.dao.CannotGetJdbcConnectionException:
+      Could not get JDBC Connection; nested exception is com.zaxxer.hikari.pool.HikariPool$PoolInitializationException:
+      Exception during pool initialization\n\tat com.zaxxer.hikari.pool.HikariPool.checkException(HikariPool.java:560)\n\tat
+      com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:150)\nCaused
+      by: com.zaxxer.hikari.pool.HikariPool$PoolKey: Connection is not available,
+      request timed out after 30000ms."
+    nodes:
+    - key: s1_node1
+      prompt: Cảnh báo HTTP 500 tăng đột biến trên Payment Gateway. Bạn làm gì đầu
+        tiên?
+      options:
+      - key: s1_n1_o1
+        label: Kiểm tra dashboard APM và Grafana để xem phân bố lỗi và latency các
+          dịch vụ
+      - key: s1_n1_o2
+        label: Khởi động lại ngay lập tức toàn bộ các pod Payment Service
+      - key: s1_n1_o3
+        label: Tăng cấu hình RAM và CPU cho server Database ngay lập tức
+    - key: s1_node2
+      prompt: Grafana chỉ ra lỗi tập trung vào HikariCP Connection Pool bị cạn kiệt.
+        Bước tiếp theo là gì?
+      options:
+      - key: s1_n2_o1
+        label: Truy vấn pg_stat_activity trên PostgreSQL để xem trạng thái các connection
+          đang active
+      - key: s1_n2_o2
+        label: Tăng maximum-pool-size trong ứng dụng từ 20 lên 200 rồi deploy lại
+      - key: s1_n2_o3
+        label: Xóa bớt dữ liệu bảng transaction_log để giải phóng dung lượng đĩa
+    - key: s1_node3
+      prompt: pg_stat_activity cho thấy hàng trăm connection ở trạng thái 'idle in
+        transaction' kéo dài hơn 5 phút. Bạn sẽ làm gì?
+      options:
+      - key: s1_n3_o1
+        label: Tra cứu ứng dụng và log để xác định query/endpoint nào tạo transaction
+          rồi bỏ ngỏ
+      - key: s1_n3_o2
+        label: Chạy lệnh VACUUM FULL trên toàn bộ cơ sở dữ liệu
+      - key: s1_n3_o3
+        label: Reboot lại Node Database Primary
+    - key: s1_node4
+      prompt: Log cho thấy endpoint /api/v1/checkout gọi API bên thứ ba (Third-party)
+        bên trong DB transaction nhưng không cài timeout. Làm sao xử lý tức thời các
+        connection treo?
+      options:
+      - key: s1_n4_o1
+        label: Dùng pg_terminate_backend(pid) hủy các connection đang 'idle in transaction'
+      - key: s1_n4_o2
+        label: Tắt toàn bộ kết nối mạng ra bên ngoài của Payment Service
+      - key: s1_n4_o3
+        label: Đổi mật khẩu tài khoản PostgreSQL để ngắt toàn bộ kết nối ứng dụng
+    - key: s1_node5
+      prompt: Connection treo đã bị hủy, nhưng request mới đến vẫn tiếp tục làm treo
+        connection do thiếu timeout. Cách khắc phục nhanh nhất là gì?
+      options:
+      - key: s1_n5_o1
+        label: Tắt Feature Flag của tính năng checkout mới hoặc Rollback về bản v1.12.0
+          trước đó
+      - key: s1_n5_o2
+        label: Tạo cronjob tự động chạy pg_terminate_backend mỗi 5 giây
+      - key: s1_n5_o3
+        label: Liên hệ đối tác bên thứ ba bảo họ nâng cấp server
+    - key: s1_node6
+      prompt: Đã Rollback về bản v1.12.0 thành công. Bạn làm gì để xác nhận hệ thống
+        phục hồi?
+      options:
+      - key: s1_n6_o1
+        label: Kiểm tra lại Grafana connection pool usage và tỉ lệ lỗi HTTP 500
+      - key: s1_n6_o2
+        label: Thêm log debug rồi đẩy thẳng bản sửa v1.12.1 lên thẳng Production
+      - key: s1_n6_o3
+        label: Đóng ngay ticket sự cố mà không cần theo dõi thêm
+    - key: s1_node7
+      prompt: Metrics ổn định, tỷ lệ lỗi HTTP 500 trở về 0%. Bước xử lý cuối cùng
+        của bạn là gì?
+      options:
+      - key: s1_n7_o1
+        label: Thông báo khôi phục dịch vụ trên channel Incident và tạo ticket Post-mortem
+      - key: s1_n7_o2
+        label: Tiếp tục ngồi quan sát dashboard thêm 30 phút mà không thông báo cho
+          ai
+      - key: s1_n7_o3
+        label: Bật lại bản build bị lỗi v1.12.1 để test thử lại trên Production
+    - key: s1_node8
+      prompt: Sự cố cạn kiệt Connection Pool đã được khắc phục hoàn toàn.
+      options:
+      - key: s1_n8_o1
+        label: Hoàn tất ứng cứu
+  answer_key:
+    option_effects:
+      s1_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node2
+        explanation: Chẩn đoán chính xác bằng quan sát dashboard giúp định vị phạm
+          vi sự cố nhanh nhất.
+      s1_n1_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_node1
+        explanation: Restart pod có thể giải phóng tạm thời connection nhưng không
+          triệt tiêu gốc rễ và làm gián đoạn request đang xử lý.
+      s1_n1_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_node1
+        explanation: Tăng tài nguyên server DB không giải quyết được vấn đề cạn kiệt
+          connection pool do ứng dụng giam connection.
+      s1_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node3
+        explanation: Truy vấn pg_stat_activity giúp biết rõ nguyên nhân connection
+          bị chiếm giữ.
+      s1_n2_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_node2
+        explanation: Tăng max-pool-size chỉ làm ngập DB với nhiều connection treo
+          hơn nếu code bị rò rỉ connection.
+      s1_n2_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_node2
+        explanation: Sự cố do connection pool, không liên quan tới dung lượng đĩa.
+      s1_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s1_node4
+        explanation: Xác định đúng root-cause từ log ứng dụng gắn liền với transaction
+          bị idle.
+      s1_n3_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: s1_node3
+        explanation: VACUUM FULL gây lock bảng nặng nề hơn và không giải quyết tình
+          trạng idle transaction.
+      s1_n3_o3:
+        points: 0
+        minutes_cost: 6
+        next_node: s1_node3
+        explanation: Reboot DB gây downtime toàn hệ thống mà không sửa được lỗi leak
+          connection ở ứng dụng.
+      s1_n4_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node5
+        explanation: Dùng pg_terminate_backend là biện pháp ứng cứu tức thời đúng
+          đắn để giải phóng pool.
+      s1_n4_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_node4
+        explanation: Tắt mạng làm ngừng toàn bộ dịch vụ thay vì khoanh vùng xử lý.
+      s1_n4_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_node4
+        explanation: Đổi mật khẩu sẽ làm sập toàn bộ dịch vụ phụ thuộc vào Database.
+      s1_n5_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s1_node6
+        explanation: Rollback phiên bản lỗi là giải pháp giảm thiểu sự cố an toàn
+          và nhanh nhất.
+      s1_n5_o2:
+        points: 5
+        minutes_cost: 4
+        next_node: s1_node5
+        explanation: Viết cronjob kill connection là giải pháp chắp vá nguy hiểm có
+          thể ngắt nhầm transaction hợp lệ.
+      s1_n5_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_node5
+        explanation: Thả trôi sự cố chờ bên thứ ba là hành động thiếu trách nhiệm.
+      s1_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node7
+        explanation: Đo lường kiểm tra lại chỉ số sau khi khắc phục là bước bắt buộc.
+      s1_n6_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s1_node6
+        explanation: Deploy bản sửa chưa qua test lên Prod dễ gây lại sự cố.
+      s1_n6_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: s1_node6
+        explanation: Bỏ qua bước xác nhận hệ thống là quy trình cẩu thả.
+      s1_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node8
+        explanation: Đóng luồng thông tin chuẩn quy trình ứng cứu sự cố.
+      s1_n7_o2:
+        points: 5
+        minutes_cost: 2
+        next_node: s1_node7
+        explanation: Theo dõi quá lâu mà không thông báo khiến stakeholder hoang mang.
+      s1_n7_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s1_node7
+        explanation: Thử nghiệm bản lỗi trên Production gây lại gián đoạn cho khách
+          hàng.
+      s1_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s1_node8
+        explanation: Hoàn tất sự cố thành công.
+    recovery_node: s1_node8
+  difficulty: hard
+- content:
+    scenario: Dịch vụ User Microservice trên Kubernetes liên tục bị CrashLoopBackOff
+      ngay sau khi triển khai phiên bản v2.4.1. Khách hàng không thể đăng nhập vào
+      ứng dụng.
+    initial_logs: |-
+      NAME                            READY   STATUS             RESTARTS   AGE
+      user-service-7d9f8b4c-x9z2q     0/1     CrashLoopBackOff   5          4m12s
+      user-service-7d9f8b4c-y8w1p     0/1     CrashLoopBackOff   5          4m10s
+    nodes:
+    - key: s2_node1
+      prompt: Các Pod của user-service gặp trạng thái CrashLoopBackOff. Bước kiểm
+        tra đầu tiên là gì?
+      options:
+      - key: s2_n1_o1
+        label: Dùng kubectl describe pod user-service-7d9f8b4c-x9z2q để kiểm tra chi
+          tiết sự kiện
+      - key: s2_n1_o2
+        label: Xóa toàn bộ các Pod để Kubernetes tạo lại Pod mới
+      - key: s2_n1_o3
+        label: Scale số lượng replicas của Deployment lên gấp đôi
+    - key: s2_node2
+      prompt: 'Lệnh describe pod hiển thị: Last State: Terminated, Reason: OOMKilled,
+        Exit Code: 137. Bạn xử lý bước tiếp theo như thế nào?'
+      options:
+      - key: s2_n2_o1
+        label: Xem log của container trước khi crash bằng kubectl logs --previous
+      - key: s2_n2_o2
+        label: Tăng RAM limit trong Deployment từ 512MiB lên thẳng 8GiB
+      - key: s2_n2_o3
+        label: Tắt Liveness Probe để Kubernetes không kill Pod nữa
+    - key: s2_node3
+      prompt: 'Log ứng dụng báo lỗi ''FATAL ERROR: Ineffective mark-compacts near
+        heap limit Allocation failed - JavaScript heap out of memory''. Làm sao tìm
+        nguyên nhân rò rỉ bộ nhớ?'
+      options:
+      - key: s2_n3_o1
+        label: Kiểm tra Git diff giữa phiên bản v2.4.0 và v2.4.1 vừa deploy
+      - key: s2_n3_o2
+        label: Reboot lại các Worker Node của cụm Kubernetes
+      - key: s2_n3_o3
+        label: Xóa sạch bộ nhớ tạm Redis Caching
+    - key: s2_node4
+      prompt: Git diff cho thấy phiên bản v2.4.1 đã thêm mảng toàn cục 'const requestHistory
+        = []' lưu toàn bộ request body mà không giải phóng. Cách xử lý khẩn cấp là
+        gì?
+      options:
+      - key: s2_n4_o1
+        label: Thực hiện kubectl rollout undo deployment/user-service để rollback
+          về v2.4.0
+      - key: s2_n4_o2
+        label: Dùng kubectl exec vào container để sửa trực tiếp file code JS
+      - key: s2_n4_o3
+        label: Đẩy commit mới thẳng lên nhánh main mà không qua CI/CD
+    - key: s2_node5
+      prompt: Lệnh Rollback đã được phát đi. Làm sao để kiểm tra quá trình rollback
+        diễn ra thành công?
+      options:
+      - key: s2_n5_o1
+        label: Theo dõi tiến trình bằng kubectl rollout status deployment/user-service
+      - key: s2_n5_o2
+        label: Mở trang đăng nhập ứng dụng thử liên tục trên trình duyệt
+      - key: s2_n5_o3
+        label: Xóa Kubernetes Deployment rồi tạo lại từ file YAML cũ
+    - key: s2_node6
+      prompt: Rollback hoàn tất, các Pod đã ở trạng thái Running (1/1). Bước kiểm
+        tra độ ổn định là gì?
+      options:
+      - key: s2_n6_o1
+        label: Quan sát biểu đồ Memory Usage của user-service trên Grafana trong vài
+          phút
+      - key: s2_n6_o2
+        label: Rời bàn làm việc ngay vì Pod đã Running
+      - key: s2_n6_o3
+        label: Re-deploy lại phiên bản v2.4.1 để kiểm tra lại lỗi
+    - key: s2_node7
+      prompt: Bộ nhớ ổn định ở mức 120MiB và không còn tăng liên tục. Bạn làm gì để
+        khép lại sự cố?
+      options:
+      - key: s2_n7_o1
+        label: Cập nhật status lên trang trạng thái hệ thống và tạo ticket Jira sửa
+          lỗi cho v2.4.2
+      - key: s2_n7_o2
+        label: Ngồi theo dõi biểu đồ thêm 1 tiếng mà không thông báo gì
+      - key: s2_n7_o3
+        label: Xóa toàn bộ log pod bằng lệnh k8s
+    - key: s2_node8
+      prompt: Sự cố Memory Leak trên user-service đã được giải quyết hoàn toàn.
+      options:
+      - key: s2_n8_o1
+        label: Hoàn tất ứng cứu
+  answer_key:
+    option_effects:
+      s2_n1_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node2
+        explanation: Dùng kubectl describe là bước tiêu chuẩn để xem nguyên nhân Pod
+          không thể khởi chạy.
+      s2_n1_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_node1
+        explanation: Xóa pod sẽ khiến Kubernetes tạo pod mới nhưng vẫn bị crash nếu
+          nguyên nhân từ code hoặc cấu hình.
+      s2_n1_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_node1
+        explanation: Scale thêm pod bị lỗi chỉ làm tốn thêm tài nguyên của cụm cluster.
+      s2_n2_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node3
+        explanation: Xem log previous giúp tìm ra thông điệp lỗi chính xác ngay trước
+          khi container bị kill.
+      s2_n2_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_node2
+        explanation: Tăng RAM khi bị leak bộ nhớ chỉ kéo dài thời gian trước khi Pod
+          tiếp tục crash.
+      s2_n2_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: s2_node2
+        explanation: OOMKilled do OS/Kernel thực hiện, không phụ thuộc vào Liveness
+          Probe.
+      s2_n3_o1:
+        points: 10
+        minutes_cost: 2
+        next_node: s2_node4
+        explanation: So sánh Git diff giữa 2 phiên bản là cách nhanh nhất tìm ra code
+          gây rò rỉ bộ nhớ.
+      s2_n3_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_node3
+        explanation: Reboot Worker Node làm gián đoạn các dịch vụ khác mà không sửa
+          được lỗi ứng dụng.
+      s2_n3_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_node3
+        explanation: Lỗi RAM ở Node.js heap không liên quan tới Redis cache.
+      s2_n4_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node5
+        explanation: Rollback về phiên bản ổn định gần nhất là phương án ứng cứu sự
+          cố chuẩn hóa.
+      s2_n4_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_node4
+        explanation: Sửa trực tiếp trong container vi phạm nguyên tắc Immutable Infrastructure
+          và sẽ mất khi restart.
+      s2_n4_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_node4
+        explanation: Bỏ qua quy trình CI/CD dễ dẫn tới lỗi mới nguy hiểm hơn trên
+          Production.
+      s2_n5_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node6
+        explanation: Theo dõi lệnh rollout status giúp nắm chính xác tiến độ phục
+          hồi.
+      s2_n5_o2:
+        points: 5
+        minutes_cost: 2
+        next_node: s2_node5
+        explanation: Thử manual trên UI không phản ánh đầy đủ trạng thái hạ tầng.
+      s2_n5_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: s2_node5
+        explanation: Xóa hẳn Deployment gây gián đoạn dịch vụ hoàn toàn.
+      s2_n6_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node7
+        explanation: Quan sát metric bộ nhớ đảm bảo hiện tượng memory leak không còn
+          diễn ra.
+      s2_n6_o2:
+        points: 5
+        minutes_cost: 3
+        next_node: s2_node6
+        explanation: Bỏ đi khi chưa xác nhận độ ổn định là thiếu trách nhiệm.
+      s2_n6_o3:
+        points: 0
+        minutes_cost: 4
+        next_node: s2_node6
+        explanation: Deploy lại bản lỗi sẽ làm tái diễn sự cố cho người dùng.
+      s2_n7_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node8
+        explanation: Ghi nhận sự cố và tạo công việc khắc phục lâu dài đúng quy trình.
+      s2_n7_o2:
+        points: 5
+        minutes_cost: 2
+        next_node: s2_node7
+        explanation: Không thông báo khiến các bên liên quan không nắm được tình hình.
+      s2_n7_o3:
+        points: 0
+        minutes_cost: 5
+        next_node: s2_node7
+        explanation: Xóa log cản trở việc phân tích nguyên nhân gốc rễ sau sự cố.
+      s2_n8_o1:
+        points: 10
+        minutes_cost: 1
+        next_node: s2_node8
+        explanation: Khôi phục dịch vụ thành công.
+    recovery_node: s2_node8
+  difficulty: medium
