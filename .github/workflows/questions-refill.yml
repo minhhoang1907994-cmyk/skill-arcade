@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # fetch-depth: 0 để bước commit cuối job rebase được lên main. Mặc định là shallow
           # depth 1, khi đó local KHÔNG có tổ tiên chung với origin/main nên `git pull
