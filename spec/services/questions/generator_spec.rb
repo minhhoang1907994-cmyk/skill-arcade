@@ -4,6 +4,20 @@ RSpec.describe Questions::Generator do
   let(:cache) { ActiveSupport::Cache::MemoryStore.new }
   let(:breaker) { Gemini::CircuitBreaker.new(name: "generator-test", cache: cache) }
 
+  # Mỗi phần tử: một Exception để raise, hoặc một payload để trả về — theo đúng thứ tự gọi.
+  def failing_client(*steps)
+    calls = -1
+    instance_double(Gemini::Client, model: "gemini-test").tap do |client|
+      allow(client).to receive(:generate) do
+        calls += 1
+        step = steps[calls] || steps.last
+        raise step if step.is_a?(Exception)
+
+        Gemini::Client::Response.new(text: step.to_json, raw_body: {}, latency_ms: 1)
+      end
+    end
+  end
+
   def fake_client(*payloads)
     responses = payloads.map do |payload|
       Gemini::Client::Response.new(text: payload.to_json, raw_body: {}, latency_ms: 1)
@@ -66,6 +80,26 @@ RSpec.describe Questions::Generator do
       expect(batch.records).to be_empty
       expect(batch.prompts.size).to eq(1 + described_class::EXTRA_BATCH_ALLOWANCE)
       expect(client).to have_received(:generate).exactly(batch.prompts.size).times
+    end
+
+    # Trước 2026-09-03 một lô lỗi làm mất luôn đề của các lô đã xong: đo trên production
+    # 2026-08-30..09-03, mọi lần refill [failed] đều là 503/timeout lẻ ở một lô.
+    it "giữ lại đề của lô đã xong khi một lô lỗi" do
+      many = { questions: Array.new(described_class::BATCH_SIZE) { payload[:questions].first } }
+      client = failing_client(Gemini::Client::RequestFailed.new("Gemini trả HTTP 503"), many)
+
+      batch = generate(count: described_class::BATCH_SIZE, client: client)
+
+      expect(batch.records.size).to eq(described_class::BATCH_SIZE)
+      expect(batch.failures.map(&:message)).to eq([ "Gemini trả HTTP 503" ])
+    end
+
+    it "vẫn raise khi mọi lô đều lỗi — người gọi phải thấy lỗi gốc" do
+      error = Gemini::Client::RequestFailed.new("Gemini trả HTTP 503")
+      client = failing_client(error, error, error)
+
+      expect { generate(count: 1, client: client) }
+        .to raise_error(Gemini::Client::RequestFailed, "Gemini trả HTTP 503")
     end
 
     it "difficulty lạ thì về medium" do

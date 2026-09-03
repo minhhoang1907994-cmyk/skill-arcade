@@ -39,6 +39,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # fetch-depth: 0 để bước commit cuối job rebase được lên main. Mặc định là shallow
+          # depth 1, khi đó local KHÔNG có tổ tiên chung với origin/main nên `git pull
+          # --rebase` fail — và bản rebase lỗi thì đề đã vào DB mất luôn file YAML đối chiếu.
+          fetch-depth: 0
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -85,4 +90,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add db/question_banks
           git commit -m "chore: refill question bank $(date -u +%F)"
-          git push
+          # Rebase trước khi push: một lần chạy lại (`gh run rerun`) checkout đúng SHA của
+          # lần chạy gốc, nên nếu lần gốc đã push thì main đã đi trước và push này bị từ
+          # chối (non-fast-forward). Gặp thật ở attempt 2 của run 33685357412 (2026-09-03):
+          # 10 đề spec_detective vào DB nhưng file YAML không lên được repo.
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"

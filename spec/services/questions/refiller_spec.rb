@@ -388,6 +388,24 @@ RSpec.describe Questions::Refiller do
       expect(outcomes.first.detail).to include("timeout")
     end
 
+    # Lô lỗi lẻ không còn làm mất cả mục tiêu, nên status vẫn :done — nhưng phải in ra, không
+    # thì không phân biệt được "Gemini chập chờn" với "ngân hàng gần đủ nên nạp ít".
+    it "báo done kèm số lô lỗi khi Gemini lỗi một phần" do
+      create_questions(1)
+      failure = Gemini::Client::RequestFailed.new("Gemini trả HTTP 503")
+      batch = Questions::Generator::Batch.new(records: [ valid_record(1) ], model: "gemini-test",
+                                              prompts: [ "p" ], failures: [ failure ])
+      builder = ->(_game, _language) { instance_double(Questions::Generator, call: batch) }
+      service = described_class.new(generator_builder: builder, bank_dir: bank_dir)
+
+      outcomes = service.call
+
+      expect(outcomes.first.status).to eq(:done)
+      expect(outcomes.first.detail).to include("1 lô lỗi", "Gemini trả HTTP 503")
+      # 1 câu dựng sẵn + 1 câu vừa nạp: đề của lô thành công vẫn phải vào DB.
+      expect(Question.where(game: game).count).to eq(2)
+    end
+
     it "đề sai cấu trúc bị Validator loại, không vào DB" do
       create_questions(1)
       bad = { "content" => { "task_description" => "x" }, "answer_key" => {} }
