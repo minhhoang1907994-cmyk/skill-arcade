@@ -1,0 +1,290 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-04T21:21:18Z'
+language: java
+questions:
+- content:
+    language: java
+    code_lines:
+    - public List<User> searchUsers(String query) {
+    - '    String sql = "SELECT * FROM users WHERE name LIKE ''%" + query + "%''";'
+    - "    return jdbcTemplate.query(sql, new UserRowMapper());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp tham số đầu vào vào câu lệnh SQL tạo ra lỗ hổng
+      SQL Injection, cần dùng parameterized query để truyền tham số an toàn.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - '@PostMapping("/login")'
+    - public ResponseEntity<String> login(@RequestBody LoginRequest request) {
+    - '    log.info("Processing login request for user: {} with password: {}", request.getUsername(),
+      request.getPassword());'
+    - "    boolean authenticated = authService.authenticate(request);"
+    - '    return authenticated ? ResponseEntity.ok("Success") : ResponseEntity.status(401).build();'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log mật khẩu dạng plain text gây rò rỉ dữ liệu nhạy cảm của người
+      dùng, cần loại bỏ password ra khỏi log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public void transferMoney(Long sourceId, Long targetId, BigDecimal amount) {
+    - "    accountRepository.deductBalance(sourceId, amount);"
+    - "    accountRepository.addBalance(targetId, amount);"
+    - '    auditLogRepository.save(new AuditLog("TRANSFER", amount));'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Phương thức thực hiện nhiều thao tác ghi DB liên quan nhưng thiếu
+      annotation @Transactional, dẫn đến nguy cơ bất nhất dữ liệu khi xảy ra lỗi giữa
+      chừng.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public Config loadConfig(String path) {
+    - "    try {"
+    - "        return objectMapper.readValue(new File(path), Config.class);"
+    - "    } catch (Exception e) {"
+    - "        return null;"
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Nuốt ngoại lệ bằng cách trả về null mà không log hoặc throw lại exception
+      khiến việc trace lỗi hệ thống gặp khó khăn.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/orders")'
+    - public List<OrderDto> getAllOrders() {
+    - "    List<Order> orders = orderRepository.findAll();"
+    - "    return orders.stream().map(orderMapper::toDto).collect(Collectors.toList());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: unbounded_query
+    explanation: Truy vấn toàn bộ dữ liệu bảng orders mà không có phân trang (Pageable)
+      có thể gây tràn bộ nhớ (OutOfMemoryError) khi dữ liệu lớn.
+  difficulty: hard
+- content:
+    language: java
+    code_lines:
+    - public List<User> searchUsers(String keyword) {
+    - '    String sql = "SELECT * FROM users WHERE username LIKE ''%" + keyword +
+      "%";'
+    - "    return jdbcTemplate.query(sql, new UserRowMapper());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp chuỗi chứa tham số từ người dùng vào câu lệnh SQL gây
+      ra lỗ hổng SQL Injection. Cần sử dụng truy vấn có tham số (Parameterized Query).
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - '@PostMapping("/login")'
+    - public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request)
+      {
+    - '    log.info("Processing login attempt for user: {}, password: {}", request.getUsername(),
+      request.getPassword());'
+    - "    return ResponseEntity.ok(authService.authenticate(request));"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi mật khẩu người dùng dưới dạng văn bản thuần (plain text) vào
+      log hệ thống gây lộ thông tin nhạy cảm. Cần bỏ trường password khỏi câu lệnh
+      log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - List<Order> orders = orderRepository.findByStatus("PENDING");
+    - 'for (Order order : orders) {'
+    - "    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());"
+    - "    order.setItems(items);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: Gọi truy vấn cơ sở dữ liệu bên trong vòng lặp dẫn đến lỗi N+1 query.
+      Cần sử dụng JOIN FETCH hoặc nạp dữ liệu theo lô (batch loading).
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - try {
+    - "    paymentService.processPayment(transactionId, amount);"
+    - "} catch (PaymentException e) {"
+    - "    // Ignore error"
+    - "}"
+    - return ResponseEntity.ok(new PaymentResult("SUCCESS"));
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ nhưng bỏ qua không xử lý hay ghi log khiến lỗi thanh
+      toán bị che giấu và hệ thống vẫn báo thành công. Cần log lỗi và ném lại exception
+      hoặc trả về phản hồi lỗi.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/export/logs")'
+    - public List<SystemLog> getAllLogs() {
+    - "    return systemLogRepository.findAll();"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: unbounded_query
+    explanation: Gọi findAll() lấy toàn bộ dữ liệu log không giới hạn có thể làm quá
+      tải RAM và gây ra lỗi OutOfMemoryError khi bảng lớn. Cần phân trang (Pageable)
+      hoặc giới hạn số lượng bản ghi.
+  difficulty: hard
