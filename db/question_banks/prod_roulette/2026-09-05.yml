@@ -1,0 +1,1789 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: prod_roulette
+model: gemini-3.6-flash
+generated_at: '2026-09-05T20:57:36Z'
+questions:
+- content:
+    scenario: Bạn đang trực ca hotfix hệ thống E-commerce vào 20:00 tối. Cần kiểm
+      tra và sửa lỗi tích hợp cổng thanh toán và luồng xử lý đơn hàng trực tiếp trên
+      môi trường PRODUCTION.
+    nodes:
+    - key: n1
+      prompt: 'Bước 1: Cấu hình Webhook cổng thanh toán để kiểm tra callback giao
+        dịch trên PRODUCTION.'
+      options:
+      - key: opt_1_1
+        label: Cấu hình Endpoint trỏ về Sandbox / Mock Server của cổng thanh toán
+      - key: opt_1_2
+        label: Cấu hình trực tiếp Endpoint PROD thực tế để nhận webhook từ giao dịch
+          test
+      - key: opt_1_3
+        label: Tạm thời bật flag bypass_signature_check trên PROD để test payload
+          nhanh
+    - key: n2
+      prompt: 'Bước 2: Chuẩn bị tài khoản người dùng để thực hiện giao dịch thử nghiệm.'
+      options:
+      - key: opt_2_1
+        label: Tạo tài khoản test mới với cờ is_test_user = true trong DB
+      - key: opt_2_2
+        label: Dùng tài khoản VIP của khách hàng thực tế để test thanh toán 0 đồng
+      - key: opt_2_3
+        label: Thay đổi SĐT của một khách hàng thật thành SĐT cá nhân để nhận OTP
+          test
+    - key: n3
+      prompt: 'Bước 3: Kiểm tra luồng gửi thông báo xác nhận đơn hàng sau khi thanh
+        toán thành công.'
+      options:
+      - key: opt_3_1
+        label: Mock Notification Service trên môi trường Staging để kiểm tra log email
+      - key: opt_3_2
+        label: Bật trigger gửi Email xác nhận thanh toán thật tới danh sách KH thật
+          để kiểm tra luồng
+      - key: opt_3_3
+        label: Tắt dịch vụ Notification Service toàn hệ thống trong 5 phút test
+    - key: n4
+      prompt: 'Bước 4: Kiểm tra tính năng áp dụng Voucher giảm giá trên đơn hàng test.'
+      options:
+      - key: opt_4_1
+        label: Chạy Unit Test và Integration Test kiểm tra logic discount ở môi trường
+          Local
+      - key: opt_4_2
+        label: Tạo mã voucher giảm 100% trên DB PROD và dùng tài khoản test để mua
+          thử
+      - key: opt_4_3
+        label: Broadcast mã voucher giảm 50% thật qua Push Notification cho toàn bộ
+          User App
+    - key: n5
+      prompt: 'Bước 5: Thao tác cập nhật cấu hình Database Master để hỗ trợ hotfix.'
+      options:
+      - key: opt_5_1
+        label: Tạo Migration Script có kèm Rollback Script, chạy thử trên Read Replica
+          trước
+      - key: opt_5_2
+        label: Trực tiếp chạy câu lệnh SQL UPDATE hotfix trên DB Master mà không backup
+          khẩn cấp
+      - key: opt_5_3
+        label: Chạy câu lệnh DROP TABLE temp_tx_logs trực tiếp trên DB Master để dọn
+          dung lượng
+    - key: n6
+      prompt: 'Bước 6: Tích hợp và gọi API đơn vị vận chuyển để tạo đơn giao hàng
+        test.'
+      options:
+      - key: opt_6_1
+        label: Trỏ API Gateway sang môi trường Sandbox/Staging của đối tác vận chuyển
+      - key: opt_6_2
+        label: Bật Log TRACE in toàn bộ Header chứa API Key của đối tác ra stdout
+      - key: opt_6_3
+        label: Gọi trực tiếp API create_shipment thật của đối tác vận chuyển với địa
+          chỉ giao hàng thật
+    - key: n7
+      prompt: 'Bước 7: Làm sạch bộ nhớ đệm Redis Cache sau khi cập nhật dữ liệu cấu
+        hình.'
+      options:
+      - key: opt_7_1
+        label: Xóa các Cache Key cụ thể theo Prefix liên quan đến tính năng test
+      - key: opt_7_2
+        label: Chạy lệnh FLUSHALL trên Redis Cluster PROD để làm sạch bộ nhớ đệm
+      - key: opt_7_3
+        label: Sửa TTL của toàn bộ Cache Key trên hệ thống về 1 giây
+    - key: n8
+      prompt: 'Bước 8: Bật Feature Flag cho tính năng hotfix thanh toán.'
+      options:
+      - key: opt_8_1
+        label: Bật Feature Flag cho 1% tài khoản thử nghiệm nội bộ (Internal Beta)
+      - key: opt_8_2
+        label: Bật Feature Flag 100% cho tất cả người dùng hệ thống ngay lập tức
+      - key: opt_8_3
+        label: Chỉnh sửa file config trực tiếp trên server PROD bằng vim mà không
+          qua Git
+    - key: n9
+      prompt: 'Bước 9: Giám sát hiệu năng và lỗi sau khi bật tính năng mới.'
+      options:
+      - key: opt_9_1
+        label: Theo dõi Dashboard Grafana/Datadog về Error Rate, Latency và CPU Usage
+      - key: opt_9_2
+        label: Chuyển Log Level trên PROD về FATAL để giảm tải CPU cho server
+      - key: opt_9_3
+        label: Bật Log Level TRACE toàn bộ Microservices trên PROD để soi chi tiết
+    - key: n10
+      prompt: 'Bước 10: Dọn dẹp dữ liệu thử nghiệm và đóng ca hotfix.'
+      options:
+      - key: opt_10_1
+        label: Chạy script dọn dẹp data test được đánh dấu is_test_user = true và
+          đóng ticket
+      - key: opt_10_2
+        label: Bỏ qua bước dọn dẹp, đóng ticket ngay để chuyển sang ca trực tiếp theo
+      - key: opt_10_3
+        label: Kích hoạt API hoàn tiền tự động cho tất cả các giao dịch phát sinh
+          trong 15 phút qua
+  answer_key:
+    option_effects:
+      opt_1_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Webhook sandbox giúp kiểm tra chính xác payload
+          mà không ảnh hưởng tới dữ liệu thật.
+        next_node: n2
+      opt_1_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Giao dịch test bị ghi nhận vào báo cáo doanh thu
+          thật, cần rollback manual dữ liệu.
+        next_node: n2
+      opt_1_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro cao. Bỏ kiểm tra chữ ký mở ra lỗ hổng bảo mật Man-in-the-Middle
+          trong thời gian test.
+        next_node: n2
+      opt_2_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Dữ liệu test được cách ly hoàn toàn bằng flag is_test_user.
+        next_node: n3
+      opt_2_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Khách hàng thật nhận được notification thanh toán
+          0đ gây hoang mang, cần liên hệ đính chính.
+        next_node: n3
+      opt_2_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Làm gián đoạn khả năng đăng nhập của khách hàng
+          thật, gây lỗi thông tin cá nhân trong DB.
+        next_node: n3
+      opt_3_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Kiểm tra được định dạng email qua mock service
+          mà không làm phiền người dùng.
+        next_node: n4
+      opt_3_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Email xác nhận thanh toán rác
+          đã gửi tới hàng nghìn khách hàng thật, gây khủng hoảng truyền thông.'
+        next_node: n4
+      opt_3_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Khách hàng đang giao dịch thật không nhận được SMS/Email
+          thông báo trong 5 phút.
+        next_node: n4
+      opt_4_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Đảm bảo logic tính toán đúng chuẩn trước khi tác
+          động lên cấu hình PROD.
+        next_node: n5
+      opt_4_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Nếu mã voucher leak ra ngoài, người dùng có thể
+          mua hàng 0đ trước khi mã bị xóa.
+        next_node: n5
+      opt_4_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Push notification đã gửi tới tất
+          cả người dùng, hàng trăm đơn hàng voucher 50% thật đã được tạo thành công.'
+        next_node: n5
+      opt_5_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Đảm bảo script migration không gây khóa bảng (table
+          lock) và có đường lùi khi lỗi.
+        next_node: n6
+      opt_5_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. UPDATE sai điều kiện WHERE gây hỏng dữ liệu hàng
+          loạt, phải restore từ backup tốn nhiều thời gian.
+        next_node: n6
+      opt_5_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Xóa bảng log tạm làm gián đoạn các job đọc log đang
+          chạy, phải khôi phục từ DB backup.
+        next_node: n6
+      opt_6_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Kết nối sandbox giúp xác nhận giao thức API mà
+          không phát sinh vận đơn thật.
+        next_node: n7
+      opt_6_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. API Key bị ghi vết trong file log công khai, nguy
+          cơ rò rỉ credential cao.
+        next_node: n7
+      opt_6_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Vận đơn thật đã được khởi tạo
+          trên hệ thống đối tác, Shipper đã tới kho lấy hàng cho đơn test.'
+        next_node: n7
+      opt_7_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Xóa đúng target key giúp làm mới cache mà không
+          ảnh hưởng tới traffic chung.
+        next_node: n8
+      opt_7_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. FLUSHALL gây ra Cache Stampede, toàn bộ request
+          đập trực tiếp vào DB làm DB tăng Spike CPU 100%.
+        next_node: n8
+      opt_7_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Tốc độ hết hạn cache quá nhanh khiến tỷ lệ Cache
+          Miss tăng vọt, gây nghẽn hệ thống.
+        next_node: n8
+      opt_8_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Giới hạn tầm ảnh hưởng giúp phát hiện lỗi sớm mà
+          không làm gián đoạn đa số người dùng.
+        next_node: n9
+      opt_8_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Lỗi ẩn phát tán toàn hệ thống khiến tỷ lệ giao dịch
+          thất bại tăng đột biến.
+        next_node: n9
+      opt_8_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Cấu hình lệch khỏi Git repository (configuration
+          drift), gây lỗi khi auto-scaling pod mới.
+        next_node: n9
+      opt_9_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Giám sát các chỉ số thời gian thực giúp đưa ra
+          quyết định rollback kịp thời nếu có bất thường.
+        next_node: n10
+      opt_9_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Mất các log ERROR quan trọng, không thể truy vết
+          khi xảy ra sự cố nghẽn luồng.
+        next_node: n10
+      opt_9_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Log TRACE ghi đĩa quá nhanh làm đầy ổ đĩa (Disk
+          Full) trên các node server.
+        next_node: n10
+      opt_10_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Hệ thống sạch sẽ, hotfix thành công và không để
+          lại dữ liệu rác.
+        next_node: END
+      opt_10_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Dữ liệu test rác làm sai lệch báo cáo thống kê BI
+          cuối tháng.
+        next_node: END
+      opt_10_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Hàng trăm khách hàng thật mua
+          hàng trong 15 phút qua bất ngờ nhận được tiền hoàn vào tài khoản ngân hàng.'
+        next_node: END
+  difficulty: medium
+- content:
+    scenario: Hệ thống Core Ví Điện Tử bị quá tải trong giờ cao điểm Flash Sale (12:00
+      trưa). Lượng transaction/sec tăng 500%, Database Master có dấu hiệu nghẽn Connection
+      Pool và Queue Kafka đang tích tụ backlog lớn.
+    nodes:
+    - key: q2_n1
+      prompt: 'Bước 1: Ngân hàng câu lệnh và kết nối Database Master đang chạm ngưỡng
+        Max Connections.'
+      options:
+      - key: q2_opt_1_1
+        label: Tăng tạm thời max_connections và kiểm tra danh sách Slow Queries
+      - key: q2_opt_1_2
+        label: Khởi động lại (Restart) Database Master Service lập tức để giải phóng
+          connection
+      - key: q2_opt_1_3
+        label: Chạy câu lệnh Kill PID toàn bộ các process đang truy vấn vào DB
+    - key: q2_n2
+      prompt: 'Bước 2: Kafka Message Queue xử lý thanh toán bị nghẽn (Backlog hơn
+        500.000 messages).'
+      options:
+      - key: q2_opt_2_1
+        label: Scale out tăng thêm số lượng Consumer Pods trong Kubernetes Cluster
+      - key: q2_opt_2_2
+        label: Thực hiện lệnh Purge xóa toàn bộ message chưa xử lý trong Kafka Topic
+      - key: q2_opt_2_3
+        label: Reset Offset của Consumer Group về 'latest' để bỏ qua các message cũ
+    - key: q2_n3
+      prompt: 'Bước 3: Dịch vụ gửi OTP thanh toán qua SMS bị nghẽn do nhà mạng quá
+        tải.'
+      options:
+      - key: q2_opt_3_1
+        label: Chuyển luồng SMS OTP sang Telco Vendor dự phòng via Failover Router
+      - key: q2_opt_3_2
+        label: Hardcode giá trị OTP cố định là '123456' trên PROD để khách hàng qua
+          bước xác thực
+      - key: q2_opt_3_3
+        label: Gửi tin nhắn SMS thật thông báo bảo trì hệ thống khẩn cấp tới 2 triệu
+          người dùng active
+    - key: q2_n4
+      prompt: 'Bước 4: Kiểm soát lượng Traffic khổng lồ đập vào API Gateway.'
+      options:
+      - key: q2_opt_4_1
+        label: Thắt chặt Rate Limit từ 100 req/s xuống 20 req/s per IP tại Nginx Gateway
+      - key: q2_opt_4_2
+        label: Tắt hoàn toàn Web Application Firewall (WAF) để giảm độ trễ xử lý gói
+          tin
+      - key: q2_opt_4_3
+        label: Chặn toàn bộ Dải IP Subnet của một nhà mạng lớn để giảm tải
+    - key: q2_n5
+      prompt: 'Bước 5: Xử lý các giao dịch nạp tiền đang ở trạng thái Chờ Xử Lý (PENDING).'
+      options:
+      - key: q2_opt_5_1
+        label: Tạm dừng Job đối soát tự động, chuyển sang đối soát thủ công cuối ngày
+      - key: q2_opt_5_2
+        label: Chạy API gạch nợ tự động trực tiếp với Bank API mà không qua đối soát
+          Checksum
+      - key: q2_opt_5_3
+        label: Chạy script UPDATE chuyển tất cả giao dịch PENDING thành SUCCESS trên
+          DB
+    - key: q2_n6
+      prompt: 'Bước 6: Mở rộng tài nguyên tính toán (Computing Resource) của ứng dụng.'
+      options:
+      - key: q2_opt_6_1
+        label: Thực hiện Auto-scaling tăng thêm 10 Worker Nodes K8s
+      - key: q2_opt_6_2
+        label: Chỉnh sửa tài nguyên Memory Request/Limit trực tiếp trên Pod manifest
+          bỏ qua CI/CD
+      - key: q2_opt_6_3
+        label: Restart toàn bộ Ingress Controller Pods để áp dụng cấu hình memory
+          mới
+    - key: q2_n7
+      prompt: 'Bước 7: Xử lý khiếu nại của khách hàng bị trừ tiền ví nhưng chưa nhận
+        được hàng.'
+      options:
+      - key: q2_opt_7_1
+        label: Chuyển các đơn hàng lỗi vào Dead Letter Queue (DLQ) để tiến hành xử
+          lý bù
+      - key: q2_opt_7_2
+        label: Bắn Push Notification tự động xin lỗi và tặng voucher 20k thật cho
+          tất cả KH có transaction lỗi
+      - key: q2_opt_7_3
+        label: Xóa các record giao dịch bị lỗi trong bảng orders để làm nhẹ DB
+    - key: q2_n8
+      prompt: 'Bước 8: Cập nhật Secret Key và Connection String khẩn cấp để phân tải
+        DB.'
+      options:
+      - key: q2_opt_8_1
+        label: Cập nhật DB Read-Replica String vào HashiCorp Vault và Rolling Update
+      - key: q2_opt_8_2
+        label: In SSH Key và Database Password ra stdout console log để dev xử lý
+          khẩn
+      - key: q2_opt_8_3
+        label: Thay đổi Master Password trên Database mà không cập nhật lập tức vào
+          App Config
+    - key: q2_n9
+      prompt: 'Bước 9: Khôi phục Traffic cho người dùng sau khi hệ thống ổn định.'
+      options:
+      - key: q2_opt_9_1
+        label: Điều phối Traffic tăng dần qua Canary Deployment (10% -> 50% -> 100%)
+      - key: q2_opt_9_2
+        label: Chuyển 100% DNS Traffic về Cluster chính ngay lập tức
+      - key: q2_opt_9_3
+        label: Tắt tính năng Kiểm tra Chữ ký SSL Handshake để tối ưu hóa Latency
+    - key: q2_n10
+      prompt: 'Bước 10: Hoàn tất xử lý sự cố và báo cáo cấp quản lý.'
+      options:
+      - key: q2_opt_10_1
+        label: Thu thập Log, Metrics và viết báo cáo Post-Mortem phân tích nguyên
+          nhân gốc rễ
+      - key: q2_opt_10_2
+        label: Xóa toàn bộ Log file trong thư mục /var/log sự cố để tránh rò rỉ dữ
+          liệu
+      - key: q2_opt_10_3
+        label: Tự động kích hoạt API hoàn tiền hàng loạt (Mass Refund) qua cổng ngân
+          hàng đối tác
+  answer_key:
+    option_effects:
+      q2_opt_1_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Giúp hệ thống duy trì kết nối tạm thời trong khi
+          tìm ra query gây lock DB.
+        next_node: q2_n2
+      q2_opt_1_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro cao. Restart DB giờ cao điểm làm dứt gánh toàn bộ
+          giao dịch dở dang, gây lỗi hàng loạt.
+        next_node: q2_n2
+      q2_opt_1_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Kill nhầm process ghi log dữ liệu thanh toán quan
+          trọng, gây lệch dữ liệu tiền.
+        next_node: q2_n2
+      q2_opt_2_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Tăng khả năng xử lý song song, giảm dần backlog
+          Kafka an toàn.
+        next_node: q2_n3
+      q2_opt_2_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro rất cao. Xóa tin nhắn khiến hàng trăm ngàn giao dịch
+          thanh toán bị mất dấu xử lý.
+        next_node: q2_n3
+      q2_opt_2_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Bỏ qua các giao dịch cũ khiến người dùng bị trừ
+          tiền nhưng không nhận được dịch vụ.
+        next_node: q2_n3
+      q2_opt_3_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Luồng SMS phụ giúp giải tỏa ách tắc OTP cho người
+          dùng.
+        next_node: q2_n4
+      q2_opt_3_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro cực kỳ nghiêm trọng. Kẻ gian có thể lợi dụng OTP
+          cố định để rút tiền từ bất kỳ ví nào.
+        next_node: q2_n4
+      q2_opt_3_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: SMS bảo trì đã gửi tới 2 triệu
+          người dùng thật, tốn chi phí viễn thông khổng lồ và gây hoảng loạn rút tiền
+          đồng loạt.'
+        next_node: q2_n4
+      q2_opt_4_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Bảo vệ hệ thống nội bộ khỏi bị sụp đổ hoàn toàn
+          do DDOS/Traffic Spike.
+        next_node: q2_n5
+      q2_opt_4_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Mở đường cho các cuộc tấn công SQL Injection hoặc
+          Botnet trong lúc hệ thống yếu nhất.
+        next_node: q2_n5
+      q2_opt_4_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Chặn nhầm toàn bộ người dùng hợp lệ thuộc nhà mạng
+          đó.
+        next_node: q2_n5
+      q2_opt_5_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Giảm tải cho DB, dữ liệu được giữ lại để kiểm tra
+          kỹ lưỡng sau.
+        next_node: q2_n6
+      q2_opt_5_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Gọi API gạch nợ thật với ngân
+          hàng bị lệch dữ liệu, gây thất thoát tài chính lớn cho ví.'
+        next_node: q2_n6
+      q2_opt_5_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Cộng tiền cho các giao dịch thực tế đã thất bại
+          ở phía Ngân hàng, phải thu hồi thủ công.
+        next_node: q2_n6
+      q2_opt_6_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Hạ tầng tự động mở rộng đáp ứng đúng tải thực tế.
+        next_node: q2_n7
+      q2_opt_6_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Cấu hình không đồng bộ khiến Pod bị OOMKilled khi
+          bị redeploy tự động.
+        next_node: q2_n7
+      q2_opt_6_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Gián đoạn kết nối của tất cả các Client đang kết
+          nối tới hệ thống trong vài giây.
+        next_node: q2_n7
+      q2_opt_7_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Đảm bảo không bỏ sót bất kỳ giao dịch lỗi nào của
+          người dùng.
+        next_node: q2_n8
+      q2_opt_7_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Đã gửi mã voucher 20k thật tới
+          hàng ngàn user lỗi, ngân sách marketing bị tiêu tốn ngoài kiểm soát.'
+        next_node: q2_n8
+      q2_opt_7_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Xóa dữ liệu khiến CSKH không có căn cứ hỗ trợ hoàn
+          tiền cho người dùng.
+        next_node: q2_n8
+      q2_opt_8_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Chuyển bớt truy vấn Read sang Replica an toàn và
+          bảo mật.
+        next_node: q2_n9
+      q2_opt_8_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Thông tin mật bị ghi vào log quản lý tập trung,
+          vi phạm tiêu chuẩn PCI-DSS.
+        next_node: q2_n9
+      q2_opt_8_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Toàn bộ ứng dụng bị từ chối truy cập DB (Access
+          Denied) làm ngắt kết nối lập tức.
+        next_node: q2_n9
+      q2_opt_9_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Kiểm soát dung lượng traffic tăng dần, tránh việc
+          hệ thống bị shock lại.
+        next_node: q2_n10
+      q2_opt_9_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Traffic dồn dập có thể làm sụp đổ Cluster ngay khi
+          vừa mới hồi phục.
+        next_node: q2_n10
+      q2_opt_9_3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Mất tính bảo mật truyền tải, nguy cơ bị bắt gói
+          tin nhạy cảm trên đường truyền.
+        next_node: q2_n10
+      q2_opt_10_1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn. Hoàn tất xử lý sự cố chuẩn chỉnh, rút kinh nghiệm
+          cho các đợt Flash Sale sau.
+        next_node: END
+      q2_opt_10_2:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro. Mất dấu vết điều tra sự cố, khó khăn khi giải trình
+          với các bên kiểm toán độc lập.
+        next_node: END
+      q2_opt_10_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Tiền thật đã được hoàn trả từ
+          ngân hàng về tài khoản người dùng hàng loạt, gây tổn thất tài chính cực
+          kỳ nghiêm trọng.'
+        next_node: END
+  difficulty: hard
+- content:
+    scenario: Hệ thống thanh toán Ecommerce đang trong chiến dịch Flash Sale. Webhook
+      từ Cổng thanh toán báo về bị timeout hàng loạt khiến 5,000 đơn hàng ở trạng
+      thái PENDING_PAYMENT dù tiền đã bị trừ trong thẻ khách hàng.
+    nodes:
+    - key: q1_n1
+      prompt: 'Bước 1: Xác định nguyên nhân sự cố webhook bị nghẽn.'
+      options:
+      - key: q1_n1_o1
+        label: Xem log tập trung trên Datadog/Grafana và lọc theo HTTP status 504.
+      - key: q1_n1_o2
+        label: SSH trực tiếp vào server Prod và bật DEBUG log level cho toàn bộ Payment
+          Service.
+      - key: q1_n1_o3
+        label: Restart ngay lập tức toàn bộ Pod của Payment Service trên Kubernetes
+          Cluster.
+    - key: q1_n2
+      prompt: 'Bước 2: Phát hiện DB Connection Pool bị exhausted do lock bảng orders.
+        Cần xử lý truy vấn kẹt.'
+      options:
+      - key: q1_n2_o1
+        label: Kill các long-running query đang giữ Lock trên DB Master sau khi lưu
+          log phân tích.
+      - key: q1_n2_o2
+        label: Reboot luôn con DB Master để giải phóng toàn bộ connection ngay lập
+          tức.
+      - key: q1_n2_o3
+        label: Tăng max_connections của DB lên gấp 5 lần trực tiếp trên Prod mà không
+          scale CPU/RAM.
+    - key: q1_n3
+      prompt: 'Bước 3: Xử lý 5,000 đơn hàng chưa nhận được Webhook cập nhật trạng
+        thái.'
+      options:
+      - key: q1_n3_o1
+        label: Viết script đối soát API reconciliation với đối tác cổng thanh toán
+          để lấy trạng thái chuẩn.
+      - key: q1_n3_o2
+        label: Chạy SQL UPDATE thủ công UPDATE orders SET status = 'PAID' WHERE status
+          = 'PENDING_PAYMENT'.
+      - key: q1_n3_o3
+        label: Gọi trực tiếp API Refund của ngân hàng để hoàn tiền ngay cho toàn bộ
+          5,000 đơn hàng này.
+    - key: q1_n4
+      prompt: 'Bước 4: Cần cập nhật kho (Inventory) cho các đơn hàng vừa xác nhận
+        thanh toán.'
+      options:
+      - key: q1_n4_o1
+        label: Đẩy danh sách order_id đã đối soát thành công vào Message Queue để
+          Inventory Service xử lý bất đồng bộ.
+      - key: q1_n4_o2
+        label: Chạy script giảm trực tiếp số lượng tồn kho trong bảng products trên
+          Production DB.
+      - key: q1_n4_o3
+        label: Bỏ qua bước trừ kho, chờ kiểm kê cuối ngày rồi tính tiếp.
+    - key: q1_n5
+      prompt: 'Bước 5: Phát hiện code xử lý Webhook hiện tại chưa có cơ chế Idempotency
+        Key nên có rủi ro cộng bù trùng.'
+      options:
+      - key: q1_n5_o1
+        label: Soạn Hotfix thêm Redis Distributed Lock theo transaction_id và tạo
+          Pull Request review gấp.
+      - key: q1_n5_o2
+        label: Sửa code trực tiếp trên server Prod và restart app service không qua
+          CI/CD.
+      - key: q1_n5_o3
+        label: Tắt hẳn tính năng xác thực Webhook để xử lý cho nhanh.
+    - key: q1_n6
+      prompt: 'Bước 6: Deploy bản Hotfix có bổ sung Idempotency Key lên môi trường
+        Production.'
+      options:
+      - key: q1_n6_o1
+        label: Thực hiện Canary Deployment 10% traffic, theo dõi error rate trước
+          khi rollout 100%.
+      - key: q1_n6_o2
+        label: Deploy đè ngay lập tức 100% Pods cùng lúc trong thời gian Flash Sale.
+      - key: q1_n6_o3
+        label: Bỏ qua bước Unit Test và Integration Test để deploy luôn cho kịp giờ.
+    - key: q1_n7
+      prompt: 'Bước 7: Bật lại tính năng tiếp nhận Webhook từ cổng thanh toán.'
+      options:
+      - key: q1_n7_o1
+        label: Mở Rate Limiter từ từ cho Webhook retry gửi vào hệ thống.
+      - key: q1_n7_o2
+        label: Mở toàn bộ traffic cùng lúc không giới hạn lưu lượng.
+      - key: q1_n7_o3
+        label: Gửi thông báo Push Notification hàng loạt cho tất cả người dùng báo
+          hệ thống đã bình thường.
+    - key: q1_n8
+      prompt: 'Bước 8: Phát hiện 20 khách hàng bị trừ tiền 2 lần do cố gắng bấm thanh
+        toán lại nhiều lần.'
+      options:
+      - key: q1_n8_o1
+        label: Lập danh sách ID giao dịch trùng, thực hiện gọi API Refund 1 giao dịch
+          thừa qua cổng thanh toán.
+      - key: q1_n8_o2
+        label: Chuyển tiền dư thành Ví tích điểm nội bộ mà không báo trước cho khách
+          hàng.
+      - key: q1_n8_o3
+        label: Gửi SMS tặng Voucher đền bù 500,000 VND tự động cho toàn bộ 5,000 khách
+          hàng trong danh sách ảnh hưởng ban đầu.
+    - key: q1_n9
+      prompt: 'Bước 9: Gửi thông báo cập nhật trạng thái đơn hàng thực tế cho khách
+        hàng bị ảnh hưởng.'
+      options:
+      - key: q1_n9_o1
+        label: Gửi Email/Notification đích danh cho 5,000 khách hàng có đơn hàng vừa
+          được xử lý thành công.
+      - key: q1_n9_o2
+        label: Bắn Push Notification cho TOÀN BỘ 2 triệu user của ứng dụng thông báo
+          sự cố đã xong.
+      - key: q1_n9_o3
+        label: Không gửi thông báo nào, mặc định khách hàng tự vào app kiểm tra.
+    - key: q1_n10
+      prompt: 'Bước 10: Tổng kết sự cố và khôi phục hoàn toàn hệ thống.'
+      options:
+      - key: q1_n10_o1
+        label: Viết Post-mortem, lưu metrics, họp rút kinh nghiệm và đóng Ticket sự
+          cố.
+      - key: q1_n10_o2
+        label: Xoá log sự cố trên server để tránh chiếm dung lượng ổ cứng.
+      - key: q1_n10_o3
+        label: Bỏ qua báo cáo vì hệ thống đã chạy lại bình thường.
+  answer_key:
+    option_effects:
+      q1_n1_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Thao tác an toàn, xác định được chính xác các request timeout
+          mà không gây ảnh hưởng performance của cluster.
+        next_node: q1_n2
+      q1_n1_o2:
+        points: 3
+        irreversible: false
+        consequence_text: DEBUG log khiến I/O đĩa tăng vọt 100%, gây chậm dây chuyền
+          các service khác trên cùng node.
+        next_node: q1_n2
+      q1_n1_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Restart đột ngột làm đứt gãy 1,200 request thanh toán đang
+          xử lý dở dang.
+        next_node: q1_n2
+      q1_n2_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Giải phóng thành công DB connection pool, hệ thống bắt đầu
+          nhận lại truy vấn.
+        next_node: q1_n3
+      q1_n2_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Downtime toàn bộ trang web trong 5 phút, mất session của
+          30,000 người dùng đang shopping.
+        next_node: q1_n3
+      q1_n2_o3:
+        points: 3
+        irreversible: false
+        consequence_text: DB bị tràn RAM gây Out-Of-Memory (OOM) Kill ngay sau 2 phút.
+        next_node: q1_n3
+      q1_n3_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Xác định chính xác 4,850 đơn đã thu tiền thật và 150 đơn
+          giao dịch thất bại.
+        next_node: q1_n4
+      q1_n3_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Cập nhật nhầm 150 đơn chưa thanh toán thành PAID, gây thất
+          thoát hàng hóa.
+        next_node: q1_n4
+      q1_n3_o3:
+        points: 0
+        irreversible: true
+        consequence_text: Đã gọi API hoàn tiền thật 5,000 đơn hàng. Ngân hàng đã xử
+          lý hoàn 2.5 tỷ đồng cho khách hàng dù 4,850 đơn đã được đóng gói.
+        next_node: q1_n4
+      q1_n4_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Message Queue kiểm soát tốc độ trừ kho mượt mà, không xảy
+          ra race condition.
+        next_node: q1_n5
+      q1_n4_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Xảy ra âm kho (negative stock) đối với các mặt hàng hot
+          do race condition.
+        next_node: q1_n5
+      q1_n4_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Bán vượt quá tồn kho thực tế 800 sản phẩm, dẫn đến nguy
+          cơ không có hàng giao.
+        next_node: q1_n5
+      q1_n5_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Code hotfix qua kiểm duyệt đúng chuẩn, đảm bảo tính chống
+          trùng lặp.
+        next_node: q1_n6
+      q1_n5_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Sửa sót file config khiến service rơi vào vòng lặp crash
+          loop backoff.
+        next_node: q1_n6
+      q1_n5_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Hệ thống bị lừa bởi các request giả mạo webhook từ bên ngoài.
+        next_node: q1_n6
+      q1_n6_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Canary chạy ổn định, không ghi nhận ngoại lệ, tiến hành
+          release an toàn.
+        next_node: q1_n7
+      q1_n6_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Toàn bộ pod bị gián đoạn kết nối trong 30 giây khiến hàng
+          trăm checkout lỗi.
+        next_node: q1_n7
+      q1_n7_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Lưu lượng được điều tiết an toàn, CPU DB giữ ở mức 45%.
+        next_node: q1_n8
+      q1_n7_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Thống kê spikes tăng vọt, DB lag trở lại do hàng chục ngàn
+          webhook retry đồng loạt dồn về.
+        next_node: q1_n8
+      q1_n7_o3:
+        points: 0
+        irreversible: true
+        consequence_text: Đã bắn Push Notification cho toàn bộ ứng dụng về sự cố nội
+          bộ khi chưa khắc phục xong hoàn toàn.
+        next_node: q1_n8
+      q1_n8_o1:
+        points: 0
+        irreversible: true
+        consequence_text: Đã thực thi gọi API hoàn tiền thành công qua ngân hàng cho
+          20 giao dịch thanh toán trùng.
+        next_node: q1_n9
+      q1_n8_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Khách hàng phàn nàn gay gắt trên mạng xã hội vì bị tự ý
+          đổi tiền thành điểm.
+        next_node: q1_n9
+      q1_n8_o3:
+        points: 0
+        irreversible: true
+        consequence_text: Đã phát hành và gửi thành công 5,000 Voucher 500,000 VND
+          thật vào ví người dùng, gây thiệt hại tài chính 2.5 tỷ VND.
+        next_node: q1_n9
+      q1_n9_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Thông báo chính xác, minh bạch, giảm thiểu 90% số lượng
+          ticket chăm sóc khách hàng.
+        next_node: q1_n10
+      q1_n9_o2:
+        points: 0
+        irreversible: true
+        consequence_text: Đã gửi Push Notification đến 2 triệu người dùng thật gây
+          hoang mang dư luận không cần thiết.
+        next_node: q1_n10
+      q1_n9_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Tổng đài hỗ trợ bị quá tải cuộc gọi khiếu nại từ người dùng.
+        next_node: q1_n10
+      q1_n10_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Quy trình kết thúc chuẩn chỉnh, tài liệu hóa giúp ngăn ngừa
+          sự cố tương tự.
+        next_node: END
+      q1_n10_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Mất dữ liệu log dẫn đến việc audit an ninh thông tin sau
+          này thất bại.
+        next_node: END
+      q1_n10_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Lỗi cũ tái diễn vào chiến dịch Flash Sale tuần sau.
+        next_node: END
+  difficulty: hard
+- content:
+    scenario: Thực hiện nâng cấp hệ thống tích điểm Loyalty và Migration dữ liệu 1,000,000
+      người dùng trên môi trường Production vào đêm cuối tuần.
+    nodes:
+    - key: q2_n1
+      prompt: 'Bước 1: Chuẩn bị trước khi tiến hành Data Migration.'
+      options:
+      - key: q2_n1_o1
+        label: Tạo bản Snapshot/Backup toàn bộ DB và kiểm tra khả năng restore trên
+          môi trường Staging.
+      - key: q2_n1_o2
+        label: Chỉ export file CSV chứa bảng user_points ra máy cá nhân.
+      - key: q2_n1_o3
+        label: Bỏ qua backup vì script migration đã test kỹ trên Dev.
+    - key: q2_n2
+      prompt: 'Bước 2: Quản lý truy vấn của người dùng trong lúc Migration dữ liệu.'
+      options:
+      - key: q2_n2_o1
+        label: Bật Feature Flag tắt tạm thời tính năng đổi điểm trên App và chuyển
+          service sang Maintenance Mode.
+      - key: q2_n2_o2
+        label: Cứ để người dùng tích điểm bình thường trong lúc chạy script migration.
+      - key: q2_n2_o3
+        label: Block toàn bộ IP truy cập vào hệ thống ở tầng Cloudflare.
+    - key: q2_n3
+      prompt: 'Bước 3: Thực thi Migration Script đổi công thức nhân điểm thưởng.'
+      options:
+      - key: q2_n3_o1
+        label: Chạy migration theo từng Batch 5,000 user kèm log progress và trang
+          thái rollback.
+      - key: q2_n3_o2
+        label: Chạy 1 lệnh UPDATE duy nhất cho toàn bộ 1,000,000 record cùng lúc.
+      - key: q2_n3_o3
+        label: Viết script multithreading 100 luồng ghi trực tiếp DB Master mà không
+          giới hạn connection.
+    - key: q2_n4
+      prompt: 'Bước 4: Script chạy được 50% thì bị dừng do lỗi trúng NULL value ở
+        cột email.'
+      options:
+      - key: q2_n4_o1
+        label: Kiểm tra checkpoint batch vừa chạy thành công, sửa handling NULL trong
+          code script rồi chạy tiếp từ checkpoint.
+      - key: q2_n4_o2
+        label: Chạy lại script từ đầu mà không dọn dẹp dữ liệu 50% đã migrate.
+      - key: q2_n4_o3
+        label: Chạy lệnh DELETE FROM user_points để làm lại từ đầu.
+    - key: q2_n5
+      prompt: 'Bước 5: Kiểm tra tính đúng đắn của dữ liệu sau khi migration hoàn tất.'
+      options:
+      - key: q2_n5_o1
+        label: Chạy script checksum so sánh tổng số điểm trước và sau migration trên
+          DB Replica.
+      - key: q2_n5_o2
+        label: Select ngẫu nhiên 3 user kiểm tra bằng mắt rồi xác nhận xong.
+      - key: q2_n5_o3
+        label: Bỏ qua bước kiểm tra, mở lại service cho người dùng ngay.
+    - key: q2_n6
+      prompt: 'Bước 6: Phát hiện 500 account bị tính nhân đôi số điểm do lỗi logic
+        ở Batch 2.'
+      options:
+      - key: q2_n6_o1
+        label: Lập danh sách 500 account này và chạy script recalibrate điều chỉnh
+          riêng về đúng giá trị chuẩn.
+      - key: q2_n6_o2
+        label: Gửi SMS tự động thông báo thu hồi điểm cho 500 khách hàng này.
+      - key: q2_n6_o3
+        label: Giữ nguyên điểm thừa cho khách hàng coi như quà tặng.
+    - key: q2_n7
+      prompt: 'Bước 7: Mở lại tính năng Loyalty trên ứng dụng Production.'
+      options:
+      - key: q2_n7_o1
+        label: Tắt Feature Flag Maintenance Mode, bật logging giám sát mức độ sử dụng.
+      - key: q2_n7_o2
+        label: Gửi SMS Brandname hàng loạt báo tặng 100 điểm cho toàn bộ 1,000,000
+          user để mừng phiên bản mới.
+      - key: q2_n7_o3
+        label: Deploy lại toàn bộ ứng dụng mobile lên App Store/Google Play.
+    - key: q2_n8
+      prompt: 'Bước 8: Người dùng bắt đầu vào đổi quà Loyalty, hệ thống ghi nhận traffic
+        tăng gấp 3 lần.'
+      options:
+      - key: q2_n8_o1
+        label: Scale out tự động số lượng Pods của Loyalty Service dựa trên CPU/RAM
+          utilization metric.
+      - key: q2_n8_o2
+        label: Tắt bớt các Replica Node của Database để tiết kiệm chi phí.
+      - key: q2_n8_o3
+        label: Xóa bớt Redis Cache để giải phóng bộ nhớ.
+    - key: q2_n9
+      prompt: 'Bước 9: Phát hiện nhà cung cấp đổi quà (Third-party Voucher API) báo
+        lỗi 500 do bị quá tải.'
+      options:
+      - key: q2_n9_o1
+        label: Bật Circuit Breaker cách ly API bên thứ ba và đưa yêu cầu đổi quà vào
+          hàng đợi xử lý sau.
+      - key: q2_n9_o2
+        label: Liên tục gọi lại API đối tác mỗi 100ms cho đến khi thành công.
+      - key: q2_n9_o3
+        label: Gọi trực tiếp API phát Voucher thật của nhà cung cấp dự phòng mà không
+          qua kiểm duyệt ngân sách.
+    - key: q2_n10
+      prompt: 'Bước 10: Đánh giá và dọn dẹp môi trường sau triển khai.'
+      options:
+      - key: q2_n10_o1
+        label: Xóa các bảng tạm (temp tables) dùng trong migration, lưu trữ log backup
+          và cập nhật tài liệu.
+      - key: q2_n10_o2
+        label: Xóa toàn bộ file Backup Database để trống ổ đĩa.
+      - key: q2_n10_o3
+        label: Để nguyên các bảng tạm trên Prod DB không xử lý.
+  answer_key:
+    option_effects:
+      q2_n1_o1:
+        points: 10
+        irreversible: false
+        consequence_text: An toàn tuyệt đối, sẵn sàng phương án phục hồi nếu migration
+          thất bại.
+        next_node: q2_n2
+      q2_n1_o2:
+        points: 3
+        irreversible: false
+        consequence_text: File CSV bị mất thông tin datatype và quan hệ khóa ngoại
+          (foreign key).
+        next_node: q2_n2
+      q2_n1_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Rủi ro mất dữ liệu hoàn toàn nếu xảy ra lỗi trong quá trình
+          migration.
+        next_node: q2_n2
+      q2_n2_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Đảm bảo tính nhất quán dữ liệu (data consistency) tuyệt
+          đối khi script migration chạy.
+        next_node: q2_n3
+      q2_n2_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Dữ liệu bị sai lệch (data corruption) do ghi đè song song
+          giữa user và script.
+        next_node: q2_n3
+      q2_n2_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Toàn bộ ứng dụng bị gián đoạn truy cập, người dùng tưởng
+          hệ thống sập.
+        next_node: q2_n3
+      q2_n3_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Migration diễn ra an toàn, không làm quá tải CPU hay Lock
+          bảng lâu.
+        next_node: q2_n4
+      q2_n3_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Lock toàn bộ bảng user_points trong 15 phút, gây timeout
+          dây chuyền.
+        next_node: q2_n4
+      q2_n3_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Gây Deadlock DB Master liên tục, quá trình migration bị
+          crash.
+        next_node: q2_n4
+      q2_n4_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Tiết kiệm thời gian, tiếp tục migration an toàn từ vị trí
+          bị gián đoạn.
+        next_node: q2_n5
+      q2_n4_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Tăng gấp đôi số điểm của 500,000 user trong batch đầu do
+          bị cộng trùng.
+        next_node: q2_n5
+      q2_n4_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Mất sạch dữ liệu điểm cũ của người dùng khi chưa khôi phục
+          từ backup.
+        next_node: q2_n5
+      q2_n5_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Xác nhận tổng điểm chính xác 100% so với trước khi migration.
+        next_node: q2_n6
+      q2_n5_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Bỏ sót hàng ngàn tài khoản bị lỗi tính toán sai điểm.
+        next_node: q2_n6
+      q2_n5_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Khách hàng phát hiện sai điểm và gửi khiếu nại hàng loạt.
+        next_node: q2_n6
+      q2_n6_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Khắc phục triệt để lỗi sai điểm âm thầm và chính xác trước
+          khi mở lại tính năng.
+        next_node: q2_n7
+      q2_n6_o2:
+        points: 0
+        irreversible: true
+        consequence_text: Đã tự động gửi SMS thật thu hồi điểm tới 500 khách hàng
+          khiến họ tức giận và đánh giá 1 sao ứng dụng.
+        next_node: q2_n7
+      q2_n6_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Gây thiệt hại quỹ điểm và làm mất cân bằng kinh tế trong
+          game/ứng dụng.
+        next_node: q2_n7
+      q2_n7_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Tính năng hoạt động lại bình thường, hệ thống phản hồi nhanh
+          chóng.
+        next_node: q2_n8
+      q2_n7_o2:
+        points: 0
+        irreversible: true
+        consequence_text: Đã tự động gọi API nhà mạng gửi 1,000,000 tin nhắn SMS Brandname
+          thật và cộng 100,000,000 điểm thật vào tài khoản user, tiêu tốn 500 triệu
+          đồng chi phí SMS.
+        next_node: q2_n8
+      q2_n7_o3:
+        points: 3
+        irreversible: false
+        consequence_text: User chưa cập nhật app ngay dẫn đến không dùng được tính
+          năng mới.
+        next_node: q2_n8
+      q2_n8_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Hệ thống tự động mở rộng tài nguyên, giữ latency ổn định
+          dưới 200ms.
+        next_node: q2_n9
+      q2_n8_o2:
+        points: 3
+        irreversible: false
+        consequence_text: DB Master bị quá tải read query dẫn đến lag toàn bộ hệ thống.
+        next_node: q2_n9
+      q2_n8_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Cache miss vọt lên 99%, toàn bộ query đâm thẳng vào DB làm
+          nghẽn hệ thống.
+        next_node: q2_n9
+      q2_n9_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Bảo vệ hệ thống không bị sập dây chuyền, các yêu cầu sẽ
+          được xử lý khi đối tác phục hồi.
+        next_node: q2_n10
+      q2_n9_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Tăng gấp đôi tải lên đối tác, khiến IP bị họ block do nghi
+          vấn DDOS.
+        next_node: q2_n10
+      q2_n9_o3:
+        points: 0
+        irreversible: true
+        consequence_text: Đã gọi API bên thứ ba mua và phát hành thật 1,000 Voucher
+          đắt tiền ngoài dự toán ngân sách.
+        next_node: q2_n10
+      q2_n10_o1:
+        points: 10
+        irreversible: false
+        consequence_text: Hoàn tất chiến dịch migration xuất sắc, hệ thống gọn gàng
+          và sẵn sàng cho đợt vận hành tiếp theo.
+        next_node: END
+      q2_n10_o2:
+        points: 3
+        irreversible: false
+        consequence_text: Khi phát hiện dữ liệu lỗi phát sinh sau 2 ngày thì không
+          còn bản backup để đối soát.
+        next_node: END
+      q2_n10_o3:
+        points: 3
+        irreversible: false
+        consequence_text: Bảng tạm chiếm dụng dung lượng đĩa cứng làm chậm tốc độ
+          query của DB.
+        next_node: END
+  difficulty: medium
+- content:
+    scenario: Kiểm thử trực tiếp tính năng phát Voucher Tết và Push Notification cho
+      app di động trên môi trường Production do hệ thống Staging gặp sự cố sập DB.
+    nodes:
+    - key: q1_n1
+      prompt: Bạn cần chuẩn bị tài khoản test trên Prod để chạy thử luồng nhận Voucher
+        Tết. Phương án nào an toàn nhất?
+      options:
+      - key: opt_1_1_1
+        label: Tạo tài khoản test với email dev_test_tet@internal.com và thêm user_id
+          vào danh sách Whitelist test.
+      - key: opt_1_1_2
+        label: Sử dụng trực tiếp tài khoản VIP của Giám đốc Sản phẩm để kiểm thử cho
+          giống dữ liệu thật.
+      - key: opt_1_1_3
+        label: Cập nhật trực tiếp flag is_tester = true cho tài khoản của một khách
+          hàng ngẫu nhiên.
+    - key: q1_n2
+      prompt: Bạn chuẩn bị cấu hình mã Voucher giảm giá 500k trên Prod Admin để test.
+      options:
+      - key: opt_1_2_1
+        label: Tạo Voucher 500k kèm điều kiện chỉ áp dụng cho user_id thuộc Whitelist
+          internal test.
+      - key: opt_1_2_2
+        label: Tạo Voucher 500k không giới hạn người dùng nhưng để trạng thái Draft.
+      - key: opt_1_2_3
+        label: Tạo Voucher 500k Public toàn hệ thống với số lượng 9999 để test xong
+          rồi xoá.
+    - key: q1_n3
+      prompt: Cần kích hoạt tính năng tự động áp mã Voucher khi vào trang Checkout
+        để kiểm tra UI/UX.
+      options:
+      - key: opt_1_3_1
+        label: Bật Feature Flag enable_tet_voucher áp dụng riêng cho user_group =
+          internal_test.
+      - key: opt_1_3_2
+        label: Bật Feature Flag enable_tet_voucher cho 1% user ngẫu nhiên trên Prod
+          trong 5 phút.
+      - key: opt_1_3_3
+        label: UPDATE thẳng bảng application_config set auto_apply_voucher = true
+          cho toàn bộ người dùng.
+    - key: q1_n4
+      prompt: Đến bước kiểm tra tính năng Push Notification thông báo tặng Voucher
+        Tết.
+      options:
+      - key: opt_1_4_1
+        label: Gửi push notification chỉ định chính xác device_token của thiết bị
+          test.
+      - key: opt_1_4_2
+        label: Bấm nút 'Send All' trên FCM Console để bắn push broadcast cho 500.000
+          người dùng thật.
+      - key: opt_1_4_3
+        label: Gửi push notification đến FCM Topic topic_internal_qa.
+    - key: q1_n5
+      prompt: Phát hiện mã voucher test lỡ bị áp dụng bởi 3 người dùng thật do nhầm
+        lẫn config. Xử lý ra sao?
+      options:
+      - key: opt_1_5_1
+        label: Tắt Feature Flag, vô hiệu hoá mã voucher test, gửi báo cáo incident
+          cho CSKH để hỗ trợ giữ trải nghiệm khách hàng.
+      - key: opt_1_5_2
+        label: Chạy query UPDATE orders SET status = 'CANCELLED' trực tiếp trên DB
+          Prod để huỷ đơn của khách.
+      - key: opt_1_5_3
+        label: Không thao tác gì, âm thầm xoá log trên ứng dụng.
+    - key: q1_n6
+      prompt: Bạn cần test kết nối tích hợp API tạo đơn vận chuyển với đối tác giao
+        vận Express.
+      options:
+      - key: opt_1_6_1
+        label: Dùng API Key Sandbox của bên giao vận để giả lập tạo đơn.
+      - key: opt_1_6_2
+        label: Gọi thẳng API Prod của bên giao vận tạo đơn thật với địa chỉ văn phòng
+          công ty và ghi chú 'Đơn test'.
+      - key: opt_1_6_3
+        label: Mock response ở tầng Nginx/Gateway để tránh phát sinh request ra bên
+          ngoài.
+    - key: q1_n7
+      prompt: Trong lúc test, hệ thống ghi nhận hàng loạt lỗi NullPointerException
+        do tài khoản test thiếu địa chỉ.
+      options:
+      - key: opt_1_7_1
+        label: Cập nhật đầy đủ thông tin địa chỉ giao hàng cho tài khoản test.
+      - key: opt_1_7_2
+        label: Sửa code bỏ qua validation địa chỉ rồi deploy hotfix không qua review
+          lên Prod.
+      - key: opt_1_7_3
+        label: Tắt toàn bộ log level ERROR của module OrderService để log khỏi bị
+          rác.
+    - key: q1_n8
+      prompt: Bạn muốn dọn dẹp các mã Voucher test đã tạo trong bảng user_vouchers
+        trên Prod DB.
+      options:
+      - key: opt_1_8_1
+        label: Chạy script UPDATE user_vouchers SET is_active = false WHERE code =
+          'TEST_TET_500K' trong Transaction.
+      - key: opt_1_8_2
+        label: Chạy lệnh DELETE FROM user_vouchers WHERE code LIKE '%TEST%' không
+          có câu lệnh ROLLBACK dự phòng.
+      - key: opt_1_8_3
+        label: Giữ nguyên dữ liệu test trên DB để lần sau test tiếp.
+    - key: q1_n9
+      prompt: Quản lý yêu cầu rà soát lại toàn bộ người dùng bị ảnh hưởng trong đợt
+        test.
+      options:
+      - key: opt_1_9_1
+        label: Truy vấn bảng notification_logs và order_logs lọc theo created_at trong
+          khung giờ test để xuất báo cáo.
+      - key: opt_1_9_2
+        label: Bắn thêm 1 tin Push Notification toàn hệ thống xin lỗi vì vừa phát
+          tin tin nhắn rác.
+      - key: opt_1_9_3
+        label: Báo cáo miệng với sếp là không có vấn đề gì xảy ra mà không kiểm tra
+          DB.
+    - key: q1_n10
+      prompt: Hoàn tất buổi kiểm thử trên Production. Bạn thực hiện bước cuối cùng
+        nào?
+      options:
+      - key: opt_1_10_1
+        label: Tắt Feature Flag test, khoá tài khoản test, tổng hợp Post-mortem báo
+          cáo Tech Lead.
+      - key: opt_1_10_2
+        label: Xoá file log hệ thống bằng rm -rf /var/log/app/* để tiết kiệm dung
+          lượng đĩa.
+      - key: opt_1_10_3
+        label: Rời bàn làm việc đi về mà không bàn giao lại trạng thái Prod cho đội
+          On-call.
+  answer_key:
+    option_effects:
+      opt_1_1_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Tài khoản test nằm trong Whitelist, cô lập hoàn
+          toàn với người dùng thật.'
+        next_node: q1_n2
+      opt_1_1_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Dữ liệu kiểm thử trộn lẫn với tài khoản sếp, dễ
+          gây sai lệch báo cáo và biến động quyền hạn.'
+        next_node: q1_n2
+      opt_1_1_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Khách hàng thật bị biến thành tài khoản test, trải
+          nghiệm của họ có thể bị gián đoạn.'
+        next_node: q1_n2
+      opt_1_2_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Mã giảm giá được khoá phạm vi sử dụng cho đội
+          nội bộ.'
+        next_node: q1_n3
+      opt_1_2_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Trạng thái Draft có thể vô tình bị ai đó Publish
+          trong lúc vận hành.'
+        next_node: q1_n3
+      opt_1_2_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO RẤT CAO: Khách hàng có thể săn được voucher 500k
+          và sử dụng ngay lập tức.'
+        next_node: q1_n3
+      opt_1_3_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Kiểm soát tính năng bằng Feature Flag giới hạn
+          đúng đối tượng.'
+        next_node: q1_n4
+      opt_1_3_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: 1% khách hàng trên Prod sẽ thấy UI/UX thử nghiệm
+          chưa hoàn thiện.'
+        next_node: q1_n4
+      opt_1_3_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'NGHÊM TRỌNG: Toàn bộ khách hàng đều tự động được áp voucher
+          test trên Prod.'
+        next_node: q1_n4
+      opt_1_4_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Push thông báo chính xác đến thiết bị test cá
+          nhân.'
+        next_node: q1_n5
+      opt_1_4_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ NGHÊM TRỌNG (KHÔNG THỂ THU HỒI): Đã bắn thông báo
+          Push rác kèm thông tin test cho 500.000 khách hàng thật trên môi trường
+          Production.'
+        next_node: q1_n5
+      opt_1_4_3:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Bắn tin vào topic nội bộ dành riêng cho đội QA.'
+        next_node: q1_n5
+      opt_1_5_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Cách xử lý chuyên nghiệp, khắc phục lỗi hệ thống
+          và phối hợp CSKH chăm sóc người dùng.'
+        next_node: q1_n6
+      opt_1_5_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Tự ý huỷ đơn trên DB khiến đơn hàng bị lệch trạng
+          thái với cổng thanh toán và kho hàng.'
+        next_node: q1_n6
+      opt_1_5_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Bỏ mặc sự cố khiến công ty thất thoát tài chính
+          khi các đơn hàng này được xuất kho.'
+        next_node: q1_n6
+      opt_1_6_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Dùng Sandbox của đối tác không làm phát sinh đơn
+          hàng hay shipper thật.'
+        next_node: q1_n7
+      opt_1_6_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Đã tạo đơn vận chuyển thật trên
+          hệ thống Prod của đối tác. Shipper thật đã được điều phối tới lấy hàng và
+          công ty bị trừ cước vận chuyển.'
+        next_node: q1_n7
+      opt_1_6_3:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Mock kết quả trả về an toàn ở tầng gateway.'
+        next_node: q1_n7
+      opt_1_7_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Bổ sung đủ dữ liệu mẫu chuẩn cho tài khoản test.'
+        next_node: q1_n8
+      opt_1_7_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO RẤT CAO: Deploy hotfix ẩu làm rò rỉ logic validation
+          cho toàn bộ người dùng thật.'
+        next_node: q1_n8
+      opt_1_7_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Mù thông tin log khi hệ thống thực sự gặp sự cố
+          với các đơn hàng khác.'
+        next_node: q1_n8
+      opt_1_8_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Cập nhật dữ liệu có điều kiện rõ ràng và nằm trong
+          Transaction kiểm soát.'
+        next_node: q1_n9
+      opt_1_8_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO NGHÊM TRỌNG: Câu lệnh LIKE ''%TEST%'' có thể xoá
+          nhầm các voucher thật của khách hàng có tên chứa chuỗi ''TEST''.'
+        next_node: q1_n9
+      opt_1_8_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Dữ liệu rác tích tụ trên Production.'
+        next_node: q1_n9
+      opt_1_9_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Kiểm tra log dữ liệu minh bạch, xác định chính
+          xác ảnh hưởng.'
+        next_node: q1_n10
+      opt_1_9_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Tiếp tục gửi thêm 1 tin Push Notification
+          rác toàn hệ thống, làm gia tăng sự bức xúc của khách hàng.'
+        next_node: q1_n10
+      opt_1_9_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Báo cáo sai sự thật, giấu giếm sự cố gây hậu quả
+          lâu dài.'
+        next_node: q1_n10
+      opt_1_10_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Quy trình dọn dẹp và đóng đợt test hoàn hảo, tuân
+          thủ chuẩn vận hành.'
+        next_node: END
+      opt_1_10_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO NGHÊM TRỌNG: Xoá sạch log hệ thống làm mất khả năng
+          truy vết sự cố về sau.'
+        next_node: END
+      opt_1_10_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Thiếu trách nhiệm, để lại môi trường Prod rủi ro
+          cho ca trực sau.'
+        next_node: END
+  difficulty: hard
+- content:
+    scenario: Cấu hình lại cổng thanh toán ngân hàng VNPAY/Momo và xử lý nghẽn giao
+      dịch trong sự kiện Flash Sale 12/12 trên môi trường Production.
+    nodes:
+    - key: q2_n1
+      prompt: Ngân hàng đối tác yêu cầu cung cấp danh sách IP máy chủ Prod để thêm
+        vào Whitelist kết nối. Bạn thực hiện ra sao?
+      options:
+      - key: opt_2_1_1
+        label: Lấy danh sách static Egress IP Nat Gateway của hạ tầng Prod gửi đối
+          tác.
+      - key: opt_2_1_2
+        label: Yêu cầu mở 0.0.0.0/0 để tránh mất thời gian cấu hình sau này.
+      - key: opt_2_1_3
+        label: Gửi public IP của mạng Wi-Fi công ty đang ngồi làm việc.
+    - key: q2_n2
+      prompt: Bạn cần thực hiện 1 giao dịch nạp tiền 10.000 VND để kiểm tra checksum
+        signature kết nối cổng thanh toán.
+      options:
+      - key: opt_2_2_1
+        label: Sử dụng môi trường Sandbox và tài khoản thẻ test do ngân hàng cấp.
+      - key: opt_2_2_2
+        label: Dùng thẻ ATM/Ví cá nhân nạp 10.000 VND thật qua cổng Prod thanh toán
+          đơn hàng test.
+      - key: opt_2_2_3
+        label: Sửa mã nguồn bỏ qua bước kiểm tra checksum MD5 để đỡ phải test nạp
+          tiền.
+    - key: q2_n3
+      prompt: Callback IPN (Instant Payment Notification) từ cổng thanh toán bị chặn
+        bởi WAF (Web Application Firewall).
+      options:
+      - key: opt_2_3_1
+        label: Kiểm tra log WAF và whitelist riêng dải IP callback chính thức của
+          ngân hàng.
+      - key: opt_2_3_2
+        label: Tắt hoàn toàn WAF trong 1 tiếng diễn ra Flash Sale.
+      - key: opt_2_3_3
+        label: Sửa đường dẫn Callback URL sang một server test không qua WAF.
+    - key: q2_n4
+      prompt: Phát hiện 50 giao dịch thanh toán bị treo trạng thái PENDING do mất
+        kết nối IPN vừa qua. Bạn làm gì?
+      options:
+      - key: opt_2_4_1
+        label: Chạy job Query Transaction Status đối soát trực tiếp với API ngân hàng
+          để cập nhật trạng thái thực tế.
+      - key: opt_2_4_2
+        label: Chạy lệnh SQL UPDATE transactions SET status = 'SUCCESS' WHERE status
+          = 'PENDING' cho xong.
+      - key: opt_2_4_3
+        label: Chạy script gửi SMS tự động thông báo giao dịch thất bại cho tất cả
+          50 khách hàng mà chưa kiểm tra trạng thái ngân hàng.
+    - key: q2_n5
+      prompt: Khách hàng bị trừ tiền 2 lần do bấm nút thanh toán liên tục. Cần xử
+        lý hoàn tiền 1 giao dịch bị trùng.
+      options:
+      - key: opt_2_5_1
+        label: Kiểm tra mã giao dịch ngân hàng, lập phiếu đối soát và gọi API Refund
+          đối tác thông qua quy trình phê duyệt Admin.
+      - key: opt_2_5_2
+        label: Xoá record giao dịch bị trùng trong bảng payment_transactions trên
+          DB để số liệu đỡ lệch.
+      - key: opt_2_5_3
+        label: Chuyển khoản cá nhân cho khách hàng để giải quyết nhanh sự cố.
+    - key: q2_n6
+      prompt: Cần bật log chi tiết để theo dõi luồng giao dịch trong đợt cao điểm
+        Flash Sale.
+      options:
+      - key: opt_2_6_1
+        label: Bật log INFO/DEBUG kèm mask các thông tin nhạy cảm (Card Number, CVV).
+      - key: opt_2_6_2
+        label: Ghi toàn bộ RAW Payload HTTP bao gồm cả số thẻ và CVV vào file log
+          để dễ debug.
+      - key: opt_2_6_3
+        label: Tắt toàn bộ log hệ thống để tối ưu IOPS cho đĩa cứng server.
+    - key: q2_n7
+      prompt: Bộ nhớ Redis Cache chứa session thanh toán của người dùng tăng vọt đạt
+        98%. Bạn xử lý thế nào?
+      options:
+      - key: opt_2_7_1
+        label: Mở rộng tài nguyên RAM Redis và đặt TTL hợp lý cho các key cache tạm.
+      - key: opt_2_7_2
+        label: Chạy lệnh FLUSHALL trên Redis Prod để giải phóng bộ nhớ ngay lập tức.
+      - key: opt_2_7_3
+        label: Restart instance Redis chính mà không báo cho đỗi ngũ vận hành.
+    - key: q2_n8
+      prompt: Hàng đợi Queue xử lý gửi Email hoá đơn thanh toán bị dồn nén hơn 20.000
+        job.
+      options:
+      - key: opt_2_8_1
+        label: Tăng số lượng Worker process để tăng tốc độ tiêu thụ job trong Queue.
+      - key: opt_2_8_2
+        label: Xoá sạch Queue (Purge) để giải phóng hệ thống cho các giao dịch mới.
+      - key: opt_2_8_3
+        label: Bỏ bớt bước xác thực token trong worker để gửi cho nhanh.
+    - key: q2_n9
+      prompt: Đối tác cổng thanh toán thông báo hệ thống của họ bị chập chờn trong
+        15 phút tới.
+      options:
+      - key: opt_2_9_1
+        label: Bật thông báo tạm ngưng phương thức thanh toán này trên UI app và gợi
+          ý kênh thanh toán dự phòng.
+      - key: opt_2_9_2
+        label: Cứ để nguyên cho khách hàng tiếp tục thanh toán, ai lỗi thì hỗ trợ
+          sau.
+      - key: opt_2_9_3
+        label: Tắt toàn bộ ứng dụng E-commerce trong 15 phút.
+    - key: q2_n10
+      prompt: Đợt Flash Sale kết thúc thành công. Bạn chốt ca trực như thế nào?
+      options:
+      - key: opt_2_10_1
+        label: Xuất file đối soát tổng giao dịch, bàn giao danh sách đơn refund cho
+          Kế toán và ghi lại Post-mortem.
+      - key: opt_2_10_2
+        label: Chỉnh sửa số liệu giao dịch lỗi trong DB để báo cáo doanh thu đẹp hơn.
+      - key: opt_2_10_3
+        label: Tắt server Prod để tiết kiệm chi phí cloud sau đợt sale.
+  answer_key:
+    option_effects:
+      opt_2_1_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Cấu hình đúng IP Egress đảm bảo an ninh mạng.'
+        next_node: q2_n2
+      opt_2_1_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO LỚN: Mở toàn bộ Internet truy cập vào cổng kết nối
+          ngân hàng gây nguy cơ bảo mật nghiêm trọng.'
+        next_node: q2_n2
+      opt_2_1_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Wi-Fi văn phòng thay đổi IP sẽ làm đứt kết nối
+          thanh toán ngay lập tức.'
+        next_node: q2_n2
+      opt_2_2_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Kiểm thử chuẩn quy trình trên môi trường Sandbox.'
+        next_node: q2_n3
+      opt_2_2_2:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Đã phát sinh giao dịch tiền thật
+          10.000 VND trên hệ thống liên ngân hàng Prod. Số tiền đã bị trừ khỏi tài
+          khoản và hạch toán vào doanh thu thật.'
+        next_node: q2_n3
+      opt_2_2_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'SỰ CỐ NGHÊM TRỌNG: Bỏ checksum khiến hacker có thể giả
+          mạo request thanh toán thành công.'
+        next_node: q2_n3
+      opt_2_3_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Cấu hình Whitelist WAF chính xác theo nguồn ngân
+          hàng.'
+        next_node: q2_n4
+      opt_2_3_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO RẤT CAO: Mở toang hệ thống cho các cuộc tấn công
+          DDoS và Injection trong đợt sale.'
+        next_node: q2_n4
+      opt_2_3_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Callback gửi về server test sẽ không cập nhật trạng
+          thái đơn trên Prod.'
+        next_node: q2_n4
+      opt_2_4_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Đối soát chính xác với trạng thái tiền thực tế
+          tại ngân hàng.'
+        next_node: q2_n5
+      opt_2_4_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'SỰ CỐ THẤT THOÁT: Duyệt đơn cho cả những giao dịch chưa
+          thực sự được người dùng thanh toán tiền.'
+        next_node: q2_n5
+      opt_2_4_3:
+        points: 0
+        irreversible: true
+        consequence_text: 'SỰ CỐ KHÔNG THỂ THU HỒI: Đã gửi 50 tin nhắn SMS thật báo
+          thất bại tới khách hàng trong khi tiền của họ có thể đã bị trừ thành công
+          tại ngân hàng.'
+        next_node: q2_n5
+      opt_2_5_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Tuân thủ quy trình tài chính và đối soát hoàn
+          tiền.'
+        next_node: q2_n6
+      opt_2_5_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO NGHÊM TRỌNG: Sai lệch sổ sách kế toán, mất vết lịch
+          sử giao dịch.'
+        next_node: q2_n6
+      opt_2_5_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Vi phạm quy trình quản lý dòng tiền của doanh nghiệp.'
+        next_node: q2_n6
+      opt_2_6_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Tuân thủ chuẩn bảo mật dữ liệu thẻ PCI-DSS.'
+        next_node: q2_n7
+      opt_2_6_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'VI PHẠM BẢO MẬT NGHÊM TRỌNG: Ghi lộ thông tin thẻ người
+          dùng vào log, vi phạm quy định PCI-DSS.'
+        next_node: q2_n7
+      opt_2_6_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Không thể điều tra khi phát sinh lỗi thanh toán.'
+        next_node: q2_n7
+      opt_2_7_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Tối ưu bộ nhớ cache đúng kỹ thuật.'
+        next_node: q2_n8
+      opt_2_7_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'SỰ CỐ RẤT LỚN: Xoá sạch session khiến hàng chục nghìn người
+          dùng đang shopping bị logout ra khỏi app.'
+        next_node: q2_n8
+      opt_2_7_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Làm gãy các kết nối thanh toán dở dang.'
+        next_node: q2_n8
+      opt_2_8_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Mở rộng khả năng xử lý bất đồng bộ theo chiều
+          ngang.'
+        next_node: q2_n9
+      opt_2_8_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'SỰ CỐ NGHÊM TRỌNG: Làm mất 20.000 hoá đơn VAT không gửi
+          được cho khách hàng.'
+        next_node: q2_n9
+      opt_2_8_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Bỏ qua auth khiến hệ thống bị khai thác gửi mail
+          rác.'
+        next_node: q2_n9
+      opt_2_9_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Chủ động điều hướng trải nghiệm người dùng, giảm
+          áp lực hỗ trợ kỹ thuật.'
+        next_node: q2_n10
+      opt_2_9_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Tăng tỷ lệ thanh toán lỗi, tạo làn sóng khiếu nại
+          từ khách hàng.'
+        next_node: q2_n10
+      opt_2_9_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'RỦI RO: Tự làm sụt giảm doanh thu Flash Sale không cần
+          thiết.'
+        next_node: q2_n10
+      opt_2_10_1:
+        points: 10
+        irreversible: false
+        consequence_text: 'AN TOÀN: Hoàn tất ca trực chuyên nghiệp, đảm bảo dữ liệu
+          tài chính minh bạch.'
+        next_node: END
+      opt_2_10_2:
+        points: 3
+        irreversible: false
+        consequence_text: 'VI PHẠM NGHÊM TRỌNG: Gian lận sổ sách báo cáo tài chính.'
+        next_node: END
+      opt_2_10_3:
+        points: 3
+        irreversible: false
+        consequence_text: 'SỰ CỐ NGHÊM TRỌNG: Tắt server Prod khiến toàn bộ dịch vụ
+          ngưng hoạt động.'
+        next_node: END
+  difficulty: medium

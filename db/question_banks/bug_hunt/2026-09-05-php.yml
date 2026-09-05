@@ -1,0 +1,148 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-05T20:58:32Z'
+language: php
+questions:
+- content:
+    language: php
+    code_lines:
+    - "$userId = $_GET['user_id'];"
+    - ' $sql = "SELECT * FROM users WHERE id = " . $userId;'
+    - " $result = $db->query($sql);"
+    - " return $result->fetch_assoc();"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến người dùng vào câu truy vấn SQL gây nguy cơ SQL
+      Injection, cần sử dụng Prepared Statement với Parameter Binding.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - " foreach ($orders as $order) {"
+    - "     $customer = Customer::find($order->customer_id);"
+    - "     $order->customer_name = $customer->name;"
+    - " }"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: Truy vấn cơ sở dữ liệu Customer::find() nằm trong vòng lặp gây ra
+      lỗi N+1 Query, nên sử dụng Eager Loading với Order::with('customer') từ trước.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$user = $authService->authenticate($email, $password);"
+    - " if (!$user) {"
+    - '     $logger->error("Login failed for email {$email} with password: {$password}");'
+    - "     return false;"
+    - " }"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi mật khẩu người dùng vào file log làm rò rỉ dữ liệu nhạy cảm,
+      chỉ nên ghi lại các thông tin như email hoặc địa chỉ IP.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function deleteInvoice(Request $request, $id) {
+    - "     $invoice = Invoice::findOrFail($id);"
+    - "     $invoice->delete();"
+    - "     return response()->json(['status' => 'success']);"
+    - " }"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: Xóa tài nguyên mà không kiểm tra quyền hạn của người dùng hiện tại
+      (authorization check), cần kiểm tra xem người dùng có quyền xóa hóa đơn này
+      hay không trước khi gọi delete().
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "     $paymentGateway->charge($order->total);"
+    - " } catch (Exception $e) {"
+    - "     // ignore error"
+    - " }"
+    - " $order->update(['status' => 'paid']);"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ nhưng bỏ qua không xử lý hay ghi log khiến lỗi bị nuốt
+      (swallowed exception), làm hệ thống vẫn cập nhật trạng thái đơn hàng thành đã
+      thanh toán dù giao dịch thất bại.
+  difficulty: medium
