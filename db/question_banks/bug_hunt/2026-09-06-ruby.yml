@@ -1,0 +1,277 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-06T21:05:02Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(term)
+    - '  User.where("name LIKE ''%#{term}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp tham số term vào câu truy vấn SQL gây ra lỗ hổng
+      SQL Injection. Nên dùng dạng placeholder như User.where('name LIKE ?', "%#{term}%").
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def total_orders_amount(user_ids)
+    - "  users = User.where(id: user_ids)"
+    - "  users.map { |u| u.orders.sum(&:amount) }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: 'Gọi u.orders trong vòng lặp map làm phát sinh nhiều truy vấn SQL
+      riêng lẻ (vấn đề N+1 query). Cần preload quan hệ bằng cách dùng User.where(id:
+      user_ids).includes(:orders).'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(card_params)
+    - '  Rails.logger.info("Processing payment: #{card_params.inspect}")'
+    - "  PaymentGateway.charge(card_params[:amount], card_params[:cvv])"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log toàn bộ card_params làm lộ thông tin nhạy cảm như thẻ tín
+      dụng hay CVV vào log file. Nên lọc bỏ dữ liệu nhạy cảm trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_data(user_id)
+    - "  ExternalService.push_user(user_id)"
+    - rescue StandardError => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Lỗi bị nuốt chửng (swallowed exception) do trả về nil mà không log
+      lỗi hay xử lý tiếp, làm che giấu sự cố khi tích hợp hệ thống ngoài.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def update_document
+    - "  doc = Document.find(params[:id])"
+    - "  doc.update!(document_params)"
+    - "  render json: doc"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_authorization
+    explanation: 'Tìm kiếm tài liệu trực tiếp bằng Document.find(params[:id]) mà không
+      phân quyền người dùng (VD: current_user.documents.find(params[:id])), dẫn đến
+      lỗ hổng IDOR.'
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def fetch_active_user_emails
+    - "  users = User.where(status: 'active')"
+    - "  users.map { |user| user.profile.email }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn thiếu eager loading gây ra lỗi N+1 khi duyệt qua profile
+      của từng user, cần bổ sung includes(:profile) vào dòng 2.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def search_products(query_str)
+    - "  sanitized = query_str.to_s.strip"
+    - '  Product.where("name LIKE ''%#{sanitized}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Việc nội suy chuỗi trực tiếp vào câu lệnh SQL gây lỗ hổng SQL Injection,
+      cần dùng tham số truyền vào như Product.where('name LIKE ?', "%#{sanitized}%").
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(payment_params)
+    - '  Rails.logger.info("Processing payment for card: #{payment_params[:card_number]}")'
+    - "  PaymentGateway.charge(payment_params[:amount], payment_params[:token])"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi trực tiếp số thẻ tín dụng vào log gây rò rỉ dữ liệu nhạy cảm,
+      cần mã hóa hoặc che bớt thông tin (masking) trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def update_inventory(item_id, quantity)
+    - "  item = InventoryItem.find(item_id)"
+    - "  item.update!(quantity: quantity)"
+    - rescue StandardError => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Đoạn rescue nuốt ngoại lệ mà không ghi log hay đưa ra cảnh báo làm
+      mất thông tin lỗi khi cập nhật thất bại, cần log lỗi e.message hoặc re-raise.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def notification_enabled?(settings)
+    - "  enabled = settings[:email_notifications] || true"
+    - "  enabled && settings[:user_active]"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Trong Ruby, giá trị false trong toán tử || sẽ khiến biểu thức lấy
+      giá trị vế sau (true), làm cho việc tắt thông báo (false) không có tác dụng.
+      Cần dùng fetch hoặc kiểm tra nil?.
+  difficulty: hard

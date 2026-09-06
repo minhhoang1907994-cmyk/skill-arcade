@@ -1,0 +1,239 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-09-06T21:05:57Z'
+questions:
+- content:
+    task_description: Thêm trường discount_code vào bảng orders và trả về trong API
+      GET /api/v1/orders/{id}.
+    context: Hệ thống backend Node.js dùng Prisma ORM, đã có sẵn API GET /api/v1/orders/{id}
+      và DTO tương ứng.
+  answer_key:
+    actual_hours: 1.5
+    breakdown:
+    - step: Thêm cột discount_code vào schema Prisma và tạo file migration
+      hours: 0.25
+    - step: Cập nhật DTO và Response serializer để bổ sung trường discount_code
+      hours: 0.25
+    - step: Viết unit test kiểm tra API GET /api/v1/orders/{id} trả về đúng discount_code
+      hours: 0.5
+    - step: Sửa code và cập nhật test theo góp ý code review
+      hours: 0.5
+    reasoning: Thời gian phần lớn dành cho việc viết unit test kiểm tra payload API
+      và hoàn thiện lại code sau review.
+  difficulty: easy
+- content:
+    task_description: Thêm nút và logic xuất danh sách sản phẩm ra file CSV trong
+      giao diện quản trị Admin.
+    context: Backend Django đã có sẵn API danh sách sản phẩm hỗ trợ filter, frontend
+      dùng React và Tailwind CSS.
+  answer_key:
+    actual_hours: 3.5
+    breakdown:
+    - step: Viết API endpoint GET /api/admin/products/export trong Django sử dụng
+        thư viện csv tích hợp
+      hours: 1.0
+    - step: Thêm nút Export CSV trên giao diện React và kết nối gọi API download file
+      hours: 0.75
+    - step: Viết unit test cho endpoint export CSV với các điều kiện bộ lọc filter
+      hours: 1.0
+    - step: Chỉnh sửa UI và tối ưu code sau khi nhận phản hồi review
+      hours: 0.75
+    reasoning: Thời gian chủ yếu tập trung vào viết API xử lý dữ liệu xuất file CSV
+      theo bộ lọc và viết test bao phủ.
+  difficulty: easy
+- content:
+    task_description: Tích hợp Webhook tiếp nhận và xử lý thông báo thanh toán thành
+      công từ cổng thanh toán MoMo.
+    context: Hệ thống Java Spring Boot, đã có sẵn module Order và helper kiểm tra
+      chữ ký HMAC.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Nghiên cứu tài liệu API webhook MoMo và triển khai hàm xác thực chữ ký
+        HMAC SHA256
+      hours: 2.0
+    - step: Viết Controller /api/v1/webhooks/momo xử lý idempotent và cập nhật trạng
+        thái Order
+      hours: 3.0
+    - step: Xử lý lưu audit log giao dịch thanh toán và gửi event cập nhật vào hệ
+        thống
+      hours: 2.0
+    - step: Viết unit test và integration test với mock webhook payload từ MoMo
+      hours: 3.0
+    - step: Chỉnh sửa logic và xử lý edge case sau code review
+      hours: 2.0
+    reasoning: Thời gian tốn nhiều nhất cho việc xử lý logic idempotent, xác thực
+      chữ ký an toàn và viết test mock webhook.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi module bộ nhớ tạm Session từ Redis Standalone sang
+      Redis Cluster hỗ trợ HA.
+    context: Backend Go (Golang) đang sử dụng thư viện go-redis/v8 kết nối Redis Standalone.
+  answer_key:
+    actual_hours: 24.0
+    breakdown:
+    - step: Cập nhật cấu hình config và refactor Redis client từ redis.Client sang
+        redis.ClusterClient trong Go
+      hours: 4.0
+    - step: Rà soát và sửa các câu lệnh multi-key/pipeline không hợp lệ bằng cách
+        thêm Hash Tags vào Redis Key
+      hours: 6.0
+    - step: Xây dựng môi trường Docker Compose Redis Cluster local và chạy script
+        kiểm thử failover
+      hours: 5.0
+    - step: Cập nhật bộ integration test hiện tại tương thích với môi trường Redis
+        Cluster
+      hours: 5.0
+    - step: Tối ưu hóa connection pool và chỉnh sửa code theo góp ý review
+      hours: 4.0
+    reasoning: Phần lớn thời gian dành cho việc rà soát và sửa đổi các thao tác multi-key
+      để tương thích với cơ chế sharding của Redis Cluster.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng Trung tâm thông báo (Notification Center)
+      thời gian thực hỗ trợ Web và Mobile.
+    context: Hệ thống Microservices dùng NestJS, PostgreSQL và Redis. Cần hỗ trợ đẩy
+      thông báo realtime qua WebSocket và lưu vết REST API.
+  answer_key:
+    actual_hours: 40.0
+    breakdown:
+    - step: Thiết kế database schema cho bảng notifications và user_notification_settings
+        kèm migration
+      hours: 3.0
+    - step: Xây dựng WebSocket Gateway với NestJS Socket.IO hỗ trợ xác thực JWT và
+        chia room theo user_id
+      hours: 7.0
+    - step: Phát triển nhóm REST API xem danh sách thông báo, mark-as-read và đếm
+        số unread
+      hours: 8.0
+    - step: Viết module Publisher/Subscriber với Redis Pub/Sub để chuyển tiếp notification
+        từ các service khác
+      hours: 8.0
+    - step: Viết unit test và E2E test cho toàn bộ REST API và kết nối WebSocket
+      hours: 8.0
+    - step: Xử lý các vấn đề reconnect, đứt mạng và chỉnh sửa sau code review
+      hours: 6.0
+    reasoning: Thời gian phần lớn nằm ở việc thiết lập WebSocket Gateway kết hợp Redis
+      Pub/Sub để truyền tin thời gian thực ổn định và viết bộ test E2E.
+  difficulty: hard
+- content:
+    task_description: Thêm trường is_vip kiểu boolean vào bảng users và trả về trong
+      API GET /api/v1/profile.
+    context: Dự án Laravel đã có sẵn API profile và hệ thống migration, resource transformer
+      đang hoạt động ổn định.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Tạo migration thêm cột is_vip kiểu boolean mặc định false vào bảng users
+      hours: 0.25
+    - step: Cập nhật UserResource để bổ sung trường is_vip vào JSON response
+      hours: 0.25
+    - step: Thêm is_vip vào UserFactory và viết unit test cho API GET /api/v1/profile
+      hours: 0.5
+    - step: Chạy lại test suite nội bộ và chỉnh sửa minor code sau self-review
+      hours: 0.25
+    reasoning: Thời gian chủ yếu tập trung vào việc bổ sung unit test để đảm bảo API
+      trả về đúng trường dữ liệu mới mà không làm hỏng các test case cũ.
+  difficulty: easy
+- content:
+    task_description: Thêm tính năng xuất danh sách đơn hàng ra file Excel (.xlsx)
+      trong trang quản trị.
+    context: Backend Node.js/Express đã cài sẵn thư viện exceljs, trang danh sách
+      đơn hàng đã có sẵn API lấy dữ liệu JSON.
+  answer_key:
+    actual_hours: 3.5
+    breakdown:
+    - step: Viết service map dữ liệu đơn hàng thành cấu hình cột file Excel bằng exceljs
+      hours: 1.25
+    - step: Tạo endpoint GET /api/v1/admin/orders/export trả về file stream
+      hours: 0.75
+    - step: Cấu hình phân trang stream dữ liệu DB để tránh tràn bộ nhớ khi xuất file
+        lớn
+      hours: 1.0
+    - step: Viết integration test cho endpoint xuất file và sửa lỗi sau code review
+      hours: 0.5
+    reasoning: Phần lớn thời gian dành cho việc tối ưu stream dữ liệu từ cơ sở dữ
+      liệu để tránh quá tải RAM khi xuất số lượng bản ghi lớn.
+  difficulty: easy
+- content:
+    task_description: Tích hợp cổng thanh toán ZaloPay vào hệ thống thông qua webhook
+      callback.
+    context: Hệ thống Spring Boot đã có sẵn interface PaymentProvider cho VNPay, chỉ
+      cần bổ sung ZaloPay theo khuôn mẫu sẵn có.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Đọc tài liệu API ZaloPay và hiện thực hàm xác thực chữ ký HMAC-SHA256
+      hours: 2.0
+    - step: Tạo ZaloPayService triển khai interface PaymentProvider có sẵn
+      hours: 3.5
+    - step: Bổ sung API controller tiếp nhận webhook callback và cập nhật trạng thái
+        Order
+      hours: 2.5
+    - step: Viết unit test mock HTTP client cho kịch bản thành công và checksum sai
+      hours: 2.5
+    - step: Debug và sửa lỗi logic phát sinh khi test thực tế trên Sandbox ZaloPay
+      hours: 1.5
+    reasoning: Thời gian phần lớn tiêu tốn vào việc triển khai chính xác thuật toán
+      mã hóa chữ ký bảo mật và xử lý các trường hợp sai checksum từ webhook.
+  difficulty: medium
+- content:
+    task_description: Triển khai cơ chế Cache-Aside bằng Redis cho danh mục và chi
+      tiết sản phẩm.
+    context: Hệ thống Django/PostgreSQL đang quá tải truy vấn DB, server Redis đã
+      được cài đặt nhưng codebase chưa từng sử dụng cache.
+  answer_key:
+    actual_hours: 18.0
+    breakdown:
+    - step: Cấu hình kết nối django-redis và khai báo connection pool
+      hours: 1.5
+    - step: Viết utility class quản lý Redis key pattern và thời gian TTL cho sản
+        phẩm
+      hours: 3.0
+    - step: Refactor logic trong ProductService để kiểm tra Redis trước khi query
+        PostgreSQL
+      hours: 4.0
+    - step: Xây dựng cơ chế invalidate cache khi sản phẩm được sửa hoặc xóa từ CMS
+      hours: 4.5
+    - step: Viết unit test kiểm tra tỷ lệ cache hit/miss và sửa các test case cũ bị
+        vỡ
+      hours: 3.0
+    - step: Sửa các góc khuất logic phát sinh dựa trên góp ý từ code review
+      hours: 2.0
+    reasoning: Khâu phức tạp và tốn thời gian nhất là xử lý vô hiệu hóa cache (invalidation)
+      để tránh tình trạng lệch dữ liệu giữa Redis và cơ sở dữ liệu.
+  difficulty: medium
+- content:
+    task_description: Tách tính năng gửi email và SMS thông báo thành microservice
+      riêng chạy RabbitMQ worker.
+    context: Hệ thống monolith Go đang gửi email đồng bộ làm chậm HTTP response, cần
+      tách thành worker xử lý bất đồng bộ độc lập.
+  answer_key:
+    actual_hours: 37.0
+    breakdown:
+    - step: Khởi tạo project Go mới, dựng khung dịch vụ và kết nối tới RabbitMQ
+      hours: 4.0
+    - step: Tạo Publisher module trong Monolith service để đẩy message thông báo vào
+        queue
+      hours: 6.0
+    - step: Viết Consumer worker trong microservice mới để nhận message và gọi API
+        SendGrid/Twilio
+      hours: 8.0
+    - step: Triển khai cơ chế Retry và Dead-letter exchange (DLX) để xử lý message
+        thất bại
+      hours: 8.0
+    - step: Viết integration test giả lập luồng message từ Monolith sang Worker
+      hours: 6.0
+    - step: Sửa unit test cũ tại Monolith và refactor code dựa trên ý kiến đóng góp
+        của Tech Lead
+      hours: 5.0
+    reasoning: Thời gian lớn nhất dành cho việc thiết kế xử lý lỗi bất đồng bộ và
+      cơ chế Dead-letter queue nhằm đảm bảo không thất lạc tin nhắn khi dịch vụ bên
+      thứ ba gặp sự cố.
+  difficulty: hard
