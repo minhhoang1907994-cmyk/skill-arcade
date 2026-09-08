@@ -1,0 +1,331 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-09-08T21:32:41Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần tự động hủy điểm thưởng tích lũy của khách hàng khi hết hạn sử
+      dụng.
+    - Điểm thưởng của mỗi đơn hàng thành công sẽ có thời hạn sử dụng là 365 ngày kể
+      từ ngày tích điểm.
+    - Trước khi điểm hết hạn, hệ thống cần gửi thông báo nhắc nhở để khách hàng sử
+      dụng kịp thời.
+    - Email thông báo phải chứa danh sách các voucher có thể đổi từ số điểm sắp hết
+      hạn.
+    - Nếu điểm không được dùng trong thời gian hợp lý, điểm sẽ bị xóa và lưu log với
+      trạng thái EXPIRED.
+    clarifying_options:
+    - key: a
+      label: Thông báo nhắc nhở điểm sắp hết hạn cần được gửi trước bao nhiêu ngày
+        và gửi qua kênh nào?
+    - key: b
+      label: Trạng thái log EXPIRED có cần viết hoa toàn bộ ký tự hay không?
+    - key: c
+      label: Thời hạn 365 ngày được tính từ thời điểm đặt hàng hay từ lúc giao hàng
+        thành công?
+    - key: d
+      label: Khách hàng có thể chuyển điểm thưởng cho tài khoản khác được không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a là câu hỏi làm rõ tốt nhất vì câu 3 dùng từ mơ hồ 'kịp
+      thời', việc làm rõ thời gian gửi thông báo trước bao nhiêu ngày giúp lập trình
+      viên cài đặt đúng cron job/trigger. Phương án b hỏi chi tiết định dạng không
+      quan trọng, phương án c hỏi điều câu 2 đã ghi rõ là kể từ ngày tích điểm, phương
+      án d đưa ra tính năng hoàn toàn ngoài phạm vi.
+  difficulty: easy
+- content:
+    statements:
+    - Khách hàng tạo đơn hàng thanh toán qua cổng VNPAY nhưng chưa hoàn tất giao dịch.
+    - Hệ thống cần tự động hủy đơn hàng nếu khách hàng không thanh toán trong thời
+      gian hợp lý.
+    - Khi đơn hàng bị hủy, hệ thống phải cộng trả lại số lượng kho (stock_quantity)
+      cho các product_variant tương ứng.
+    - Giao diện trang checkout phải hiển thị thông báo phù hợp khi đơn hàng bị tự
+      động hủy.
+    - Lịch sử thay đổi trạng thái đơn hàng phải được ghi log đầy đủ vào bảng order_logs.
+    clarifying_options:
+    - key: a
+      label: Bảng order_logs cần lưu cụ thể những trường thông tin chi tiết nào?
+    - key: b
+      label: Thời gian chờ thanh toán cụ thể là bao nhiêu phút trước khi hệ thống
+        tự động chuyển đơn sang CANCELLED?
+    - key: c
+      label: Làm thế nào để giao diện trang checkout trông đẹp hơn khi hiển thị thông
+        báo?
+    - key: d
+      label: Số lượng kho stock_quantity có cần hoàn trả ngay khi hủy đơn không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: b
+    explanation: Phương án b chốt được con số thời gian cụ thể cho câu 2 (vốn dùng
+      từ 'thời gian hợp lý'), trực tiếp quyết định logic timeout giao dịch. Phương
+      án a đi sâu vào thiết kế DB quá sớm, phương án c mang tính cảm quan không đo
+      lường được, phương án d hỏi lại điều mà câu 3 đã khẳng định rõ ràng.
+  difficulty: medium
+- content:
+    statements:
+    - Để đảm bảo an toàn, hệ thống yêu cầu xác thực OTP khi người dùng thực hiện giao
+      dịch chuyển tiền.
+    - Mã OTP sẽ gửi qua SMS và có hiệu lực trong vòng 180 giây kể từ khi tạo.
+    - Nếu người dùng nhập sai OTP quá số lần cho phép, tính năng gửi OTP sẽ bị khóa
+      tạm thời.
+    - Người dùng có thể nhấn nút 'Gửi lại OTP' nếu chưa nhận được tin nhắn sau một
+      khoảng thời gian nhất định.
+    - Hệ thống phải lưu thông tin số lần thử sai vào Redis với key dạng otp_retry:{user_id}.
+    - Khi tài khoản bị khóa tính năng OTP, màn hình phải hiển thị mã lỗi OTP_BLOCKED.
+    clarifying_options:
+    - key: a
+      label: Mã OTP gồm bao nhiêu chữ số và có chứa ký tự chữ hay không?
+    - key: b
+      label: Mã lỗi OTP_BLOCKED có cần hiển thị kèm dịch tiếng Việt trên giao diện
+        không?
+    - key: c
+      label: Số lần nhập sai tối đa là bao nhiêu lần và thời gian khóa tạm thời cụ
+        thể là bao nhiêu phút?
+    - key: d
+      label: Mã OTP có hiệu lực trong bao lâu kể từ khi tạo ra?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: c
+    explanation: Phương án c làm rõ hai tham số định lượng quan trọng ở câu 3 ('quá
+      số lần cho phép' và 'khóa tạm thời') để triển khai được quy tắc bảo mật. Phương
+      án a hỏi chi tiết phụ, phương án b liên quan tới UI/i18n chưa phải cốt lõi logic
+      khóa, phương án d trùng lặp thông tin 180 giây đã nêu ở câu 2.
+  difficulty: medium
+- content:
+    statements:
+    - Hệ thống kiểm duyệt bài viết tự động cần phát hiện các bài viết chứa từ ngữ
+      vi phạm tiêu chuẩn cộng đồng.
+    - Khi phát hiện bài viết vi phạm, hệ thống tự động đổi trạng thái bài viết thành
+      FLAGGED.
+    - Các tác giả có bài viết vi phạm nhiều lần sẽ bị hạn chế quyền đăng bài trong
+      một thời gian.
+    - Quản trị viên có thể phê duyệt lại bài viết FLAGGED thông qua màn hình Admin
+      Dashboard.
+    - Hệ thống cần phản hồi thật nhanh khi người dùng nhấn nút đăng bài viết mới.
+    clarifying_options:
+    - key: a
+      label: Admin Dashboard có cần danh sách lọc bài viết theo trạng thái FLAGGED
+        không?
+    - key: b
+      label: Ngưỡng số bài vi phạm là bao nhiêu để bị coi là 'nhiều lần' và thời gian
+        hạn chế quyền đăng bài cụ thể là bao nhiêu ngày?
+    - key: c
+      label: Giao diện đăng bài viết mới nên được thiết kế theo phong cách nào?
+    - key: d
+      label: Hệ thống có nên tích hợp thêm AI để phân tích hình ảnh vi phạm trong
+        bài viết không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b làm rõ trực tiếp ngưỡng phạt ở câu 3 bằng số lượng bài
+      vi phạm và số ngày khóa quyền đăng bài. Phương án a hỏi điều ngầm định từ câu
+      4, phương án c mang tính cảm quan thiết kế, phương án d đề xuất tính năng mới
+      vượt quá phạm vi hiện tại.
+  difficulty: hard
+- content:
+    statements:
+    - Khách hàng B2B khi mua hàng với số lượng lớn sẽ được áp dụng mức chiết khấu
+      thương mại.
+    - Đơn hàng từ 100 đến 499 sản phẩm được giảm 5% trên tổng giá trị đơn hàng.
+    - Đơn hàng từ 500 sản phẩm trở lên sẽ nhận được mức chiết khấu đặc biệt phù hợp
+      với quy mô doanh nghiệp.
+    - Tiền chiết khấu được trừ trực tiếp vào tổng tiền thanh toán và lưu tại trường
+      discount_amount.
+    - Nếu đơn hàng có áp dụng mã voucher riêng, hệ thống cần tính toán ưu đãi sao
+      cho có lợi nhất nếu cần.
+    - Mọi hóa đơn có tiền chiết khấu vượt quá 50,000,000 VND phải trải qua bước duyệt
+      của Manager.
+    clarifying_options:
+    - key: a
+      label: Tỷ lệ chiết khấu cố định hoặc quy tắc tính chiết khấu cho mốc từ 500
+        sản phẩm trở lên cụ thể là bao nhiêu %?
+    - key: b
+      label: Manager có thể duyệt hóa đơn thông qua ứng dụng di động được không?
+    - key: c
+      label: Trường discount_amount trong cơ sở dữ liệu có kiểu dữ liệu là DECIMAL
+        hay BIGINT?
+    - key: d
+      label: Đơn hàng dưới 100 sản phẩm có được giảm 5% chiết khấu không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a giải quyết lỗ hổng tính toán chiết khấu ở câu 3 vì hiện
+      tại thiếu con số % cụ thể cho mốc lớn hơn 500 sản phẩm. Phương án b mở rộng
+      kênh duyệt nằm ngoài spec, phương án c là chi tiết DB kỹ thuật chưa cần ở bước
+      spec nghiệp vụ, phương án d hỏi lại điều đã được làm rõ ranh giới ở câu 2.
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá cho đơn hàng đạt giá trị tối thiểu.
+    - Mỗi tài khoản người dùng chỉ được sử dụng tối đa 1 mã giảm giá trên một đơn
+      hàng.
+    - Nếu đơn hàng bị hủy, mã giảm giá sẽ được hoàn lại vào kho voucher của người
+      dùng trong vòng 5 phút.
+    - Hệ thống phải xử lý việc áp mã thật nhanh để tránh người dùng phải chờ đợi lâu.
+    - Với các đơn hàng giao không thành công, chi phí vận chuyển sẽ không được hoàn
+      lại.
+    clarifying_options:
+    - key: a
+      label: Giá trị đơn hàng tối thiểu để kích hoạt mã giảm giá là bao nhiêu VNĐ
+        và thời gian xử lý áp mã tối đa cho phép là bao nhiêu mili-giây (ms)?
+    - key: b
+      label: Mỗi người dùng được áp dụng tối đa bao nhiêu mã giảm giá trên một đơn
+        hàng?
+    - key: c
+      label: Làm sao để hệ thống biết được người dùng có muốn hủy đơn hàng hay không?
+    - key: d
+      label: Giao diện hiển thị danh sách voucher nên thiết kế màu sắc thế nào cho
+        phù hợp?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 4
+    best_option_key: a
+    explanation: Phương án a làm rõ trực tiếp số tiền tối thiểu để kích hoạt voucher
+      và ngưỡng thời gian SLA kỹ thuật cho hệ thống, trong khi phương án b hỏi lại
+      điều đã rõ, phương án c và d đi ngoài phạm vi hoặc thuộc về thiết kế UX.
+  difficulty: easy
+- content:
+    statements:
+    - Học viên có thể làm bài trắc nghiệm tối đa 3 lần cho mỗi khóa học.
+    - Điểm số của bài thi sẽ là điểm của lần làm bài có kết quả cao nhất.
+    - Khi hết giờ làm bài, hệ thống phải tự động nộp bài và tính điểm cho học viên
+      ngay lập tức.
+    - Nếu học viên bị mất kết nối mạng giữa chừng, hệ thống nên xử lý linh hoạt để
+      học viên không bị thiệt thòi.
+    - Giáo viên có thể xem báo cáo chi tiết lịch sử làm bài của từng học viên dưới
+      dạng file Excel.
+    - Các bài thi đạt điểm cao sẽ nhận được chứng nhận gửi qua email.
+    clarifying_options:
+    - key: a
+      label: Mỗi học viên được phép làm bài trắc nghiệm tối đa bao nhiêu lần?
+    - key: b
+      label: Khi mất mạng hệ thống cho phép lưu nháp và khôi phục trong bao lâu, và
+        bao nhiêu điểm % trở lên được tính là điểm cao để cấp chứng nhận?
+    - key: c
+      label: Làm thế nào để đảm bảo học viên không bao giờ bị mất kết nối mạng khi
+        đang làm bài?
+    - key: d
+      label: Báo cáo file Excel của giáo viên có cần tô màu và định dạng font chữ
+        riêng không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 4
+    - 6
+    best_option_key: b
+    explanation: Phương án b quy định rõ quy tắc lưu nháp khi gặp sự cố mạng và con
+      số phần trăm điểm cụ thể để xét duyệt chứng nhận, khắc phục hoàn toàn sự mơ
+      hồ ở câu 4 và câu 6.
+  difficulty: medium
+- content:
+    statements:
+    - Khi người dùng thực hiện giao dịch chuyển tiền trên 10 triệu VNĐ, hệ thống phải
+      yêu cầu xác thực OTP.
+    - Mã OTP có hiệu lực trong vòng 60 giây kể từ khi được gửi đến số điện thoại người
+      dùng.
+    - Nếu nhập sai OTP quá số lần quy định, tài khoản giao dịch sẽ bị tạm khóa tính
+      năng chuyển tiền.
+    - Hệ thống cần gửi thông báo đẩy (push notification) ngay khi tài khoản có biến
+      động số dư.
+    - Trong trường hợp nghi ngờ có giao dịch bất thường, hệ thống nên chặn lại và
+      cảnh báo kịp thời cho bộ phận rủi ro.
+    clarifying_options:
+    - key: a
+      label: Mã OTP có thời gian hiệu lực tối đa là bao nhiêu giây?
+    - key: b
+      label: Số tiền giao dịch từ bao nhiêu trở lên thì bắt buộc nhập mã xác thực
+        OTP?
+    - key: c
+      label: Nhập sai OTP mấy lần thì khóa tính năng, thời gian khóa bao lâu và danh
+        sách các tiêu chí cụ thể nào xác định một giao dịch là bất thường?
+    - key: d
+      label: Bộ phận rủi ro thích nhận thông báo qua ứng dụng Slack hay qua Email
+        hơn?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: c
+    explanation: Phương án c chốt được con số cụ thể về số lần nhập sai, thời gian
+      khóa tài khoản và tập tiêu chí nghiệp vụ rõ ràng cho hệ thống phát hiện giao
+      dịch bất thường.
+  difficulty: hard
+- content:
+    statements:
+    - Bệnh nhân có thể đặt lịch khám trước tối đa 30 ngày thông qua ứng dụng di động.
+    - Nếu bệnh nhân đến muộn hơn thời gian hẹn, hẹn khám sẽ tự động bị hủy để nhường
+      lượt cho người khác.
+    - Mỗi bác sĩ chỉ nhận tối đa 20 lượt khám trong một buổi làm việc.
+    - Hệ thống sẽ tự động gửi tin nhắn nhắc lịch khám qua Zalo trước giờ hẹn 2 tiếng.
+    - Bệnh nhân có thể hủy lịch hẹn nếu cần thiết nhưng phải tuân theo chính sách
+      hoàn phí của phòng khám.
+    clarifying_options:
+    - key: a
+      label: Bệnh nhân trễ bao nhiêu phút thì hủy hẹn, và phải hủy trước bao nhiêu
+        tiếng để được hoàn tiền với tỷ lệ bao nhiêu %?
+    - key: b
+      label: Một bác sĩ được tiếp nhận tối đa bao nhiêu lượt khám trong một buổi?
+    - key: c
+      label: Làm thế nào để xác định lý do hủy lịch của bệnh nhân có thật sự cần thiết
+        hay không?
+    - key: d
+      label: Ứng dụng đặt lịch khám có nên bổ sung thêm tính năng xem bản đồ đường
+        đi đến phòng khám không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 5
+    best_option_key: a
+    explanation: Phương án a đưa ra các mốc thời gian và con số phần trăm cụ thể để
+      lập trình logic tự động hủy lịch và tính phí hoàn trả, loại bỏ các khái niệm
+      tính thời gian mập mờ.
+  difficulty: medium
+- content:
+    statements:
+    - Nhân viên gửi yêu cầu làm thêm giờ (OT) phải được Quản lý trực tiếp phê duyệt
+      trước khi thực hiện.
+    - Tổng số giờ OT của một nhân viên không được vượt quá 40 giờ trong một tháng.
+    - Hệ thống sẽ tự động tính tiền phạt đối với các đơn OT gửi muộn so với quy định.
+    - Tiền lương làm thêm giờ vào ngày lễ sẽ được tính bằng 300% lương ngày bình thường.
+    - Yêu cầu OT phải được Quản lý xử lý trong thời gian hợp lý để tránh ảnh hưởng
+      đến kế hoạch của nhân viên.
+    - Khi đơn OT bị từ chối, hệ thống phải bắt buộc Quản lý nhập lý do từ chối.
+    clarifying_options:
+    - key: a
+      label: Lương làm thêm giờ vào ngày lễ được tính bằng bao nhiêu phần trăm lương
+        ngày thường?
+    - key: b
+      label: Gửi trước giờ bắt đầu OT bao lâu thì coi là muộn, công thức phạt ra sao
+        và Quản lý phải duyệt đơn trong tối đa bao nhiêu giờ kể từ khi nhận?
+    - key: c
+      label: Làm sao để nhắc nhở Quản lý phê duyệt đơn OT nhanh hơn?
+    - key: d
+      label: Quy trình đăng ký OT này có áp dụng cho nhân sự thực tập sinh (Intern)
+        không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b quy định rõ quy tắc tính thời gian trễ, công thức trừ
+      tiền phạt và SLA phê duyệt đơn của Quản lý, giải quyết toàn bộ hai điểm chưa
+      rõ ở câu 3 và câu 5.
+  difficulty: hard
