@@ -1,0 +1,302 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-09T21:26:10Z'
+language: javascript
+questions:
+- content:
+    language: javascript
+    code_lines:
+    - app.post("/api/login", async (req, res) => {
+    - "  const { email, password } = req.body;"
+    - '  console.log("User login attempt:", { email, password });'
+    - "  const user = await authService.authenticate(email, password);"
+    - "  return res.json({ token: user.token });"
+    - "});"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin mật khẩu (password) vào log tạo nguy cơ rò rỉ dữ liệu
+      nhạy cảm. Cần xóa `password` khỏi câu lệnh log.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function getUserProducts(userId, category) {
+    - "  const query = `SELECT * FROM products WHERE user_id = ${userId} AND category
+      = '${category}'`;"
+    - "  const { rows } = await db.query(query);"
+    - "  return rows;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp chuỗi tham số `category` vào câu lệnh SQL gây ra lỗ
+      hổng SQL Injection. Cần sử dụng truy vấn tham số hóa (parameterized query).
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - function getCustomerDiscount(user) {
+    - "  const loyaltyTier = user.profile.loyaltyTier;"
+    - '  if (loyaltyTier === "PLATINUM") return 0.2;'
+    - '  if (loyaltyTier === "GOLD") return 0.1;'
+    - "  return 0.05;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_null_check
+    explanation: Nếu đối tượng `user` hoặc `user.profile` bị null/undefined thì sẽ
+      gây ra lỗi TypeError runtime. Cần dùng optional chaining `user?.profile?.loyaltyTier`.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function getOrdersWithItems(orderIds) {
+    - "  const orders = await Order.findAll({ where: { id: orderIds } });"
+    - "  for (const order of orders) {"
+    - "    order.items = await OrderItem.findAll({ where: { orderId: order.id } });"
+    - "  }"
+    - "  return orders;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: n_plus_one
+    explanation: Gọi query cơ sở dữ liệu bên trong vòng lặp gây ra lỗi N+1 query làm
+      giảm hiệu năng nghiêm trọng. Cần `include` quan hệ `OrderItem` trực tiếp trong
+      truy vấn `Order.findAll`.
+  difficulty: hard
+- content:
+    language: javascript
+    code_lines:
+    - async function processPayment(orderId, paymentData) {
+    - "  try {"
+    - "    await paymentGateway.charge(paymentData);"
+    - '    await updateOrderStatus(orderId, "PAID");'
+    - "  } catch (error) {"
+    - "    return { success: false };"
+    - "  }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 6
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ nhưng nuốt hoàn toàn biến `error` mà không log hay ghi
+      nhận thông tin làm cho việc debug khi thanh toán thất bại trở nên khó khăn.
+      Cần log lại `error` hoặc ném ra exception phù hợp.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - app.get('/users/search', async (req, res) => {
+    - "  const { name } = req.query;"
+    - "  const query = `SELECT * FROM users WHERE name = '${name}'`;"
+    - "  const users = await db.query(query);"
+    - "  res.json(users);"
+    - "});"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Dòng 3 nối trực tiếp dữ liệu người dùng truyền vào (name) vào câu
+      lệnh SQL, gây ra rủi ro SQL Injection. Cần dùng parameterized query (tham số
+      hóa).
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function handleLogin(req, res) {
+    - "  const { email, password } = req.body;"
+    - "  console.log(`Attempting login for ${email} with password: ${password}`);"
+    - "  const user = await authService.authenticate(email, password);"
+    - "  return res.json({ token: user.token });"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Dòng 3 ghi nhận mật khẩu dạng plain text vào log hệ thống, vi phạm
+      nguyên tắc bảo mật thông tin nhạy cảm. Cần loại bỏ password khỏi log.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function getUserAddress(userId) {
+    - "  const user = await userRepository.findById(userId);"
+    - "  const street = user.profile.address.street;"
+    - "  return street;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Dòng 3 truy cập trực tiếp các thuộc tính lồng nhau mà không kiểm
+      tra xem user, profile hoặc address có tồn tại hay không, dễ dẫn đến lỗi crash
+      ứng dụng (Cannot read properties of undefined). Cần dùng optional chaining (user?.profile?.address?.street).
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - function updateStock(product) {
+    - "  if (!product.quantity) {"
+    - '    throw new Error("Quantity is required");'
+    - "  }"
+    - "  return stockService.setQuantity(product.id, product.quantity);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Dòng 2 dùng phép kiểm tra falsy (!product.quantity), khiến trường
+      hợp số lượng tồn kho cập nhật về 0 cũng bị coi là vi phạm. Cần kiểm tra cụ thể
+      null hoặc undefined (product.quantity === undefined || product.quantity ===
+      null).
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - async function processPayment(paymentDetails) {
+    - "  try {"
+    - "    await gateway.charge(paymentDetails);"
+    - "  } catch (error) {"
+    - "    // ignore error"
+    - "  }"
+    - '  return { status: "success" };'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Dòng 5 bỏ qua ngoại lệ trong khối catch mà không xử lý hoặc ghi log,
+      khiến hàm luôn trả về kết quả thành công ngay cả khi thanh toán thất bại. Cần
+      rethrow lỗi hoặc xử lý phản hồi lỗi phù hợp.
+  difficulty: hard

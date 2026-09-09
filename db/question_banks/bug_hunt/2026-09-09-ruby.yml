@@ -1,0 +1,284 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-09T21:26:46Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_orders(user_input)
+    - '  query = "SELECT * FROM orders WHERE status = ''#{user_input}''"'
+    - "  Order.connection.execute(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Gắn trực tiếp chuỗi `user_input` vào câu lệnh SQL tạo ra rủi ro SQL
+      Injection; cần sử dụng tham số hóa (parameterized query) để làm sạch dữ liệu
+      đầu vào.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def print_order_owners
+    - "  orders = Order.where(status: 'pending')"
+    - "  orders.each do |order|"
+    - "    puts order.user.name"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: n_plus_one
+    explanation: Truy cập `order.user` bên trong vòng lặp khi chưa eager load quan
+      hệ `user` gây ra lỗi N+1 query; cần bổ sung `.includes(:user)` ở truy vấn ban
+      đầu.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(payment_params)
+    - '  Rails.logger.info("Processing payment with card: #{payment_params[:card_number]}")'
+    - "  PaymentGateway.charge(payment_params)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm như số thẻ tín dụng (`card_number`) vào log
+      vi phạm quy định bảo mật; cần thực hiện che giấu (masking) hoặc loại bỏ thông
+      tin này trước khi log.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def sync_user_data(user_id)
+    - "  ExternalSyncService.call(user_id)"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ bị bắt nhưng chỉ trả về `nil` mà không ghi log hay re-raise,
+      làm ẩn đi các lỗi hệ thống khi đồng bộ dữ liệu.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def export_users_csv
+    - "  users = User.all"
+    - "  CSV.generate do |csv|"
+    - "    users.each { |user| csv << [user.id, user.email] }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: unbounded_query
+    explanation: Sử dụng `User.all` lấy toàn bộ dữ liệu vào bộ nhớ cùng lúc dễ dẫn
+      đến hiện tượng cạn kiệt RAM (OOM) khi bảng lớn; nên thay bằng `User.find_each`
+      để xử lý theo từng đợt (batch).
+  difficulty: hard
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - '  query = "SELECT * FROM users WHERE status = ''active'' AND name LIKE ''%#{params[:name]}%''"'
+    - "  User.find_by_sql(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Việc chèn trực tiếp chuỗi params[:name] vào câu lệnh SQL khiến ứng
+      dụng bị lỗ hổng SQL Injection; nên sử dụng parameterized query hoặc ActiveRecord
+      query interface.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def render_orders_summary
+    - "  orders = Order.where(status: 'completed').limit(20)"
+    - "  orders.map { |order| { id: order.id, customer_name: order.user.name } }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách đơn hàng không kèm `includes(:user)` gây ra lỗi
+      N+1 query khi gọi `order.user.name` trong vòng lặp.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(user, payment_params)
+    - '  Rails.logger.info("Processing card #{payment_params[:card_number]} CVV #{payment_params[:cvv]}")'
+    - "  PaymentGateway.charge(user, payment_params)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log trực tiếp số thẻ tín dụng và mã CVV gây rò rỉ dữ liệu nhạy
+      cảm; cần loại bỏ hoặc mask thông tin này trước khi log.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def sync_inventory(product_id)
+    - "  ExternalInventoryApi.update_stock(product_id)"
+    - rescue StandardError
+    - "  true"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt ngoại lệ nhưng lại nuốt lỗi (swallow exception) bằng cách trả
+      về `true` mà không ghi log hay xử lý, khiến các sự cố tích hợp bị che giấu.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - class Api::V1::DocumentsController < ApplicationController
+    - "  def show"
+    - "    document = Document.find(params[:id])"
+    - "    render json: document"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: 'Tìm kiếm tài liệu trực tiếp theo ID mà không kiểm tra quyền sở hữu
+      (ví dụ: `current_user.documents.find(...)`) gây ra lỗ hổng IDOR.'
+  difficulty: hard

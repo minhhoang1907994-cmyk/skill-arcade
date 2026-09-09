@@ -1,0 +1,243 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-09-09T21:27:37Z'
+questions:
+- content:
+    task_description: Thêm trường discount_code vào API tạo đơn hàng POST /api/v1/orders.
+    context: Hệ thống đã có bảng discounts và service kiểm tra mã DiscountService.validate()
+      sẵn có, chỉ cần gọi hàm và lưu chuỗi discount_code vào bảng orders.
+  answer_key:
+    actual_hours: 1.5
+    breakdown:
+    - step: Tạo DB migration thêm cột discount_code vào bảng orders
+      hours: 0.25
+    - step: Cập nhật DTO CreateOrderRequest và thêm validation độ dài chuỗi
+      hours: 0.25
+    - step: Gọi DiscountService.validate() trong OrderService và gán mã vào entity
+      hours: 0.5
+    - step: Viết unit test cho OrderService với trường hợp có và không truyền discount_code
+      hours: 0.5
+    reasoning: Phần lớn thời gian dùng để viết unit test phủ đầy đủ hai trường hợp
+      truyền và không truyền mã giảm giá.
+  difficulty: easy
+- content:
+    task_description: Tích hợp webhook nhận thông báo cập nhật trạng thái giao hàng
+      từ đơn vị vận chuyển.
+    context: Đã có hạ tầng routing API, chỉ cần thêm endpoint mới để nhận request
+      từ đối tác và cập nhật trạng thái đơn hàng trong DB.
+  answer_key:
+    actual_hours: 3.5
+    breakdown:
+    - step: Khai báo DTO parse payload webhook và viết hàm kiểm tra signature HMAC
+        SHA256
+      hours: 1.0
+    - step: Thêm phương thức cập nhật shipping_status trong OrderRepository và OrderService
+      hours: 0.75
+    - step: Tạo API controller POST /webhooks/shipping xử lý request và trả về HTTP
+        200
+      hours: 0.75
+    - step: Viết unit test kiểm tra logic xác thực signature và xử lý payload hợp
+        lệ lẫn không hợp lệ
+      hours: 1.0
+    reasoning: Thời gian chủ yếu dành cho việc triển khai và kiểm thử thuật toán xác
+      thực chữ ký HMAC để đảm bảo an toàn cho endpoint webhook.
+  difficulty: easy
+- content:
+    task_description: Chuyển đổi logic tính giá sản phẩm phức tạp từ xử lý đồng bộ
+      sang tính toán bất đồng bộ qua Redis Queue.
+    context: Hệ thống bị nghẽn khi người dùng bấm tính lại giá toàn bộ kho. Đã có
+      sẵn Redis server và thư viện Socket.io trong dự án.
+  answer_key:
+    actual_hours: 11.0
+    breakdown:
+    - step: Cấu hình Redis Queue producer để gửi payload job CalculatePriceJob
+      hours: 1.5
+    - step: Tách logic tính giá hiện tại ra khỏi HTTP handler và chuyển sang background
+        worker listener
+      hours: 2.5
+    - step: Cấu hình WebSocket event emitter để đẩy thông báo hoàn thành về client
+      hours: 2.0
+    - step: Viết logic retry mechanism và lưu log lỗi vào DB khi job tính giá thất
+        bại
+      hours: 2.0
+    - step: Viết unit test và integration test cho toàn bộ flow đẩy job và worker
+        xử lý job
+      hours: 3.0
+    reasoning: Thời gian phần lớn tập trung vào việc tái cấu trúc logic cũ sang background
+      worker và viết bộ integration test mô phỏng xử lý bất đồng bộ.
+  difficulty: medium
+- content:
+    task_description: Phát triển tính năng xuất báo cáo doanh thu hàng tháng ra file
+      Excel hỗ trợ streaming dữ liệu lớn.
+    context: Cần xuất file báo cáo lên đến 100,000 dòng mà không gây lỗi Out Of Memory
+      (OOM). Dự án đã cài sẵn thư viện xử lý Excel.
+  answer_key:
+    actual_hours: 18.5
+    breakdown:
+    - step: Viết SQL query tối ưu dùng cursor/pagination để stream từng batch 1,000
+        bản ghi từ DB
+      hours: 3.5
+    - step: Triển khai Excel stream writer ghi dữ liệu vào file temp theo mẫu định
+        dạng sẵn
+      hours: 5.0
+    - step: Viết background job xử lý xuất file và đẩy file hoàn chỉnh lên Cloud Storage
+        S3
+      hours: 3.5
+    - step: Tạo API GET /api/v1/reports/download trả về presigned URL để người dùng
+        tải file
+      hours: 2.5
+    - step: Viết unit test cho logic query batching và kiểm thử giới hạn bộ nhớ RAM
+        khi render file lớn
+      hours: 4.0
+    reasoning: Hầu hết thời gian nằm ở việc viết logic ghi file Excel dạng streaming
+      và tối ưu bộ nhớ để tránh quá tải RAM khi xử lý hàng trăm nghìn bản ghi.
+  difficulty: medium
+- content:
+    task_description: Triển khai kiến trúc Multi-tenancy theo mô hình Schema-per-tenant
+      cho hệ thống quản lý bán hàng.
+    context: Hệ thống hiện tại là Single-tenant dùng chung 1 DB schema. Cần chuyển
+      sang hỗ trợ mỗi khách hàng doanh nghiệp một DB schema riêng biệt.
+  answer_key:
+    actual_hours: 35.0
+    breakdown:
+    - step: Viết middleware trích xuất X-Tenant-ID từ request header và lưu vào AsyncLocalStorage
+        context
+      hours: 3.5
+    - step: Xây dựng Dynamic DataSource Router tự động switch kết nối DB schema theo
+        tenant context
+      hours: 8.0
+    - step: Viết script tự động chạy DB migration cho tất cả tenant schema khi ứng
+        dụng khởi chạy
+      hours: 6.5
+    - step: Cập nhật Redis cache key pattern thêm prefix tenant_id để cô lập dữ liệu
+        giữa các tenant
+      hours: 5.0
+    - step: Sửa toàn bộ suite integration test hiện có bị hỏng do thiếu context tenant
+      hours: 8.0
+    - step: Viết mới unit test kiểm thử cô lập dữ liệu (data isolation) giữa hai tenant
+        riêng biệt
+      hours: 4.0
+    reasoning: Phần lớn thời gian tiêu tốn vào việc xây dựng Dynamic DataSource Router
+      và sửa lại toàn bộ suite integration test cũ để tương thích với cơ chế multi-tenant.
+  difficulty: hard
+- content:
+    task_description: Thêm trường middle_name vào bảng users và cập nhật API GET /api/v1/users/{id}.
+    context: Hệ thống đã có sẵn Flyway migration, DTO chuẩn hóa và thư viện Jackson
+      tự động serialize.
+  answer_key:
+    actual_hours: 1.5
+    breakdown:
+    - step: Viết file migration SQL thêm cột middle_name vào bảng users
+      hours: 0.25
+    - step: Thêm thuộc tính middleName vào Entity User và UserResponseDTO
+      hours: 0.25
+    - step: Cập nhật query trong UserRepository để ánh xạ trường mới
+      hours: 0.25
+    - step: Viết unit test cho UserMapper và UserController để xác nhận trường middleName
+      hours: 0.5
+    - step: Chạy lại test suite cũ và điều chỉnh các file fixture liên quan
+      hours: 0.25
+    reasoning: Phần lớn thời gian dành cho việc bổ sung unit test cho Mapper và Controller
+      nhằm đảm bảo dữ liệu mới không bị bỏ sót.
+  difficulty: easy
+- content:
+    task_description: Tích hợp xác thực Google ReCAPTCHA v3 vào API đăng ký tài khoản.
+    context: Backend đã có sẵn RestTemplate wrapper chung để gọi dịch vụ ngoài, frontend
+      gửi recaptcha_token qua request body.
+  answer_key:
+    actual_hours: 4.5
+    breakdown:
+    - step: Khai báo cấu hình secret key và HTTP client timeout cho ReCAPTCHA
+      hours: 0.25
+    - step: Viết class RecaptchaValidationService gọi API Google verify token
+      hours: 1.25
+    - step: Thêm logic kiểm tra điểm số ReCAPTCHA vào RegisterService
+      hours: 1.0
+    - step: Viết unit test giả lập (mock) phản hồi thành công và thất bại từ Google
+        API
+      hours: 1.25
+    - step: Cập nhật integration test cho luồng đăng ký tài khoản
+      hours: 0.75
+    reasoning: Thời gian chủ yếu dành cho việc giả lập các kịch bản phản hồi từ Google
+      API để viết unit test.
+  difficulty: easy
+- content:
+    task_description: Bổ sung tính năng giới hạn tần suất gọi API (Rate Limiting)
+      theo IP cho API tra cứu giá vàng.
+    context: Dự án đã sử dụng Spring Boot Starter Data Redis và chạy đằng sau Nginx
+      proxy truyền IP qua header X-Forwarded-For.
+  answer_key:
+    actual_hours: 7.0
+    breakdown:
+    - step: Cấu hình thư viện Bucket4j kết hợp Redis làm distributed rate limiter
+      hours: 1.5
+    - step: Viết custom Annotation @RateLimit và Spring AOP Aspect xử lý IP client
+      hours: 2.0
+    - step: Gắn Annotation vào Controller và cấu hình trả về HTTP status 429 khi quá
+        giới hạn
+      hours: 1.0
+    - step: Viết unit test kiểm tra logic đếm lượt truy cập trong Aspect
+      hours: 1.0
+    - step: Viết integration test sử dụng Embedded Redis kiểm tra hành vi chặn IP
+        vượt ngưỡng
+      hours: 1.5
+    reasoning: Phần lớn thời gian nằm ở việc viết Spring AOP Aspect và tích hợp Redis
+      để xử lý chính xác IP của từng request.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng xuất báo cáo doanh thu theo tháng ra file
+      Excel (.xlsx) cho Admin.
+    context: Đã có sẵn SQL query tổng hợp doanh thu theo tháng, hệ thống cần xuất
+      ra định dạng chuẩn thiết kế của bộ phận kế toán.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Viết DTO và Mapper để cấu trúc dữ liệu báo cáo từ database
+      hours: 1.0
+    - step: Tạo ExcelExportService dựng bảng, định dạng style ô, định dạng tiền tệ
+        và tính tổng tiền bằng Apache POI
+      hours: 4.0
+    - step: Viết API endpoint GET /api/v1/reports/revenue/export trả về stream file
+      hours: 1.5
+    - step: Viết unit test kiểm tra logic tạo workbook và ghi đúng các cột dữ liệu
+      hours: 2.5
+    - step: Thêm integration test kiểm tra header Response Content-Disposition và
+        Content-Type
+      hours: 1.5
+    - step: Kiểm tra thủ công độ chính xác định dạng file xuất ra với dữ liệu mẫu
+        lớn
+      hours: 1.5
+    reasoning: Thời gian tập trung nhiều nhất vào việc dựng layout file Excel và tùy
+      chỉnh style các dòng cột bằng thư viện Apache POI.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi luồng lưu trữ ảnh đại diện người dùng từ thư mục
+      local sang Amazon S3 dùng Pre-signed URL.
+    context: Hệ thống hiện có khoảng 500.000 ảnh avatar lưu trên đĩa cứng server,
+      dự án sử dụng Java 17 và Spring Boot 3.
+  answer_key:
+    actual_hours: 36.0
+    breakdown:
+    - step: Tích hợp AWS SDK v2, tạo S3Client bean và cấu hình IAM Credentials
+      hours: 2.0
+    - step: Viết S3StorageService tạo Pre-signed URL cho upload và download file
+      hours: 6.0
+    - step: Cập nhật API PUT /users/avatar trả về Upload Pre-signed URL thay vì nhận
+        file multipart trực tiếp
+      hours: 4.0
+    - step: Viết công cụ CLI script chạy ngầm để chuyển 500.000 ảnh cũ từ đĩa local
+        lên S3 bucket
+      hours: 12.0
+    - step: Viết unit test giả lập S3Client và Pre-signed Request
+      hours: 6.0
+    - step: Cập nhật các integration test cũ đang giả định lưu file trên đĩa local
+      hours: 6.0
+    reasoning: Công việc tốn nhiều công sức nhất là viết và kiểm thử script migration
+      dữ liệu lớn đảm bảo không mất mát dữ liệu cũ.
+  difficulty: hard
