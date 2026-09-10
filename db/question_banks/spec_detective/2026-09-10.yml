@@ -1,0 +1,307 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-09-10T21:25:49Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần cho phép người dùng áp dụng mã giảm giá khi thanh toán đơn hàng.
+    - Mỗi mã giảm giá chỉ được sử dụng tối đa 1 lần cho mỗi tài khoản khách hàng.
+    - Mã giảm giá phải có hiệu lực ngay sau khi được phát hành và tự động hết hạn
+      sau một khoảng thời gian phù hợp.
+    - Đơn hàng đạt giá trị tối thiểu 200.000 VNĐ mới được áp dụng mã.
+    - Nếu đơn hàng bị hủy, hệ thống nên hoàn lại mã giảm giá cho khách hàng nếu cần.
+    clarifying_options:
+    - key: a
+      label: Giá trị tối thiểu của đơn hàng để áp dụng mã giảm giá là bao nhiêu tiền?
+    - key: b
+      label: Mã giảm giá có thời hạn sử dụng cụ thể bao nhiêu ngày và điều kiện chính
+        xác nào để hoàn lại mã khi hủy đơn?
+    - key: c
+      label: Làm thế nào để thiết kế giao diện nhập mã giảm giá đẹp mắt hơn?
+    - key: d
+      label: Khách hàng có thích sử dụng mã giảm giá khi mua hàng hay không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b quy định rõ con số thời hạn hết hạn và điều kiện hoàn
+      mã để giải quyết triệt để hai điểm mơ hồ ở câu 3 và 5, vượt trội hơn a (hỏi
+      lại thông tin đã rõ), c và d (lan man ngoài phạm vi kỹ thuật).
+  difficulty: easy
+- content:
+    statements:
+    - Khi người dùng bấm đăng nhập, hệ thống sẽ gửi một mã OTP gồm 6 chữ số qua SMS.
+    - Mã OTP này có thời hạn sử dụng chính xác là 3 phút kể từ lúc gửi.
+    - Nếu nhập sai OTP quá nhiều lần, tài khoản sẽ bị tạm khóa để đảm bảo an toàn.
+    - Khách hàng có thể nhấn nút gửi lại OTP sau khi thời gian đếm ngược 60 giây kết
+      thúc.
+    - Hệ thống cần xử lý phản hồi yêu cầu gửi OTP thật nhanh để người dùng không phải
+      chờ lâu.
+    clarifying_options:
+    - key: a
+      label: Mã OTP gồm bao nhiêu chữ số và được gửi qua phương thức nào?
+    - key: b
+      label: Số lần nhập sai OTP tối đa cho phép là bao nhiêu, thời gian tạm khóa
+        tài khoản bao lâu và thời gian phản hồi API gửi OTP tối đa là bao nhiêu miligiây?
+    - key: c
+      label: Khách hàng có hay quên mã OTP khi thực hiện đăng nhập không?
+    - key: d
+      label: Hệ thống có nên tích hợp thêm tính năng gửi OTP qua Email trong tương
+        lai không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b làm rõ ngưỡng số lần sai, thời gian khóa và SLA thời
+      gian phản hồi để xử lý hai câu mơ hồ 3 và 5, trong khi a lặp lại dữ liệu đã
+      có, c và d không phục vụ chốt yêu cầu hệ thống.
+  difficulty: medium
+- content:
+    statements:
+    - Hệ thống tự động tính phí vận chuyển dựa trên khoảng cách từ kho đến địa chỉ
+      giao hàng.
+    - Với khoảng cách dưới 5km, phí vận chuyển cố định là 15.000 VNĐ.
+    - Nếu đơn hàng có trọng lượng lớn, hệ thống sẽ tính thêm phụ phí cho phù hợp.
+    - Khách hàng VIP được giảm 50% phí vận chuyển cho mọi đơn hàng.
+    - Đơn hàng giao trong nội thành phải được ưu tiên xử lý nhanh chóng.
+    - Khi phí vận chuyển thay đổi, hệ thống phải ghi log vào bảng shipping_logs.
+    clarifying_options:
+    - key: a
+      label: Khách hàng VIP nhận được mức ưu đãi giảm giá phí vận chuyển là bao nhiêu?
+    - key: b
+      label: Mức trọng lượng bao nhiêu kg thì tính phụ phí, công thức tính phụ phí
+        thế nào và thời gian xử lý tối đa SLA cho đơn nội thành là bao nhiêu phút?
+    - key: c
+      label: Làm sao để tài xế giao hàng tránh được các tuyến đường hay tắc nghẽn?
+    - key: d
+      label: Mức phí vận chuyển hiện tại có rẻ hơn so với các đối thủ cạnh tranh trên
+        thị trường không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b đưa ra các con số và công thức định lượng cụ thể giải
+      quyết sự mơ hồ ở câu 3 và 5, trong khi a hỏi lặp lại câu 4, c và d nằm ngoài
+      phạm vi nghiệp vụ phần mềm.
+  difficulty: medium
+- content:
+    statements:
+    - Khách hàng tích lũy 1 điểm thưởng cho mỗi 10.000 VNĐ chi tiêu thành công.
+    - Tỷ lệ quy đổi điểm thưởng thành tiền giảm giá là 1 điểm tương đương 100 VNĐ.
+    - Điểm thưởng tích lũy sẽ tự động hết hạn sau một thời gian nếu khách hàng không
+      có giao dịch mới.
+    - Khi tổng điểm đạt mốc quy định, tài khoản sẽ tự động nâng cấp thành viên và
+      nhận ưu đãi thích hợp.
+    - Mọi giao dịch tích và tiêu điểm phải lưu trữ lịch sử trong bảng point_transactions.
+    clarifying_options:
+    - key: a
+      label: Một điểm thưởng có giá trị quy đổi tương đương bao nhiêu tiền VNĐ?
+    - key: b
+      label: Lịch sử giao dịch điểm được lưu trữ ở bảng nào trong cơ sở dữ liệu?
+    - key: c
+      label: Thời hạn hết hạn điểm là bao nhiêu tháng không giao dịch, các mốc điểm
+        cụ thể để nâng hạng và quy tắc ưu đãi cho từng hạng là gì?
+    - key: d
+      label: Làm thế nào để khuyến khích người dùng thực hiện nhiều giao dịch hơn
+        để tích điểm?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    best_option_key: c
+    explanation: Phương án c định nghĩa rõ ngưỡng thời gian hết hạn và tiêu chuẩn
+      nâng hạng cụ thể để giải quyết hai điểm mơ hồ ở câu 3 và 4, vượt trội hơn a
+      và b (hỏi lặp lại) và d (câu hỏi chiến lược kinh doanh).
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống tự động xuất báo cáo doanh thu định kỳ vào 00:00 ngày đầu tiên mỗi
+      tháng.
+    - File báo cáo được xuất dưới định dạng XLSX và lưu tại thư mục /reports/revenue/.
+    - Nếu dung lượng file báo cáo quá nặng, hệ thống cần nén lại và gửi thông báo
+      cho quản trị viên nếu cần.
+    - Báo cáo phải tổng hợp đầy đủ các giao dịch có trạng thái COMPLETED.
+    - Tốc độ xuất báo cáo phải đủ nhanh để không ảnh hưởng đến hiệu năng chung của
+      hệ thống.
+    - Quản trị viên có thể tải lại báo cáo cũ trong vòng 365 ngày gần nhất.
+    clarifying_options:
+    - key: a
+      label: Báo cáo doanh thu được xuất vào thời điểm nào và lưu dưới định dạng file
+        gì?
+    - key: b
+      label: Dung lượng file từ bao nhiêu MB thì nén, điều kiện cụ thể để gửi thông
+        báo và thời gian xử lý tối đa cho tác vụ xuất báo cáo là bao nhiêu giây?
+    - key: c
+      label: Quản trị viên hệ thống thích xem báo cáo dạng file XLSX hay định dạng
+        PDF hơn?
+    - key: d
+      label: Làm sao để gia tăng số lượng giao dịch COMPLETED trong tháng tiếp theo?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b chốt hạ các thông số kỹ thuật rõ ràng về dung lượng,
+      điều kiện gửi thông báo và ngưỡng thời gian xử lý cho câu 3 và 5, vượt trội
+      hơn a (hỏi lại thông tin rõ ràng), c và d (ý kiến cá nhân hoặc chiến lược kinh
+      doanh).
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống cần hỗ trợ tính năng áp dụng mã giảm giá tự động khi người dùng thanh
+      toán giỏ hàng.
+    - Mỗi đơn hàng chỉ được sử dụng tối đa 01 mã giảm giá có giá trị cao nhất.
+    - Nếu tổng tiền sau giảm giá quá thấp, hệ thống sẽ cảnh báo cho người dùng.
+    - Thời gian hết hạn của mã giảm giá được lưu theo múi giờ UTC+7.
+    - Hệ thống phải xử lý việc hoàn trả voucher nếu đơn hàng bị hủy trong thời gian
+      phù hợp.
+    clarifying_options:
+    - key: a
+      label: Ngưỡng tổng tiền chính xác là bao nhiêu VNĐ thì bị coi là quá thấp và
+        thời gian cho phép hoàn trả voucher là bao nhiêu giờ sau khi hủy?
+    - key: b
+      label: Hệ thống có hỗ trợ thanh toán bằng thẻ tín dụng quốc tế Visa và Mastercard
+        không?
+    - key: c
+      label: Một đơn hàng người dùng có thể áp dụng tối đa bao nhiêu mã giảm giá cùng
+        lúc?
+    - key: d
+      label: Làm sao để giao diện hộp thoại cảnh báo voucher trông thật bắt mắt và
+        thân thiện với người dùng?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a làm rõ trực tiếp hai ngưỡng số mơ hồ ở câu 3 và câu 5,
+      trong khi b hỏi ngoài phạm vi, c lặp lại thông tin đã rõ ở câu 2, d mang tính
+      cảm tính.
+  difficulty: medium
+- content:
+    statements:
+    - Khi người dùng nhập sai mật khẩu quá 5 lần liên tiếp, tài khoản sẽ tạm thời
+      bị khóa.
+    - Sau một khoảng thời gian hợp lý, hệ thống sẽ tự động mở khóa cho tài khoản.
+    - Hệ thống phải gửi email thông báo kèm link đặt lại mật khẩu ngay khi tài khoản
+      bị khóa.
+    - Email gửi đi cần có nội dung thật ngắn gọn và giao diện hiển thị tối ưu.
+    clarifying_options:
+    - key: a
+      label: Mẫu email thông báo nên sử dụng màu đỏ hay màu xanh lá làm chủ đạo để
+        tối ưu?
+    - key: b
+      label: Số lần nhập sai mật khẩu tối đa cho phép trước khi tài khoản bị khóa
+        là bao nhiêu lần?
+    - key: c
+      label: Thời gian tạm khóa tài khoản cụ thể là bao nhiêu phút trước khi tự động
+        mở lại?
+    - key: d
+      label: Công ty có kế hoạch tích hợp thêm tính năng đăng nhập bằng sinh trắc
+        học không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: c
+    explanation: Phương án c hỏi rõ quy tắc số phút tự động mở khóa ở câu 2, còn a
+      mang tính thẩm mỹ chủ quan, b thừa vì câu 1 đã nêu rõ 5 lần, d ngoài phạm vi.
+  difficulty: easy
+- content:
+    statements:
+    - Khi khách hàng bấm đặt món, hệ thống tìm các tài xế đang rảnh trong bán kính
+      3 km.
+    - Nếu có nhiều tài xế phù hợp, hệ thống ưu tiên gán đơn cho tài xế có điểm đánh
+      giá tốt.
+    - Tài xế có 30 giây để ấn nhận hoặc từ chối đơn hàng trên ứng dụng mobile.
+    - Trong trường hợp thời tiết xấu, phí dịch vụ sẽ được tự động tăng lên cho hợp
+      lý.
+    - Nếu không có tài xế nào nhận đơn sau 3 lượt tìm kiếm, đơn hàng sẽ chuyển sang
+      trạng thái Cancelled.
+    - Đơn hàng hủy cần được xử lý bồi thường nhanh chóng cho cửa hàng.
+    clarifying_options:
+    - key: a
+      label: Điều kiện cụ thể về thời tiết xấu là gì và công thức hoặc tỷ lệ % tăng
+        phí dịch vụ chính xác là bao nhiêu?
+    - key: b
+      label: Tài xế có bao nhiêu giây để đưa ra quyết định nhận hoặc từ chối đơn hàng?
+    - key: c
+      label: Hệ thống nên sử dụng dịch vụ Google Maps hay Mapbox để tính bán kính
+        3 km?
+    - key: d
+      label: Làm thế nào để giao diện ứng dụng dành cho tài xế hoạt động mượt mà và
+        ít tốn pin nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    - 6
+    best_option_key: a
+    explanation: Phương án a làm rõ điều kiện kích hoạt và công thức tính phí cụ thể
+      ở câu 4, trong khi b hỏi lại điều đã rõ ở câu 3, c đi sâu vào kỹ thuật cài đặt,
+      d là yêu cầu chung chung.
+  difficulty: hard
+- content:
+    statements:
+    - Mỗi mặt hàng trong kho đều có thuộc tính SKU và min_stock_level được cài đặt
+      sẵn.
+    - Khi số lượng tồn kho khả dụng giảm xuống dưới min_stock_level, hệ thống sẽ tạo
+      một bản ghi cảnh báo trong bảng alerts.
+    - Cảnh báo cần được gửi ngay tới người quản lý kho theo phương thức phù hợp.
+    - Người quản lý có thể xuất báo cáo tồn kho ra file Excel với định dạng XLSX.
+    - Báo cáo phải được hệ thống xử lý xuất ra cực kỳ nhanh chóng.
+    clarifying_options:
+    - key: a
+      label: Báo cáo tồn kho sẽ xuất ra dưới định dạng file XLSX hay file CSV?
+    - key: b
+      label: Phương thức phù hợp để gửi cảnh báo là kênh nào và thời gian tối đa để
+        xuất xong file báo cáo là bao nhiêu giây?
+    - key: c
+      label: Doanh nghiệp có cần tuyển thêm nhân viên kho để xử lý hàng tồn không?
+    - key: d
+      label: Làm sao để màu sắc của bảng alerts trên giao diện hiển thị trông hài
+        hòa nhất?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b chốt rõ kênh thông báo ở câu 3 và chỉ tiêu thời gian
+      đo lường được cho câu 5, còn a bị lặp câu 4, c ngoài phạm vi, d cảm tính.
+  difficulty: medium
+- content:
+    statements:
+    - Học viên cần hoàn thành 100% các bài giảng video trong khóa học trực tuyến.
+    - Học viên phải đạt kết quả tốt trong bài thi trắc nghiệm cuối khóa mới được cấp
+      chứng chỉ.
+    - Chứng chỉ xuất ra dưới dạng file PDF có gắn mã QR để xác thực tính hợp lệ.
+    - Nếu học viên gian lận trong lúc làm bài thi, hệ thống sẽ xử lý nghiêm ngặt.
+    - Thời hạn có hiệu lực của chứng chỉ là 2 năm kể từ ngày cấp.
+    clarifying_options:
+    - key: a
+      label: Ngưỡng điểm số tối thiểu để tính là kết quả tốt là bao nhiêu % và hành
+        vi nào được định nghĩa là gian lận?
+    - key: b
+      label: Chứng chỉ có thời hạn hiệu lực trong vòng bao nhiêu năm kể từ ngày cấp?
+    - key: c
+      label: Phông chữ thể hiện trên file PDF chứng chỉ nên dùng phông Arial hay Roboto?
+    - key: d
+      label: Trung tâm có muốn tổ chức buổi lễ trao chứng chỉ trực tiếp cho các học
+        viên đạt điểm cao không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 4
+    best_option_key: a
+    explanation: Phương án a quy định tiêu chí điểm số cụ thể cho câu 2 và định nghĩa
+      chính xác hành vi vi phạm ở câu 4, trong khi b lặp lại câu 5, c là chi tiết
+      thiết kế nhỏ, d ngoài phạm vi.
+  difficulty: hard
