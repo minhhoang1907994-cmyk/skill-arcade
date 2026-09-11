@@ -1,0 +1,303 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-11T21:29:36Z'
+language: java
+questions:
+- content:
+    language: java
+    code_lines:
+    - '@PostMapping("/login")'
+    - public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request)
+      {
+    - '    log.info("Processing login request for user: {}, password: {}", request.getUsername(),
+      request.getPassword());'
+    - "    AuthResponse response = authService.authenticate(request);"
+    - "    return ResponseEntity.ok(response);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm (mật khẩu) vào log hệ thống gây rủi ro bảo
+      mật nghiêm trọng. Cần xóa `request.getPassword()` khỏi câu lệnh log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public List<OrderDTO> getUserOrders(Long userId) {
+    - "    List<Order> orders = orderRepository.findByUserId(userId);"
+    - "    return orders.stream()"
+    - "        .map(order -> new OrderDTO(order.getId(), order.getItems().size()))"
+    - "        .collect(Collectors.toList());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: n_plus_one
+    explanation: Gọi `order.getItems().size()` khi `items` được cấu hình Lazy Loading
+      sẽ kích hoạt N+1 câu truy vấn SQL riêng lẻ. Cần sử dụng `@EntityGraph` hoặc
+      `JOIN FETCH` trong query repository.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public void transferMoney(Long fromId, Long toId, BigDecimal amount) {
+    - "    walletRepository.deductBalance(fromId, amount);"
+    - "    walletRepository.addBalance(toId, amount);"
+    - "    auditLogRepository.save(new AuditLog(fromId, toId, amount));"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Phương thức thực hiện nhiều thao tác ghi dữ liệu tài chính nhưng
+      không có `@Transactional`. Nếu dòng 3 hoặc 4 bị lỗi, tài khoản gửi sẽ bị trừ
+      tiền mà tài khoản nhận không nhận được. Cần thêm annotation `@Transactional`
+      ở đầu phương thức.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public List<User> searchUsers(String keyword) {
+    - '    String sql = "SELECT * FROM users WHERE username LIKE ''%" + keyword +
+      "%''";'
+    - "    return jdbcTemplate.query(sql, new UserRowMapper());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến `keyword` vào chuỗi SQL gây ra rủi ro SQL Injection.
+      Cần sử dụng truy vấn tham số hóa (Parameterized Query) với `?` hoặc `NamedParameterJdbcTemplate`.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public void processPayment(PaymentRequest request) {
+    - "    try {"
+    - "        paymentGateway.charge(request);"
+    - "    } catch (PaymentException e) {"
+    - '        log.error("Payment failed for request: {}", request.getId());'
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Ngoại lệ thanh toán bị nuốt (swallowed) vì chỉ log lỗi mà không throw
+      lại exception hoặc thực hiện rollback/xử lý thất bại, khiến caller tưởng rằng
+      giao dịch đã thành công. Cần rethrow exception hoặc ném ra một BusinessException
+      thích hợp.
+  difficulty: hard
+- content:
+    language: java
+    code_lines:
+    - public void authenticateUser(AuthRequest request) {
+    - '    logger.info("Processing auth request for user: {}, password: {}", request.getUsername(),
+      request.getPassword());'
+    - "    User user = userRepository.findByUsername(request.getUsername());"
+    - "    if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword()))
+      {"
+    - '        throw new BadCredentialsException("Invalid credentials");'
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi log mật khẩu dưới dạng plain-text làm rò rỉ thông tin nhạy cảm
+      vào file log của hệ thống, cần loại bỏ thuộc tính password khỏi nội dung log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public List<Order> searchOrdersByStatus(String status) {
+    - '    String sql = "SELECT * FROM orders WHERE status = ''" + status + "''";'
+    - "    Query query = entityManager.createNativeQuery(sql, Order.class);"
+    - "    return query.getResultList();"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Ghép chuỗi trực tiếp tham số truyền vào câu truy vấn SQL gây ra lỗ
+      hổng SQL Injection, cần chuyển sang dùng parameterized query.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public Configuration parseConfig(String rawJson) {
+    - "    try {"
+    - "        return objectMapper.readValue(rawJson, Configuration.class);"
+    - "    } catch (IOException e) {"
+    - "        return new Configuration();"
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Bắt exception nhưng âm thầm trả về đối tượng mặc định mà không ghi
+      log hay ném lại ngoại lệ, làm nuốt chửng lỗi làm mất dấu vết khi hệ thống có
+      sự cố.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public void transferFunds(Long fromAccountId, Long toAccountId, BigDecimal amount)
+      {
+    - "    accountRepository.deductBalance(fromAccountId, amount);"
+    - "    accountRepository.addBalance(toAccountId, amount);"
+    - "    transactionHistoryRepository.save(new TransactionHistory(fromAccountId,
+      toAccountId, amount));"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Phương thức thực hiện nhiều thao tác thay đổi dữ liệu nhưng thiếu
+      annotation @Transactional, có thể gây bất nhất dữ liệu nếu bước sau bị lỗi.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public List<UserDto> getActiveUserDtos() {
+    - "    List<User> users = userRepository.findByIsActiveTrue();"
+    - "    return users.stream().map(user -> {"
+    - "        List<Role> roles = roleRepository.findAllByUserId(user.getId());"
+    - "        return new UserDto(user, roles);"
+    - "    }).collect(Collectors.toList());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: n_plus_one
+    explanation: Gọi truy vấn cơ sở dữ liệu liên tục trong vòng lặp gây ra lỗi hiệu
+      năng N+1 Query, cần sử dụng JOIN FETCH hoặc truy vấn gom nhóm dữ liệu trước.
+  difficulty: hard

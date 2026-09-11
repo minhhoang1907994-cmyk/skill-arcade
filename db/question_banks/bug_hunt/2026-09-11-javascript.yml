@@ -1,0 +1,295 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-11T21:36:08Z'
+language: javascript
+questions:
+- content:
+    language: javascript
+    code_lines:
+    - app.post('/api/login', async (req, res) => {
+    - "  const { email, password } = req.body;"
+    - "  logger.info(`User login attempt: ${email} with password: ${password}`);"
+    - "  const user = await userService.authenticate(email, password);"
+    - "  return res.json({ token: user.token });"
+    - "});"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log thông tin nhạy cảm như mật khẩu trực tiếp vào hệ thống log
+      gây ra rủi ro an toàn thông tin. Cần loại bỏ mật khẩu khỏi thông điệp log.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - function calculateDiscount(user, itemCount) {
+    - "  const count = itemCount || 10;"
+    - "  const baseRate = user.isVIP ? 0.2 : 0.05;"
+    - "  return count * baseRate;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Toán tử || coi số 0 là giá trị falsy nên khi truyền itemCount = 0
+      biến count vẫn nhận giá trị mặc định là 10. Cần sử dụng toán tử nullish coalescing
+      (??) để thay thế.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - router.put('/profile/avatar', authenticateToken, async (req, res) => {
+    - "  const { userId, avatarUrl } = req.body;"
+    - "  await User.findByIdAndUpdate(userId, { avatarUrl });"
+    - "  res.json({ success: true });"
+    - "});"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: Cập nhật dữ liệu người dùng dựa trên userId từ req.body thay vì đối
+      chiếu với req.user.id từ token xác thực, dẫn đến lỗ hổng IDOR cho phép thay
+      đổi dữ liệu của tài khoản khác.
+  difficulty: hard
+- content:
+    language: javascript
+    code_lines:
+    - async function getUserTransactions(userId, status) {
+    - "  const query = `SELECT * FROM transactions WHERE user_id = ${userId} AND status
+      = '${status}'`;"
+    - "  const result = await db.query(query);"
+    - "  return result.rows;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Ghép chuỗi trực tiếp tham số status và userId vào câu truy vấn SQL
+      gây ra lỗ hổng SQL Injection. Cần chuyển sang sử dụng truy vấn tham số hóa (parameterized
+      query).
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function saveUserProfile(user) {
+    - "  try {"
+    - "    await db.users.update(user.id, user);"
+    - "  } catch (error) {"
+    - "    console.error(error);"
+    - "  }"
+    - "  await auditLog.create({ action: 'USER_UPDATED', userId: user.id });"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Khối catch ghi nhận lỗi ra console nhưng không ném lại lỗi (rethrow)
+      hoặc ngắt tiến trình, khiến hàm tiếp tục chạy dòng ghi audit log dù cập nhật
+      cơ sở dữ liệu đã thất bại.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - async function getUserOrders(req, res) {
+    - "  const userId = req.params.id;"
+    - '  const query = "SELECT * FROM orders WHERE user_id = " + userId;'
+    - "  const orders = await db.query(query);"
+    - "  return res.json(orders);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp tham số đầu vào từ client vào truy vấn SQL gây
+      ra lỗ hổng SQL Injection. Cần dùng truy vấn tham số hóa (parameterized query).
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - function calculatePoints(user) {
+    - "  const basePoints = user.score || 100;"
+    - "  const multiplier = user.isVip ? 2 : 1;"
+    - "  return basePoints * multiplier;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Sử dụng toán tử || khiến giá trị score bằng 0 bị coi là falsy và
+      vô tình gán giá trị mặc định là 100. Nên dùng toán tử nullish coalescing (??).
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function handleLogin(req, res) {
+    - "  const { email, password } = req.body;"
+    - '  logger.info("Attempting login with credentials:", { email, password });'
+    - "  const user = await authService.authenticate(email, password);"
+    - "  return res.json({ token: user.token });"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi log thông tin nhạy cảm như mật khẩu (password) dưới dạng văn
+      bản rõ làm rò rỉ dữ liệu người dùng. Cần loại bỏ password trước khi log.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function processNotifications(users) {
+    - "  users.forEach(async (user) => {"
+    - '  await sendEmail(user.email, "Monthly Report");'
+    - "  });"
+    - '  console.log("All emails sent successfully");'
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: async_misuse
+    explanation: Hàm forEach không đợi (await) các callback bất đồng bộ hoàn thành,
+      làm cho dòng log bị chạy trước khi gửi email xong. Cần dùng Promise.all kết
+      hợp map hoặc vòng lặp for...of.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - async function getUserAddress(req, res) {
+    - "  const user = await User.findById(req.params.id);"
+    - "  const city = user.profile.address.city;"
+    - "  return res.json({ city });"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Truy cập trực tiếp thuộc tính lồng nhau mà không kiểm tra tồn tại
+      dễ gây lỗi TypeError nếu user, profile hoặc address bị null/undefined. Cần dùng
+      optional chaining (?.).
+  difficulty: easy
