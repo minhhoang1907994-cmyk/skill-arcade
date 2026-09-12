@@ -1,0 +1,254 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-09-12T21:09:14Z'
+questions:
+- content:
+    task_description: Bổ sung trường discount_code (string, nullable) vào model Order,
+      migration database và hiển thị trong API chi tiết đơn hàng.
+    context: Hệ thống Node.js/Express với Prisma ORM đã có sẵn cấu trúc Order API
+      hoàn chỉnh.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Tạo Prisma migration thêm cột discount_code vào bảng orders
+      hours: 0.25
+    - step: Cập nhật DTO và Swagger document cho API GET /api/v1/orders/{id}
+      hours: 0.25
+    - step: Cập nhật order.service.ts để map field mới vào response
+      hours: 0.25
+    - step: Bổ sung unit test kiểm tra field discount_code trả về đúng dữ liệu
+      hours: 0.5
+    reasoning: Phần lớn thời gian nằm ở việc bổ sung unit test kiểm tra dữ liệu trả
+      về của API sau khi cập nhật model.
+  difficulty: easy
+- content:
+    task_description: Tạo global exception filter trong NestJS để bắt các lỗi HTTP
+      500 và tự động gửi thông báo chi tiết lỗi qua Telegram Bot.
+    context: Project NestJS đã tích hợp sẵn Telegram SDK helper trong shared module.
+  answer_key:
+    actual_hours: 4.0
+    breakdown:
+    - step: Tạo GlobalExceptionFilter bắt lỗi HTTP status 500 trong NestJS
+      hours: 0.75
+    - step: Format nội dung tin nhắn Telegram chứa stack trace, request path và timestamp
+      hours: 1.0
+    - step: Đăng ký filter trong main.ts và cấu hình environment variable cho TELEGRAM_BOT_TOKEN
+      hours: 0.5
+    - step: Viết unit test giả lập lỗi 500 để verify filter gọi TelegramService
+      hours: 1.0
+    - step: Chạy test trực tiếp với bot test trên môi trường local
+      hours: 0.75
+    reasoning: Thời gian chủ yếu dành cho việc format nội dung tin nhắn Markdown hiển
+      thị rõ ràng và viết unit test mock service.
+  difficulty: easy
+- content:
+    task_description: Refactor hệ thống đăng nhập từ Redis Session sang dùng cặp Access
+      Token và Refresh Token stored trong HttpOnly Cookie.
+    context: Web app Next.js kết hợp Laravel API hiện tại đang lưu session ID trong
+      Redis và Cookie thường.
+  answer_key:
+    actual_hours: 13.0
+    breakdown:
+    - step: Cấu hình JWT payload, secret keys và hàm sign/verify token trong Auth
+        module
+      hours: 2.0
+    - step: Viết API /auth/refresh để cấp mới access token khi hết hạn
+      hours: 2.5
+    - step: Sửa middleware xác thực để đọc JWT từ HttpOnly Cookie thay vì Session
+        Header
+      hours: 2.0
+    - step: Cập nhật logic Login và Logout để set và clear HttpOnly Cookies
+      hours: 2.0
+    - step: Sửa lại toàn bộ bộ integration test cũ của Auth module bị vỡ do thay đổi
+        cơ chế cookie
+      hours: 3.0
+    - step: Sửa các lỗi phát sinh sau code review liên quan tới edge cases token hết
+        hạn
+      hours: 1.5
+    reasoning: Chi phí thời gian lớn nhất rơi vào việc cập nhật lại bộ integration
+      test cũ bị vỡ và xử lý luồng refresh token.
+  difficulty: medium
+- content:
+    task_description: Tích hợp luồng tạo giao dịch thanh toán VNPAY và xử lý callback
+      Webhook (IPN) để cập nhật trạng thái đơn hàng.
+    context: Hệ thống backend Python/Django chưa từng tích hợp thanh toán online,
+      đã được cung cấp tài khoản Sandbox VNPAY.
+  answer_key:
+    actual_hours: 24.0
+    breakdown:
+    - step: Đọc tài liệu VNPAY và tạo module helper sinh URL thanh toán kèm chữ ký
+        checksum HMAC-SHA512
+      hours: 3.5
+    - step: Viết API /payments/vnpay/create-url trả về URL redirect cho frontend
+      hours: 2.5
+    - step: Viết API /payments/vnpay/ipn tiếp nhận webhook, verify chữ ký và cập nhật
+        trạng thái đơn hàng
+      hours: 4.0
+    - step: Xử lý cơ chế idempotency cho IPN tránh cộng tiền hoặc cập nhật đơn hàng
+        trùng lặp
+      hours: 4.0
+    - step: Viết unit test và integration test cho toàn bộ luồng tạo payment và IPN
+        callback với các mã lỗi VNPAY
+      hours: 6.0
+    - step: Test giả lập liên tục với VNPAY Sandbox tool và sửa các lỗi lệch checksum
+      hours: 4.0
+    reasoning: Phần lớn thời gian tập trung vào xử lý chính xác chữ ký checksum HMAC-SHA512
+      và đảm bảo tính idempotency khi nhận callback webhook.
+  difficulty: hard
+- content:
+    task_description: Tích hợp Elasticsearch cho API tìm kiếm sản phẩm, đồng bộ dữ
+      liệu từ PostgreSQL sang Elasticsearch qua Spring Data và Kafka event.
+    context: Hệ thống Java Spring Boot + PostgreSQL bị chậm khi tìm kiếm trên 2 triệu
+      bản ghi bằng ILIKE.
+  answer_key:
+    actual_hours: 38.0
+    breakdown:
+    - step: Định nghĩa Elasticsearch Index mapping cho Product bao gồm analyzer và
+        tokenizer hỗ trợ tiếng Việt
+      hours: 4.0
+    - step: Viết batch job đồng bộ dữ liệu ban đầu từ PostgreSQL sang Elasticsearch
+        index
+      hours: 6.0
+    - step: Lắng nghe Kafka event product-updated và product-created để đồng bộ dữ
+        liệu real-time sang Elasticsearch
+      hours: 6.0
+    - step: Viết ProductSearchRepository triển khai Bool Query gồm fuzzy search, filter
+        category và sort price
+      hours: 8.0
+    - step: Sửa API /products/search chuyển sang gọi Elasticsearch repository và fallback
+        về DB nếu ES bị lỗi
+      hours: 5.0
+    - step: Viết integration test verify tính đúng đắn của kết quả tìm kiếm và cơ
+        chế fallback
+      hours: 5.0
+    - step: Benchmark performance và fine-tune câu query Elasticsearch
+      hours: 4.0
+    reasoning: Nỗ lực lớn nhất nằm ở việc thiết kế câu query Elasticsearch phức tạp
+      và xây dựng luồng đồng bộ dữ liệu real-time qua Kafka.
+  difficulty: hard
+- content:
+    task_description: Bổ sung trường is_featured kiểu boolean vào API hiển thị danh
+      sách và chi tiết sản phẩm.
+    context: Hệ thống backend Laravel 10 với PostgreSQL. Cấu trúc project đã có sẵn
+      ProductModel, ProductResource và test suite cho product API.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Tạo migration thêm cột is_featured với giá trị mặc định false vào bảng
+        products
+      hours: 0.25
+    - step: Cập nhật Model Product và ProductResource để bổ sung field is_featured
+        vào response API
+      hours: 0.5
+    - step: Cập nhật Unit Test và Integration Test kiểm tra dữ liệu is_featured trả
+        về đúng
+      hours: 0.5
+    reasoning: Phần lớn thời gian dành cho việc cập nhật và kiểm thử lại các test
+      case hiện có liên quan đến response sản phẩm.
+  difficulty: easy
+- content:
+    task_description: Tạo nút xuất báo cáo danh sách đơn hàng ra file CSV theo khoảng
+      thời gian tùy chọn trên giao diện admin.
+    context: Ứng dụng React và Node.js Express. Giao diện đã có bảng danh sách đơn
+      hàng và thư viện json2csv đã được cài sẵn ở backend.
+  answer_key:
+    actual_hours: 3.75
+    breakdown:
+    - step: Viết API GET /api/admin/orders/export nhận query params from_date và to_date
+        để query DB và trả về CSV stream
+      hours: 1.5
+    - step: Tạo UI Modal chọn ngày và nút Export CSV ở trang danh sách đơn hàng
+      hours: 1.0
+    - step: Xử lý hiệu ứng loading, disable button khi đang tải file và thông báo
+        lỗi UI
+      hours: 0.5
+    - step: Viết Integration Test kiểm tra API export dữ liệu CSV theo đúng khoảng
+        thời gian
+      hours: 0.75
+    reasoning: Thời gian chủ yếu tập trung vào việc viết query lọc dữ liệu tối ưu
+      và xử lý stream file CSV từ backend.
+  difficulty: easy
+- content:
+    task_description: Tích hợp webhook xử lý kết quả thanh toán tự động (IPN) từ cổng
+      thanh toán VNPay vào hệ thống.
+    context: Backend NestJS với TypeORM và MySQL. Đã có module Order và Payment nhưng
+      chưa xử lý checksum và callback từ bên thứ ba.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Viết module helper kiểm tra chữ ký số HMAC-SHA512 từ checksum vnp_SecureHash
+        của VNPay
+      hours: 2.0
+    - step: Tạo DTO validate dữ liệu webhook và endpoint POST /api/v1/payments/vnpay-ipn
+      hours: 2.0
+    - step: Xây dựng logic cập nhật trạng thái đơn hàng và lưu lịch sử giao dịch PaymentTransaction
+        trong DB Transaction
+      hours: 3.0
+    - step: Bổ sung cơ chế Idempotency check bằng Redis để tránh xử lý trùng lặp webhook
+      hours: 2.0
+    - step: Viết Unit Test cho helper xác thực chữ ký và E2E test cho toàn bộ luồng
+        callback IPN
+      hours: 3.0
+    reasoning: Phần lớn thời gian nằm ở việc đảm bảo tính an toàn giao dịch với DB
+      Transaction và phòng chống xử lý trùng lặp webhook.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi hệ thống gửi email kích hoạt tài khoản từ xử lý đồng
+      bộ sang xử lý bất đồng bộ qua hàng đợi (message queue).
+    context: Dự án Node.js Express monolith. Hiện tại API POST /auth/register gửi
+      email trực tiếp gây trễ 2-3s. Hạ tầng đã có sẵn Redis server.
+  answer_key:
+    actual_hours: 15.0
+    breakdown:
+    - step: Cài đặt BullMQ và thiết lập kết nối tới Redis cluster hiện tại
+      hours: 2.0
+    - step: Tạo EmailQueue và đẩy nhiệm vụ gửi mail vào queue từ AuthService thay
+        vì gửi trực tiếp
+      hours: 3.0
+    - step: Viết EmailWorker để xử lý gửi email ngầm với chính sách retry 3 lần khi
+        lỗi
+      hours: 4.0
+    - step: Tích hợp trang quản trị Bull-Board để theo dõi trạng thái các job trong
+        queue
+      hours: 2.5
+    - step: Cập nhật các Unit Test và Integration Test hiện có để mock queue và kiểm
+        tra worker
+      hours: 3.5
+    reasoning: Thời gian tiêu tốn nhiều nhất cho việc xây dựng Worker xử lý ngầm cùng
+      cơ chế retry và cập nhật toàn bộ test suite liên quan.
+  difficulty: medium
+- content:
+    task_description: Xây dựng hệ thống phân quyền động (RBAC) cho phép admin tạo
+      vai trò mới và gán quyền chi tiết theo từng API resource.
+    context: Backend Golang (Gin framework + GORM). Hiện tại hệ thống chỉ kiểm tra
+      2 vai trò cố định là admin và user thông qua JWT token.
+  answer_key:
+    actual_hours: 48.0
+    breakdown:
+    - step: 'Tạo migration cho các bảng DB mới: roles, permissions, role_permissions
+        và user_roles'
+      hours: 4.0
+    - step: Viết các API CRUD quản lý danh sách Role và gán danh sách Permission cho
+        từng Role
+      hours: 8.0
+    - step: Xây dựng RBAC Middleware để kiểm tra quyền truy cập dựa trên route path
+        và HTTP method
+      hours: 10.0
+    - step: Tích hợp Redis cache lưu trữ permission matrix của từng user để tối ưu
+        tốc độ kiểm tra
+      hours: 8.0
+    - step: Thay thế middleware phân quyền cũ tại 20 endpoint hiện có sang hệ thống
+        RBAC mới
+      hours: 8.0
+    - step: Viết Unit Test cho middleware phân quyền và E2E test cho luồng phân quyền
+        động
+      hours: 10.0
+    reasoning: Phần lớn nỗ lực nằm ở việc xây dựng Middleware kiểm tra quyền linh
+      hoạt, tích hợp caching Redis và refactor toàn bộ các route hiện có.
+  difficulty: hard

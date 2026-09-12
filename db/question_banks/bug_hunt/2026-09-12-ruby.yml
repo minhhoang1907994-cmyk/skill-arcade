@@ -1,0 +1,276 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-12T21:08:17Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - '  query = "SELECT * FROM users WHERE name LIKE ''%#{params[:keyword]}%''"'
+    - "  User.connection.execute(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp tham số người dùng nhập vào câu lệnh SQL tạo ra lỗ
+      hổng SQL Injection; cần sử dụng sanitize hoặc tham số truyền vào qua ActiveRecord.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def render_recent_orders
+    - "  orders = Order.limit(10)"
+    - "  orders.map { |order| order.user.email }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Gọi Order.limit(10) mà không preload quan hệ user bằng includes(:user)
+      sẽ gây ra truy vấn N+1 khi duyệt lấy thông tin email.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(user, card_params)
+    - '  Rails.logger.info("Processing payment for #{user.id} with card: #{card_params[:cvv]}")'
+    - "  PaymentGateway.charge(card_params[:amount], card_params[:number])"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin nhạy cảm như mã CVV của thẻ vào log vi phạm tiêu chuẩn
+      bảo mật PCI-DSS; cần lọc bỏ thông tin này trước khi ghi log.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def sync_third_party_data
+    - "  ThirdPartyService.fetch_updates"
+    - rescue StandardError
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Bắt lỗi nhưng chỉ trả về nil mà không ghi log hay gửi cảnh báo khiến
+      ngoại lệ bị che giấu, gây khó khăn cho việc phát hiện sự cố hệ thống.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_balance(sender, receiver, amount)
+    - "  sender.update!(balance: sender.balance - amount)"
+    - "  receiver.update!(balance: receiver.balance + amount)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Các thao tác trừ và cộng tiền không được bọc trong ActiveRecord::Base.transaction,
+      có thể dẫn đến việc tài khoản gửi bị trừ tiền nhưng tài khoản nhận chưa nhận
+      được nếu bước 2 lỗi.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def search_orders(user_input)
+    - '  query = "SELECT * FROM orders WHERE status = ''#{user_input}''"'
+    - "  Order.connection.execute(query)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến user_input vào câu lệnh SQL gây ra lỗi SQL Injection,
+      cần truyền tham số dạng parameterized query để đảm bảo an toàn.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def render_user_posts
+    - "  users = User.where(active: true)"
+    - "  users.map { |user| user.posts.first&.title }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách người dùng mà không dùng includes(:posts) gây
+      ra lỗi N+1 query khi lặp để lấy bài viết của từng user.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_payment(order)
+    - "  PaymentGateway.charge(order.amount)"
+    - rescue => e
+    - "  nil"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối rescue bắt ngoại lệ nhưng chỉ trả về nil mà không log hay xử
+      lý, khiến lỗi thanh toán bị nuốt và khó phát hiện.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def authenticate(email, password)
+    - '  Rails.logger.info("Login attempt for email: #{email} with password: #{password}")'
+    - "  user = User.find_by(email: email)"
+    - "  user&.authenticate(password)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sensitive_data_logging
+    explanation: Ghi mật khẩu người dùng dưới dạng plain text vào log làm rò rỉ dữ
+      liệu nhạy cảm ra hệ thống giám sát.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_funds(sender, receiver, amount)
+    - "  sender.decrement!(:balance, amount)"
+    - "  receiver.increment!(:balance, amount)"
+    - "  AuditLog.create!(action: 'transfer', amount: amount)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: missing_transaction
+    explanation: Các thao tác chuyển tiền và ghi log không được bọc trong ActiveRecord::Base.transaction,
+      có thể dẫn đến sai lệch dữ liệu nếu bị ngắt giữa chừng.
+  difficulty: hard
