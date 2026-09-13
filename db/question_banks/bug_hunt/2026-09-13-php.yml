@@ -1,0 +1,292 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-13T21:13:45Z'
+language: php
+questions:
+- content:
+    language: php
+    code_lines:
+    - "$user = $this->authService->authenticate($request->input('username'), $request->input('password'));"
+    - if (!$user) {
+    - "    Log::warning('Login failed for credentials: ', $request->all());"
+    - "    return response()->json(['error' => 'Invalid credentials'], 401);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Việc ghi log toàn bộ `$request->all()` khi đăng nhập thất bại làm
+      rò rỉ mật khẩu người dùng ở dạng rõ vào file log; cần lọc bỏ trường `password`
+      trước khi log.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$status = $request->get('status');"
+    - $sql = "SELECT * FROM orders WHERE status = '" . $status . "' ORDER BY created_at
+      DESC";
+    - "$orders = DB::select($sql);"
+    - return view('orders.index', compact('orders'));
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Nối trực tiếp biến dữ liệu từ người dùng `$status` vào câu truy vấn
+      SQL tạo ra lỗ hổng SQL Injection; cần dùng Parameter Binding hoặc Eloquent Query
+      Builder.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - public function destroy($id) {
+    - "    $post = Post::findOrFail($id);"
+    - "    $post->delete();"
+    - "    return response()->json(['message' => 'Deleted']);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: Thực hiện xóa bài viết trực tiếp mà không kiểm tra xem người dùng
+      hiện tại có quyền sở hữu hoặc có quyền xóa bài viết này không; cần bổ sung kiểm
+      tra `$this->authorize('delete', $post)`.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentService->processTransaction($orderId, $amount);"
+    - "} catch (Exception $e) {"
+    - "    // Ignore payment failure"
+    - "}"
+    - "$order->update(['status' => 'completed']);"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: swallowed_exception
+    explanation: Khối catch hoàn toàn bỏ qua ngoại lệ khi thanh toán thất bại mà vẫn
+      cập nhật đơn hàng thành hoàn tất; cần ghi log lỗi và dừng luồng xử lý hoặc ném
+      lại ngoại lệ.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$discountRate = $request->input('discount_rate');"
+    - if (!$discountRate) {
+    - "    $discountRate = 0.1;"
+    - "}"
+    - "$total = $price * (1 - $discountRate);"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Sử dụng `!$discountRate` khiến giá trị `0` (chiết khấu 0%) bị coi
+      là falsy và đè bằng giá trị mặc định `0.1`; cần kiểm tra `is_null($discountRate)`
+      thay vì falsy check.
+  difficulty: hard
+- content:
+    language: php
+    code_lines:
+    - "$username = $_POST['username'];"
+    - "$password = $_POST['password'];"
+    - $query = "SELECT * FROM users WHERE username = '" . $username . "' AND password
+      = '" . $password . "'";
+    - "$result = $db->query($query);"
+    - return $result->fetch_assoc();
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp dữ liệu người dùng nhập vào câu lệnh SQL gây
+      ra lỗ hổng SQL Injection. Cần sử dụng Prepared Statement để tham số hóa dữ liệu.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - "$orders = Order::where('status', 'pending')->get();"
+    - foreach ($orders as $order) {
+    - "    $customer = Customer::find($order->customer_id);"
+    - "    $order->customer_name = $customer->name;"
+    - "}"
+    - return $orders;
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: Thực hiện truy vấn cơ sở dữ liệu bên trong vòng lặp gây ra lỗi N+1
+      query làm giảm hiệu năng nghiêm trọng. Cần sử dụng Eager Loading (Order::with('customer'))
+      từ đầu.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$payload = $request->all();"
+    - "$user = Auth::attempt(['email' => $payload['email'], 'password' => $payload['password']]);"
+    - if (!$user) {
+    - "    Log::error('Failed login attempt for payload: ' . json_encode($payload));"
+    - "    return response()->json(['error' => 'Invalid credentials'], 401);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: sensitive_data_logging
+    explanation: Ghi log toàn bộ dữ liệu request chứa mật khẩu chưa mã hóa của người
+      dùng. Cần ẩn hoặc loại bỏ trường nhạy cảm như password trước khi ghi log.
+  difficulty: easy
+- content:
+    language: php
+    code_lines:
+    - try {
+    - "    $paymentGate->processRefund($transactionId, $amount);"
+    - "    $order->update(['status' => 'refunded']);"
+    - "} catch (\\Exception $e) {"
+    - "    // ignore error"
+    - "}"
+    - return true;
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 5
+    bug_type: swallowed_exception
+    explanation: Bỏ qua ngoại lệ trong khối catch làm giấu đi lỗi hoàn tiền thất bại.
+      Cần ghi log ngoại lệ và xử lý trả về trạng thái lỗi phù hợp.
+  difficulty: medium
+- content:
+    language: php
+    code_lines:
+    - "$status = $request->get('status');"
+    - "$logs = AuditLog::where('status', $status)->get();"
+    - return response()->json($logs);
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: unbounded_query
+    explanation: Truy vấn lấy ra toàn bộ danh sách bản ghi mà không phân trang hay
+      giới hạn số lượng (unbounded query), dễ dẫn tới tràn bộ nhớ PHP khi dữ liệu
+      lớn. Cần dùng paginate() hoặc limit().
+  difficulty: hard

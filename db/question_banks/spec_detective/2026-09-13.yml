@@ -1,0 +1,332 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: spec_detective
+model: gemini-3.6-flash
+generated_at: '2026-09-13T21:15:28Z'
+questions:
+- content:
+    statements:
+    - Hệ thống cần tự động cộng điểm thưởng LoyaltyPoints cho khách hàng sau khi đơn
+      hàng giao thành công.
+    - Tỷ lệ quy đổi hiện tại là 100.000 VNĐ tương ứng với 1 điểm thưởng.
+    - Nếu đơn hàng có giá trị lớn hoặc khách hàng VIP, hệ thống sẽ cộng thêm điểm
+      thưởng phù hợp.
+    - Điểm thưởng sẽ hết hạn sau một khoảng thời gian nhất định kể từ ngày tích lũy.
+    - Khi hết hạn, hệ thống chỉ gửi email thông báo cho khách hàng nếu cần thiết.
+    clarifying_options:
+    - key: a
+      label: Tỷ lệ quy đổi tiền sang điểm thưởng hiện tại là bao nhiêu VNĐ cho 1 điểm?
+    - key: b
+      label: Làm thế nào để nâng cao trải nghiệm của khách hàng VIP khi nhận điểm
+        thưởng?
+    - key: c
+      label: Ngưỡng giá trị đơn hàng bao nhiêu thì được coi là lớn và tỷ lệ cộng thêm
+        điểm cho VIP cụ thể là bao nhiêu?
+    - key: d
+      label: Hệ thống có nên dùng SMS Gateway của Viettel để gửi thông báo thay vì
+        email không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 5
+    best_option_key: c
+    explanation: Phương án c giải quyết trực tiếp điểm mơ hồ quan trọng ở câu 3 về
+      điều kiện đơn hàng lớn và mức điểm thưởng bổ sung cho VIP, trong khi a hỏi lại
+      điều đã ghi ở câu 2, b quá chung chung và d hỏi ngoài phạm vi nghiệp vụ.
+  difficulty: easy
+- content:
+    statements:
+    - Trong thời gian diễn ra Flash Sale, hệ thống cho phép giữ hàng cho người dùng
+      trong 10 phút kể từ khi thêm vào giỏ.
+    - Mỗi tài khoản chỉ được mua tối đa 2 sản phẩm Flash Sale trong cùng một phiên
+      sự kiện.
+    - Khi lượt truy cập tăng đột biến, hệ thống cần tự động tối ưu để phản hồi thật
+      nhanh cho người dùng.
+    - Nếu hết tồn kho khả dụng, nút 'Mua ngay' trên giao diện sẽ chuyển sang trạng
+      thái tạm khóa.
+    - Nếu khách hàng hủy đơn, hệ thống sẽ xử lý hoàn kho theo quy trình phù hợp.
+    clarifying_options:
+    - key: a
+      label: Thời gian giữ hàng trong giỏ khi diễn ra Flash Sale là bao nhiêu phút?
+    - key: b
+      label: Ngưỡng thời gian phản hồi tối đa (latency SLA) và lượng truy cập tối
+        đa (RPS) mà hệ thống cần đáp ứng là bao nhiêu?
+    - key: c
+      label: Làm sao để thiết kế giao diện nút Mua ngay trông đẹp mắt và thu hút nhất?
+    - key: d
+      label: Công ty nên chạy chiến dịch quảng cáo Flash Sale trên Facebook hay TikTok?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b chốt con số kỹ thuật đo lường được cho yêu cầu phản hồi
+      nhanh ở câu 3, trong khi a lặp lại câu 1, c mang tính cảm quan thiết kế UI và
+      d hỏi về chiến lược tiếp thị ngoài hệ thống.
+  difficulty: medium
+- content:
+    statements:
+    - Hệ thống sẽ gửi mã OTP gồm 6 chữ số qua SMS khi người dùng thực hiện đăng nhập
+      trên thiết bị lạ.
+    - Mã OTP này sẽ có hiệu lực trong vòng 180 giây kể từ thời điểm tạo.
+    - Nếu người dùng nhập sai OTP quá số lần quy định, tài khoản sẽ tạm thời bị khóa.
+    - Khi tài khoản bị khóa, hệ thống sẽ gửi cảnh báo bảo mật qua email đã đăng ký.
+    - Tài khoản sẽ tự động được mở khóa sau khi hết thời gian chờ hoặc sau khi xác
+      thực bổ sung nếu thấy cần.
+    clarifying_options:
+    - key: a
+      label: Mã OTP gồm mấy chữ số và hiệu lực trong bao nhiêu giây?
+    - key: b
+      label: Số lần nhập sai OTP tối đa cho phép là bao nhiêu và thời gian tạm khóa
+        tài khoản cụ thể là bao lâu?
+    - key: c
+      label: Làm thế nào để người dùng cảm thấy an toàn hơn khi thực hiện đăng nhập?
+    - key: d
+      label: Chi phí gửi một tin nhắn SMS OTP của nhà mạng hiện tại là bao nhiêu tiền?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b làm rõ trực tiếp con số giới hạn nhập sai và thời gian
+      khóa ở câu 3, trong khi a hỏi lại thông tin đã ghi rõ ở câu 1 và 2, c hỏi về
+      cảm xúc chung chung và d là thông tin thương lượng nhà mạng.
+  difficulty: easy
+- content:
+    statements:
+    - Báo cáo doanh thu tháng được hệ thống tự động chốt vào 23:59:59 ngày cuối cùng
+      của tháng.
+    - Dữ liệu báo cáo bao gồm tổng giá trị đơn hàng thành công và số tiền hoàn trả
+      refund.
+    - Nếu báo cáo có chênh lệch dữ liệu lớn, hệ thống sẽ tự động gắn nhãn cảnh báo
+      cho kế toán.
+    - Kế toán viên có thể xuất báo cáo ra file Excel hoặc PDF với dung lượng tối đa
+      50MB.
+    - Việc gửi email báo cáo cho Ban Giám đốc sẽ được thực hiện vào thời điểm phù
+      hợp.
+    clarifying_options:
+    - key: a
+      label: Dung lượng file tối đa khi xuất báo cáo ra định dạng Excel hoặc PDF là
+        bao nhiêu MB?
+    - key: b
+      label: Ngưỡng chênh lệch dữ liệu cụ thể là bao nhiêu tiền hoặc bao nhiêu % thì
+        hệ thống kích hoạt nhãn cảnh báo?
+    - key: c
+      label: Ban Giám đốc thích xem báo cáo trên máy tính hay trên điện thoại di động
+        hơn?
+    - key: d
+      label: Làm sao để nâng cao năng lực chuyên môn của đội ngũ kế toán trong công
+        ty?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: b
+    explanation: Phương án b định nghĩa chính xác ngưỡng con số để xử lý logic cảnh
+      báo ở câu 3, trong khi a lặp lại thông tin ở câu 4, c hỏi sở thích cá nhân và
+      d là chủ đề quản trị nhân sự.
+  difficulty: medium
+- content:
+    statements:
+    - Đơn hàng chưa thanh toán sẽ bị hệ thống tự động hủy sau 30 phút kể từ lúc khởi
+      tạo.
+    - Đối với đơn hàng đã thanh toán qua cổng VNPay, tiền sẽ được hoàn trả lại cho
+      khách trong vòng 3 đến 5 ngày làm việc.
+    - Nếu phí hoàn tiền vượt quá mức thông thường, hệ thống sẽ chuyển sang phê duyệt
+      thủ công.
+    - Số tiền hoàn lại sẽ bằng 100% giá trị sản phẩm nếu lỗi từ phía nhà cung cấp.
+    - Khi xảy ra sự cố hoàn tiền thất bại, hệ thống cần xử lý khéo léo để tránh khiếu
+      nại.
+    clarifying_options:
+    - key: a
+      label: Mức phí hoàn tiền cụ thể là bao nhiêu VNĐ hoặc bao nhiêu % thì bị coi
+        là vượt quá mức thông thường?
+    - key: b
+      label: Đơn hàng chưa thanh toán sẽ tự động bị hủy sau thời gian bao nhiêu phút?
+    - key: c
+      label: Thời gian xử lý hoàn tiền qua cổng VNPay là trong bao lâu?
+    - key: d
+      label: Có nên cân nhắc đổi sang cổng thanh toán khác thay thế cho VNPay không?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a làm rõ định lượng tiền/tỷ lệ % để phân luồng phê duyệt
+      tự động hay thủ công ở câu 3, trong khi b và c lặp lại dữ liệu đã có ở câu 1
+      và 2, d là câu hỏi đề xuất thay đổi hạ tầng.
+  difficulty: hard
+- content:
+    statements:
+    - Hệ thống cần tự động áp dụng mã giảm giá cho đơn hàng mua nhiều sản phẩm.
+    - Mỗi khách hàng chỉ được áp dụng tối đa 1 mã ưu đãi trên một đơn hàng duy nhất.
+    - Nếu tổng giá trị đơn hàng vượt quá ngưỡng phù hợp, hệ thống sẽ miễn phí vận
+      chuyển cho khách.
+    - Thời gian xử lý thanh toán đơn hàng phải diễn ra thật nhanh để tránh nghẽn mạng.
+    - Đơn hàng chưa thanh toán thành công trong vòng 15 phút sẽ tự động hủy và hoàn
+      lại tồn kho.
+    clarifying_options:
+    - key: a
+      label: Điều kiện tổng giá trị đơn hàng cụ thể bao nhiêu VNĐ thì sẽ được miễn
+        phí vận chuyển?
+    - key: b
+      label: Đơn hàng sau bao nhiêu phút không thanh toán thành công thì hệ thống
+        sẽ tự động hủy?
+    - key: c
+      label: Giao diện chọn mã giảm giá nên thiết kế màu sắc như thế nào cho thu hút
+        người dùng?
+    - key: d
+      label: Làm thế nào để toàn bộ hệ thống bán hàng vận hành hiệu quả hơn trong
+        tương lai?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 3
+    - 4
+    best_option_key: a
+    explanation: Phương án a đặt câu hỏi đóng trực tiếp về con số hạn mức giá trị
+      đơn hàng ở câu 3 để làm rõ điều kiện miễn phí vận chuyển, trong khi b hỏi lại
+      thông tin đã rõ ở câu 5, c lan sang thiết kế UX và d quá mơ hồ.
+  difficulty: easy
+- content:
+    statements:
+    - Học viên sau khi hoàn thành khóa học sẽ nhận được chứng chỉ trực tuyến dạng
+      PDF.
+    - Điều kiện để tính hoàn thành là học viên phải xem ít nhất 80% tổng số bài giảng
+      video.
+    - Ngoài ra, điểm số các bài kiểm tra trắc nghiệm phải đạt mức điểm khá trở lên.
+    - Hệ thống cần gửi email thông báo cấp chứng chỉ cho học viên trong thời gian
+      sớm nhất.
+    - Nếu học viên gian lận bài thi, tài khoản sẽ bị xử lý phù hợp theo quy định.
+    - File chứng chỉ PDF lưu trên server S3 phải có tên dạng Certificate_{UserId}_{CourseId}.pdf.
+    clarifying_options:
+    - key: a
+      label: Quy tắc đặt tên file chứng chỉ PDF lưu trên server S3 được quy định cụ
+        thể ra sao?
+    - key: b
+      label: Mức điểm tối thiểu (%) của các bài kiểm tra trắc nghiệm cần đạt để đủ
+        điều kiện nhận chứng chỉ là bao nhiêu?
+    - key: c
+      label: Nên lựa chọn nhà cung cấp dịch vụ gửi email nào để đảm bảo uy tín thương
+        hiệu?
+    - key: d
+      label: Làm sao để các học viên cảm thấy hào hứng và hài lòng hơn khi tham gia
+        khóa học?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 3
+    - 4
+    - 5
+    best_option_key: b
+    explanation: Phương án b làm rõ con số ngưỡng điểm chính xác cần đạt ở câu 3 để
+      phục vụ logic tính toán chứng chỉ, vượt trội so với a (hỏi lại câu 6 đã rõ),
+      c (ngoài phạm vi nghiệp vụ) và d (câu hỏi cảm xúc chung chung).
+  difficulty: medium
+- content:
+    statements:
+    - Khi tài khoản thực hiện giao dịch chuyển tiền trên 50,000,000 VNĐ, hệ thống
+      bắt buộc yêu cầu xác thực OTP.
+    - Nếu người dùng nhập sai OTP quá số lần cho phép, tính năng chuyển tiền sẽ tạm
+      thời bị khóa.
+    - Thời gian tạm khóa chức năng phải đủ dài để đảm bảo an toàn tài khoản.
+    - Nhật ký giao dịch (audit log) phải lưu lại địa chỉ IP, Timestamp và DeviceId
+      của người thực hiện.
+    - Khách hàng có thể liên hệ tổng đài hỗ trợ để mở khóa tài khoản nếu cần thiết.
+    clarifying_options:
+    - key: a
+      label: Số lần nhập sai OTP tối đa cho phép là bao nhiêu và thời gian tạm khóa
+        cụ thể bao nhiêu phút?
+    - key: b
+      label: Hạn mức số tiền giao dịch là bao nhiêu thì hệ thống bắt buộc phải gửi
+        mã OTP?
+    - key: c
+      label: Hệ thống an ninh ngân hàng cần áp dụng các giải pháp gì để ngăn chặn
+        triệt để rủi ro hacker?
+    - key: d
+      label: Quy trình tuyển dụng và đào tạo nhân viên tổng đài hỗ trợ gồm những bước
+        nào?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 2
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a quy định rõ ràng hai thông số kỹ thuật cốt lõi là giới
+      hạn số lần sai OTP và thời lượng khóa ở câu 2 và 3, trái ngược với b (hỏi điều
+      đã rõ ở câu 1), c (quá rộng) và d (sang quy trình nhân sự).
+  difficulty: medium
+- content:
+    statements:
+    - Tài xế công nghệ sẽ nhận được tiền thưởng theo tuần nếu đạt chỉ số hoạt động
+      tốt.
+    - Cụ thể, tài xế phải hoàn thành tối thiểu 50 chuyến xe thành công trong khoảng
+      thời gian từ 00:00 Thứ Hai đến 23:59 Chủ Nhật.
+    - Tỷ lệ hủy chuyến của tài xế trong tuần không được vượt quá mức quy định.
+    - Tiền thưởng sẽ được cộng trực tiếp vào Ví tài xế vào lúc 08:00 sáng Thứ Hai
+      tuần kế tiếp.
+    - Nếu tài xế bị khách hàng đánh giá xấu, hệ thống sẽ xem xét khấu trừ tiền thưởng
+      nếu cần.
+    - Mọi giao dịch cộng tiền thưởng phải tạo một record trong bảng DriverWalletTransaction.
+    clarifying_options:
+    - key: a
+      label: Tỷ lệ hủy chuyến tối đa là bao nhiêu % và mức đánh giá bao nhiêu sao
+        thì bị coi là xấu để khấu trừ thưởng bao nhiêu %?
+    - key: b
+      label: Tiền thưởng sẽ được hệ thống tự động cộng vào Ví tài xế vào chính xác
+        thời điểm nào trong tuần?
+    - key: c
+      label: Làm thế nào để nâng cao thái độ phục vụ và văn hóa giao tiếp của tài
+        xế đối với hành khách?
+    - key: d
+      label: Công ty nên mua thêm bao nhiêu xe máy điện mới để phục vụ việc cho tài
+        xế thuê?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 3
+    - 5
+    best_option_key: a
+    explanation: Phương án a làm rõ cả hai công thức đo lường và định lượng quan trọng
+      về tỷ lệ hủy chuyến và mức phạt khấu trừ thưởng ở câu 3 và 5, trong khi b nhắc
+      lại câu 4, c và d chệch hướng sang tư vấn vận hành doanh nghiệp.
+  difficulty: hard
+- content:
+    statements:
+    - Khi số lượng tồn kho của một sản phẩm xuống mức thấp, hệ thống phải phát thông
+      báo cảnh báo cho kho.
+    - Thông báo cảnh báo sẽ được gửi qua kênh Webhook đến hệ thống chat Slack của
+      bộ phận Quản lý kho.
+    - Nếu sản phẩm bị hết hàng hoàn toàn trong kho, trạng thái sản phẩm trên website
+      phải lập tức cập nhật thành OUT_OF_STOCK.
+    - Các sản phẩm thuộc danh mục hàng dễ vỡ cần có quy trình kiểm đếm phù hợp trước
+      khi nhập kho.
+    - Báo cáo tồn kho định kỳ cần được xuất ra file Excel và gửi cho quản lý tại thời
+      điểm thích hợp.
+    clarifying_options:
+    - key: a
+      label: Số lượng tồn kho tối thiểu bao nhiêu đơn vị thì phát cảnh báo và thời
+        gian xuất báo cáo định kỳ cụ thể vào giờ/ngày nào?
+    - key: b
+      label: Trạng thái hiển thị của sản phẩm trên website sẽ đổi thành giá trị gì
+        khi tồn kho bằng 0?
+    - key: c
+      label: Kho hàng nên bố trí danh mục hàng dễ vỡ nằm ở khu vực tầng mấy để hạn
+        chế rủi ro va đập?
+    - key: d
+      label: Làm thế nào để tự động hóa toàn bộ quy trình vận hành kho mà không cần
+        đến sự can thiệp của con người?
+  answer_key:
+    ambiguous_statement_indexes:
+    - 1
+    - 4
+    - 5
+    best_option_key: a
+    explanation: Phương án a chốt được ngưỡng tồn kho cụ thể và lịch chạy Cronjob
+      báo cáo ở câu 1 và 5 để dev lập trình, vượt trội hơn b (đã nêu rõ ở câu 3),
+      c (thuộc về sắp xếp kho vật lý) và d (tầm nhìn mơ hồ không khả thi).
+  difficulty: hard
