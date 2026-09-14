@@ -1,0 +1,154 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-14T22:19:57Z'
+language: javascript
+questions:
+- content:
+    language: javascript
+    code_lines:
+    - app.post('/api/users/profile', async (req, res) => {
+    - "  const { userId, bio } = req.body;"
+    - "  const updatedUser = await db.user.update({ where: { id: userId }, data: {
+      bio } });"
+    - "  res.json(updatedUser);"
+    - "});"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: API lấy `userId` trực tiếp từ `req.body` mà không kiểm tra xem người
+      dùng đang đăng nhập (từ token/session) có quyền sửa profile của `userId` đó
+      hay không, dẫn đến lỗi BOLA/IDOR. Cần lấy ID người dùng từ thông tin xác thực
+      của request.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - async function processPayment(userId, amount) {
+    - "  const user = await db.findUser(userId);"
+    - "  console.log(`Processing payment of ${amount} for user ${user.id} with card
+      ${user.creditCardNumber}`);"
+    - "  return paymentGateway.charge(user.stripeCustomerId, amount);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Dòng log ghi trực tiếp số thẻ tín dụng (`user.creditCardNumber`)
+      vào system log, vi phạm chuẩn an toàn PCI-DSS. Cần xóa hoặc che bớt thông tin
+      nhạy cảm trước khi log.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function getUsers(req, res) {
+    - "  const { status } = req.query;"
+    - "  const users = await db.query(`SELECT * FROM users WHERE status = '${status}'`);"
+    - "  res.json(users);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Tham số `status` từ query string được nối trực tiếp vào câu lệnh
+      SQL gây ra lỗi SQL Injection. Cần sử dụng parameterized query để truyền tham
+      số an toàn.
+  difficulty: easy
+- content:
+    language: javascript
+    code_lines:
+    - async function calculateUserTotalBalance(users) {
+    - "  return users.map(async (user) => {"
+    - "    const balance = await fetchBalanceFromAPI(user.id);"
+    - "    return { ...user, balance };"
+    - "  });"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: async_misuse
+    explanation: Hàm `map` với callback async sẽ trả về một mảng chứa các Promise
+      chứ không đợi các Promise hoàn thành. Cần bọc mảng đó trong `Promise.all(...)`
+      để nhận về dữ liệu thực tế.
+  difficulty: medium
+- content:
+    language: javascript
+    code_lines:
+    - function formatUserAge(user) {
+    - "  const age = user.age || 'N/A';"
+    - "  return `Age: ${age}`;"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: falsy_check
+    explanation: Sử dụng toán tử `||` làm cho giá trị tuổi bằng `0` bị coi là falsy
+      và biến thành `'N/A'`. Cần sử dụng Nullish Coalescing Operator `??` để giữ lại
+      giá trị `0` hợp lệ.
+  difficulty: hard

@@ -1,0 +1,284 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-14T22:18:01Z'
+language: ruby
+questions:
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - "  query = params[:q]"
+    - '  User.where("name LIKE ''%#{query}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp từ params vào câu lệnh SQL gây ra lỗi SQL Injection,
+      cần dùng tham số hóa dạng User.where('name LIKE ?', "%#{query}%").
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def notify_user(user_id, message)
+    - "  user = User.find_by(id: user_id)"
+    - "  UserMailer.welcome_notification(user.email, message).deliver_now"
+    - rescue => e
+    - '  logger.error("Failed to send email: #{e.message}")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Hàm find_by có thể trả về nil nếu không tìm thấy user_id, dẫn đến
+      lỗi NoMethodError khi gọi user.email; cần kiểm tra nil trước khi truy cập attribute.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def fetch_recent_orders
+    - "  orders = Order.limit(50)"
+    - "  orders.map do |order|"
+    - "    { id: order.id, customer_name: order.customer.name }"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: n_plus_one
+    explanation: Truy vấn danh sách Order nhưng gọi order.customer trong vòng lặp
+      gây ra vấn đề N+1 query, cần dùng Order.includes(:customer).limit(50).
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_funds(sender, receiver, amount)
+    - "  sender.withdraw(amount)"
+    - "  receiver.deposit(amount)"
+    - "  sender.save!"
+    - "  receiver.save!"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Thực hiện hai thao tác trừ tiền và cộng tiền mà không bao trong ActiveRecord::Base.transaction
+      có thể khiến dữ liệu không nhất quán nếu lệnh sau bị lỗi.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def export_user_logs(user)
+    - "  logs = AuditLog.where(user_id: user.id)"
+    - '  Rails.logger.info("Exporting logs for #{user.email} with payload: #{logs.to_json}")'
+    - "  SendExportJob.perform_later(user.id)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi toàn bộ thông tin AuditLog (có thể chứa thông tin cá nhân hoặc
+      nhạy cảm) vào file log là vi phạm bảo mật, chỉ nên ghi các thông tin định danh
+      cơ bản.
+  difficulty: hard
+- content:
+    language: ruby
+    code_lines:
+    - def search_users(params)
+    - "  query = params[:q]"
+    - '  User.where("name LIKE ''%#{query}%''")'
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sql_injection
+    explanation: Nối chuỗi trực tiếp tham số đầu vào vào câu truy vấn SQL gây ra lỗi
+      SQL Injection, nên dùng tham số hóa dạng User.where('name LIKE ?', "%#{query}%").
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def active_user_emails
+    - "  users = User.where(active: true)"
+    - "  users.map { |user| user.profile.email }"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: n_plus_one
+    explanation: Truy cập mối quan hệ user.profile bên trong vòng lặp gây ra vấn đề
+      N+1 query, cần dùng User.includes(:profile) khi truy vấn.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def transfer_funds(from_acc, to_acc, amount)
+    - "  from_acc.update!(balance: from_acc.balance - amount)"
+    - "  to_acc.update!(balance: to_acc.balance + amount)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 1
+    bug_type: missing_transaction
+    explanation: Thao tác chuyển tiền giữa 2 tài khoản không nằm trong database transaction,
+      nếu dòng 3 bị lỗi thì dòng 2 vẫn cập nhật thành công làm mất cân bằng dữ liệu.
+  difficulty: medium
+- content:
+    language: ruby
+    code_lines:
+    - def process_order(order_id)
+    - "  order = Order.find_by(id: order_id)"
+    - "  order.update!(status: 'processed')"
+    - rescue StandardError => e
+    - "  Rails.logger.error(e.message)"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Order.find_by trả về nil nếu không tìm thấy order_id, dẫn đến lỗi
+      NoMethodError khi gọi order.update!, cần kiểm tra order tồn tại trước khi cập
+      nhật.
+  difficulty: easy
+- content:
+    language: ruby
+    code_lines:
+    - def authenticate_and_log(user, password)
+    - "  if user&.valid_password?(password)"
+    - '    Rails.logger.info("User #{user.id} logged in with password: #{password}")'
+    - "    true"
+    - "  end"
+    - end
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Ghi thông tin mật khẩu của người dùng vào log ứng dụng vi phạm nguyên
+      tắc bảo mật thông tin nhạy cảm.
+  difficulty: easy
