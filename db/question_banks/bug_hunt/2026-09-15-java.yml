@@ -1,0 +1,209 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: bug_hunt
+model: gemini-3.6-flash
+generated_at: '2026-09-15T21:55:52Z'
+language: java
+questions:
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/users/{id}")'
+    - public ResponseEntity<UserProfile> getUserProfile(@PathVariable String id) {
+    - "    UserProfile profile = userService.findById(id);"
+    - '    log.info("Fetched profile for user: {} with password: {}", id, profile.getPassword());'
+    - "    return ResponseEntity.ok(profile);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: sensitive_data_logging
+    explanation: Dòng 4 ghi thông tin nhạy cảm (mật khẩu) vào file log, gây nguy cơ
+      rò rỉ dữ liệu mật của người dùng.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - public List<OrderDto> getOrdersByUser(List<String> userIds) {
+    - '    String query = "SELECT * FROM orders WHERE user_id IN (''" + String.join("'',''",
+      userIds) + "'')";'
+    - "    return jdbcTemplate.query(query, new OrderRowMapper());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 2
+    bug_type: sql_injection
+    explanation: Dòng 2 nối trực tiếp danh sách tham số đầu vào vào câu lệnh SQL thay
+      vì dùng PreparedStatement binding, dẫn đến lỗ hổng SQL Injection.
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public UserDto getAccountDetails(String accountId) {
+    - "    Account account = accountRepository.findById(accountId);"
+    - "    return mapper.toDto(account);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_null_check
+    explanation: Dòng 3 trực tiếp gọi hàm toDto() mà không kiểm tra biến account có
+      null hay không (khi không tìm thấy tài khoản trong DB), dẫn đến NullPointerException.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/documents/{docId}")'
+    - public ResponseEntity<Document> getDocument(@PathVariable String docId) {
+    - "    Document doc = documentRepository.findById(docId).orElseThrow();"
+    - "    return ResponseEntity.ok(doc);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: missing_authorization
+    explanation: Dòng 3 lấy thông tin tài liệu theo docId mà không kiểm tra người
+      dùng hiện tại có quyền truy cập tài liệu này hay không (lỗi IDOR/Missing Authorization).
+  difficulty: medium
+- content:
+    language: java
+    code_lines:
+    - public List<ReportDto> generateReports() {
+    - "    List<Report> reports = reportRepository.findAll();"
+    - "    return reports.stream().map(r -> {"
+    - "        List<Item> items = itemRepository.findByReportId(r.getId());"
+    - "        return new ReportDto(r, items);"
+    - "    }).collect(Collectors.toList());"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 4
+    bug_type: n_plus_one
+    explanation: Dòng 4 thực hiện truy vấn cơ sở dữ liệu bên trong vòng lặp map(),
+      dẫn đến lỗi N+1 Query làm giảm hiệu năng nghiêm trọng.
+  difficulty: hard
+- content:
+    language: java
+    code_lines:
+    - '@GetMapping("/orders/{id}")'
+    - public ResponseEntity<OrderDto> getOrder(@PathVariable Long id) {
+    - '    logger.info("Fetching order details for orderId: {} and user PIN: {}",
+      id, req.getPin());'
+    - "    OrderDto order = orderService.findById(id);"
+    - "    return ResponseEntity.ok(order);"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 3
+    bug_type: sensitive_data_logging
+    explanation: Dòng 3 ghi mã PIN của người dùng vào log hệ thống, vi phạm quy tắc
+      bảo mật thông tin nhạy cảm; cần xóa thông tin PIN khỏi câu lệnh log.
+  difficulty: easy
+- content:
+    language: java
+    code_lines:
+    - "@Transactional"
+    - public void updateProductPrices(List<Long> productIds, BigDecimal discountRate)
+      {
+    - "    List<Product> products = productRepository.findAllById(productIds);"
+    - "    for (Product product : products) {"
+    - "        BigDecimal newPrice = product.getPrice().multiply(discountRate);"
+    - "        productRepository.updatePrice(product.getId(), newPrice);"
+    - "    }"
+    - "}"
+    bug_types:
+    - sql_injection
+    - n_plus_one
+    - missing_null_check
+    - missing_transaction
+    - missing_authorization
+    - async_misuse
+    - missing_validation
+    - sensitive_data_logging
+    - xss
+    - swallowed_exception
+    - unbounded_query
+    - falsy_check
+  answer_key:
+    buggy_line: 6
+    bug_type: n_plus_one
+    explanation: Thực hiện truy vấn update từng sản phẩm riêng lẻ bên trong vòng lặp
+      dẫn đến lỗi N+1 query; cần chuyển sang cập nhật hàng loạt (batch update) bằng
+      một câu lệnh SQL duy nhất.
+  difficulty: medium

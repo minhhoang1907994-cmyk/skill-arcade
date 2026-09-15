@@ -1,0 +1,239 @@
+# Đề do Gemini sinh.
+#
+# Q4 (owner chốt 2026-08-19): không cần người soát tay trước khi import. File này giữ
+# lại làm bản ghi những gì đã vào DB — sửa file rồi import lại sẽ CẬP NHẬT câu cũ nếu
+# content không đổi (dedupe theo checksum), hoặc tạo câu mới nếu content đổi.
+---
+game: estimate_poker
+model: gemini-3.6-flash
+generated_at: '2026-09-15T21:52:44Z'
+questions:
+- content:
+    task_description: Thêm trường 'note' (ghi chú đơn hàng) vào API tạo đơn hàng hiện
+      tại.
+    context: Hệ thống Backend viết bằng NestJS/TypeORM, cấu trúc dự án đã chuẩn hóa,
+      DB có sẵn migration runner.
+  answer_key:
+    actual_hours: 1.25
+    breakdown:
+    - step: Thêm cột note vào file migration Database và cập nhật Entity
+      hours: 0.25
+    - step: Cập nhật CreateOrderDTO để nhận trường note và validate độ dài tối đa
+        255 ký tự
+      hours: 0.25
+    - step: Sửa OrderService để map ghi chú từ DTO vào Entity khi lưu
+      hours: 0.25
+    - step: Bổ sung unit test cho OrderService với trường hợp có note và không có
+        note
+      hours: 0.5
+    reasoning: Thời gian chủ yếu nằm ở việc bổ sung unit test để đảm bảo logic lưu
+      note hoạt động đúng và không làm gãy test cũ.
+  difficulty: easy
+- content:
+    task_description: Tích hợp Google OAuth2 cho trang đăng nhập của ứng dụng Web.
+    context: Hệ thống đã có sẵn luồng Đăng nhập/Đăng ký chuẩn bằng Email/Password
+      phát hành JWT. Đã có Google Client ID/Secret trên Google Console.
+  answer_key:
+    actual_hours: 5.0
+    breakdown:
+    - step: Cấu hình passport-google-oauth20 Strategy và cài đặt biến môi trường
+      hours: 0.5
+    - step: Viết API endpoint nhận callback từ Google và xử lý logic tạo user mới
+        nếu chưa tồn tại
+      hours: 1.5
+    - step: Tạo luồng phát hành JWT token hệ thống sau khi xác thực thành công qua
+        Google
+      hours: 1.0
+    - step: Thêm nút 'Đăng nhập với Google' ở giao diện Web React và gắn luồng redirect
+      hours: 0.75
+    - step: Viết integration test cho luồng đăng nhập thành công và thất bại từ Google
+        callback
+      hours: 1.25
+    reasoning: Công việc tốn thời gian nhất ở đoạn viết API callback xử lý liên kết
+      tài khoản và bổ sung integration test.
+  difficulty: easy
+- content:
+    task_description: Thêm bộ lọc theo khoảng giá và danh mục sản phẩm trên trang
+      Danh sách sản phẩm.
+    context: Backend xài PostgreSQL, giao diện ReactJS đã có danh sách sản phẩm hiển
+      thị dạng grid đơn giản.
+  answer_key:
+    actual_hours: 7.0
+    breakdown:
+    - step: Sửa API GET /products để nhận thêm query param minPrice, maxPrice, categoryId
+        và áp dụng Filter vào QueryBuilder
+      hours: 1.5
+    - step: Tạo UI Sidebar lọc sản phẩm trên Frontend ReactJS gồm ô nhập giá và danh
+        sách checkbox danh mục
+      hours: 2.5
+    - step: Đồng bộ bộ lọc lên URL query string để người dùng có thể lưu bookmark
+        hoặc share link
+      hours: 1.5
+    - step: Sửa các unit test API cũ và bổ sung test cases kiểm tra filter kết hợp
+      hours: 1.5
+    reasoning: Phần lớn effort nằm ở việc dựng UI bộ lọc và xử lý việc đồng bộ trạng
+      thái filter lên URL query string ở phía Frontend.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi luồng gửi email xác nhận đơn hàng từ synchronous
+      sang asynchronous sử dụng RabbitMQ.
+    context: Hệ thống đã có sẵn thư viện gửi email hoạt động tốt nhưng làm chậm response
+      checkout. RabbitMQ đã được cài ở môi trường dev.
+  answer_key:
+    actual_hours: 11.0
+    breakdown:
+    - step: Dựng module Producer kết nối RabbitMQ và tạo queue 'order_created_email'
+      hours: 1.5
+    - step: Tách code gửi email hiện tại ra thành một Consumer độc lập lắng nghe message
+        từ queue
+      hours: 2.5
+    - step: Viết cơ chế Retry với Dead Letter Exchange (DLX) xử lý trường hợp gửi
+        mail thất bại
+      hours: 3.0
+    - step: Sửa luồng checkout cũ để push event vào queue thay vì gọi trực tiếp EmailService
+      hours: 1.0
+    - step: Viết integration test kiểm tra message được push đúng payload và Consumer
+        xử lý thành công
+      hours: 3.0
+    reasoning: Thời gian tốn nhiều nhất cho việc cấu hình cơ chế Retry/DLX để tránh
+      mất mail và viết integration test cho luồng bất đồng bộ.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng Import danh sách nhân sự từ file Excel (.xlsx)
+      lên tới 10,000 dòng.
+    context: Dự án sử dụng Node.js, PostgreSQL và ReactJS. Chưa từng có tính năng
+      import Excel nào trước đó.
+  answer_key:
+    actual_hours: 32.0
+    breakdown:
+    - step: Viết UI cho phép upload file Excel, hiển thị tiến độ và thông báo lỗi
+        theo từng dòng
+      hours: 4.0
+    - step: Xây dựng API upload nhận file, parse bằng exceljs và validate format dữ
+        liệu từng ô
+      hours: 6.0
+    - step: Viết logic kiểm tra trùng lặp email/CMND với Database theo batch để tối
+        ưu truy vấn
+      hours: 7.0
+    - step: Thực hiện bulk insert vào Database trong Database Transaction để rollback
+        nếu có lỗi lớn
+      hours: 5.0
+    - step: Xử lý sinh file Excel kết quả chứa danh sách các dòng bị lỗi để người
+        dùng tải về
+      hours: 4.0
+    - step: Viết unit test & integration test cho trường hợp file đúng, file sai định
+        dạng, và file chứa data trùng
+      hours: 6.0
+    reasoning: Phần lớn thời gian tập trung vào việc xử lý validate/check trùng dữ
+      liệu theo batch nhằm đảm bảo hiệu năng và không crash bộ nhớ với 10k dòng.
+  difficulty: hard
+- content:
+    task_description: Thêm trường `discount_code` vào response của API xem chi tiết
+      đơn hàng `GET /api/v1/orders/{id}`.
+    context: Database đã có sẵn thông tin mã giảm giá trong bảng giao dịch thanh toán
+      nhưng chưa lưu trực tiếp ở bảng `orders`. DB và backend framework đã có sẵn
+      hạ tầng CI/CD tự động.
+  answer_key:
+    actual_hours: 1.0
+    breakdown:
+    - step: Thêm cột `discount_code` vào file migration SQL và chạy migration trên
+        local
+      hours: 0.25
+    - step: Khai báo trường `discount_code` trong DTO và Mapper của API `GET /api/v1/orders/{id}`
+      hours: 0.25
+    - step: Cập nhật unit test cho Mapper và Controller để kiểm tra trường mới
+      hours: 0.5
+    reasoning: Phần lớn thời gian dành cho việc cập nhật các case unit test hiện có
+      để bảo đảm không bị vỡ contract API.
+  difficulty: easy
+- content:
+    task_description: Tích hợp Google OAuth 2.0 để đăng nhập cho ứng dụng Web React
+      sẵn có.
+    context: Hệ thống đã có sẵn luồng đăng nhập bằng Email/Password chuẩn sử dụng
+      JWT. Dự án React dùng Redux Toolkit.
+  answer_key:
+    actual_hours: 4.0
+    breakdown:
+    - step: Tạo Client ID/Secret trên Google Cloud Console và cấu hình redirect URI
+      hours: 0.5
+    - step: Cài đặt thư viện SDK Google Auth trên React frontend và gắn nút 'Đăng
+        nhập với Google'
+      hours: 1.0
+    - step: Viết API backend `POST /api/v1/auth/google` để verify id_token và trả
+        về JWT của hệ thống
+      hours: 1.5
+    - step: Viết unit test kiểm tra luồng verify token thành công và thất bại ở backend
+      hours: 1.0
+    reasoning: Phần lớn thời gian nằm ở việc xử lý xác thực id_token phía backend
+      và trả về JWT session chuẩn cho hệ thống.
+  difficulty: medium
+- content:
+    task_description: Xây dựng tính năng xuất danh sách lịch sử giao dịch ra file
+      Excel (.xlsx) cho trang Admin.
+    context: Hệ thống đã có sẵn trang xem danh sách giao dịch trên Web Admin. Lượng
+      dữ liệu tối đa cho một lần xuất là 50,000 dòng.
+  answer_key:
+    actual_hours: 7.0
+    breakdown:
+    - step: Viết hàm query dữ liệu giao dịch theo bộ lọc có phân trang/stream ở Repo
+        layer
+      hours: 1.5
+    - step: Cấu hình thư viện Excel (ExcelJS/Apache POI) để format header, cột ngày
+        tháng và số tiền
+      hours: 2.0
+    - step: Tạo API `GET /api/v1/admin/transactions/export` stream file về client
+      hours: 1.5
+    - step: Viết button và xử lý download file ở UI React Admin
+      hours: 1.0
+    - step: Viết integration test cho luồng export file với bộ dữ liệu mẫu
+      hours: 1.0
+    reasoning: Phần lớn thời gian dành cho việc format giao diện các cột Excel và
+      tối ưu truy vấn dữ liệu dạng stream để tránh tốn RAM.
+  difficulty: medium
+- content:
+    task_description: Chuyển đổi luồng gửi email xác nhận đơn hàng từ đồng bộ (synchronous)
+      sang bất đồng bộ dùng RabbitMQ.
+    context: RabbitMQ server đã được dựng sẵn trên môi trường dev. Logic gửi mail
+      qua SendGrid API hiện tại đang chạy tốt nhưng làm chậm response checkout.
+  answer_key:
+    actual_hours: 12.0
+    breakdown:
+    - step: Định nghĩa Exchange, Queue và Binding trong RabbitMQ config của ứng dụng
+      hours: 1.0
+    - step: Tách logic gửi mail hiện tại thành OrderCreatedEvent Producer tại Checkout
+        Service
+      hours: 2.0
+    - step: Viết Notification Consumer để hứng event và gọi SendGrid API gửi email
+      hours: 3.0
+    - step: Xử lý retry mechanism (Dead Letter Queue) khi gửi mail thất bại
+      hours: 2.5
+    - step: Cập nhật unit test và integration test cho cả Producer và Consumer
+      hours: 3.5
+    reasoning: Phần lớn thời gian nằm ở việc xử lý logic retry/DLQ khi mạng lỗi và
+      cập nhật lại toàn bộ bộ test cho luồng bất đồng bộ.
+  difficulty: hard
+- content:
+    task_description: Xây dựng microservice mới 'Inventory Service' quản lý kho hàng
+      với các API CRUD cơ bản và sync tồn kho.
+    context: Dự án chuyển từ Monolith sang Microservices. Chuẩn gRPC và Postgres đã
+      được thống nhất trong quy chuẩn của công ty.
+  answer_key:
+    actual_hours: 32.0
+    breakdown:
+    - step: Khởi tạo repo service mới, setup khung dự án, Dockerfile và kết nối PostgreSQL
+      hours: 3.0
+    - step: Tạo DB schema migration cho các bảng `products_stock` và `stock_logs`
+      hours: 2.0
+    - step: Viết các API CRUD cơ bản quản lý số lượng tồn kho theo SKU
+      hours: 6.0
+    - step: Viết API giữ hàng (reserve stock) và giảm hàng (deduct stock) có xử lý
+        Lock để tránh race condition
+      hours: 8.0
+    - step: Viết gRPC client/proto contract để Order Service có thể gọi sang Inventory
+        Service
+      hours: 5.0
+    - step: Viết Unit test và Integration test phủ 80% logic nghiệp vụ kho
+      hours: 8.0
+    reasoning: Phần lớn thời gian nằm ở việc xử lý bài toán concurrency (Lock/Race
+      condition) khi nhiều đơn hàng cùng trừ tồn kho và viết test cho service mới.
+  difficulty: hard
